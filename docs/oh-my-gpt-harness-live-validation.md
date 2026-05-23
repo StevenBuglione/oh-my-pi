@@ -54,6 +54,16 @@ The run also exposed important ChatGPT CLI behavior that the harness must handle
 - Narrow terminal output wrapped JSON across a field name, so the harness worker wrapper now forces a wide non-color terminal when invoking the CLI.
 - One artifact download attempt failed while reopening the conversation with `Page.goto: net::ERR_ABORTED`; this confirms artifact success must be validated locally and download failures must remain non-success states.
 
+## Follow-up Fix
+
+The upstream ChatGPT CLI worker watch path was fixed after this run:
+
+- Final worker completion now detects incomplete structured assistant text from the DOM and refreshes it through ChatGPT's copy action under a clipboard lock.
+- The worker page is brought to the foreground before the copy fallback so the correct conversation supplies the clipboard content.
+- `--copy-message` now prints exact raw message text instead of Rich-rendered Markdown, avoiding line wrapping that can corrupt JSON contracts.
+
+The same worker conversation was re-watched after the fix, and `workers watch --json` returned the full `omg.review.v1` envelope in `assistant_text`.
+
 ## Verdict
 
 The live handoff proved the core harness shape:
