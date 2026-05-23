@@ -2,7 +2,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getAgentDir } from "@oh-my-gpt/gpt-utils/dirs";
 import { Snowflake } from "@oh-my-gpt/gpt-utils/snowflake";
-import { HARNESS_SCHEMA_VERSION, type HarnessRunState, type HarnessTodoItem } from "./types";
+import {
+	HARNESS_SCHEMA_VERSION,
+	type HarnessGateId,
+	type HarnessGateState,
+	type HarnessRunState,
+	type HarnessTodoItem,
+} from "./types";
 
 const DEFAULT_TODOS = [
 	"define task",
@@ -12,6 +18,19 @@ const DEFAULT_TODOS = [
 	"download/parse outputs",
 	"validate locally",
 	"review",
+	"report",
+];
+
+const ARTIFACT_PROJECT_GATES: HarnessGateId[] = [
+	"doctor",
+	"packet",
+	"planner",
+	"builder",
+	"download",
+	"manifest",
+	"validate",
+	"fixer",
+	"critic",
 	"report",
 ];
 
@@ -46,6 +65,19 @@ export function defaultTodos(): HarnessTodoItem[] {
 	}));
 }
 
+export function defaultArtifactProjectGates(): HarnessGateState[] {
+	return ARTIFACT_PROJECT_GATES.map(id => ({ id, status: id === "fixer" ? "skipped" : "pending" }));
+}
+
+export function ensureHarnessGates(state: HarnessRunState): HarnessGateState[] {
+	if (!state.gates) state.gates = defaultArtifactProjectGates();
+	const existing = new Set(state.gates.map(gate => gate.id));
+	for (const gate of defaultArtifactProjectGates()) {
+		if (!existing.has(gate.id)) state.gates.push(gate);
+	}
+	return state.gates;
+}
+
 export async function ensureRunDirs(runId: string, agentDir?: string): Promise<string> {
 	const runDir = getHarnessRunDir(runId, agentDir);
 	await fs.mkdir(runDir, { recursive: true, mode: 0o700 });
@@ -57,7 +89,7 @@ export async function ensureRunDirs(runId: string, agentDir?: string): Promise<s
 
 export async function createHarnessRun(
 	objective: string,
-	options: { runId?: string; promptLimit?: number; agentDir?: string } = {},
+	options: { runId?: string; promptLimit?: number; agentDir?: string; template?: HarnessRunState["template"] } = {},
 ): Promise<HarnessRunState> {
 	const runId = options.runId ?? createRunId();
 	await ensureRunDirs(runId, options.agentDir);
@@ -66,10 +98,12 @@ export async function createHarnessRun(
 		schemaVersion: HARNESS_SCHEMA_VERSION,
 		runId,
 		objective,
+		template: options.template,
 		status: "active",
 		createdAt,
 		updatedAt: createdAt,
 		promptBudget: { used: 0, limit: options.promptLimit ?? 10 },
+		gates: options.template === "artifact-project" ? defaultArtifactProjectGates() : undefined,
 		workers: [],
 		evidencePackets: [],
 		artifacts: [],
@@ -92,6 +126,29 @@ export async function writeRunState(state: HarnessRunState, agentDir?: string): 
 	await Bun.write(path.join(runDir, "run.json"), `${JSON.stringify(state, null, 2)}\n`);
 }
 
+export async function setGateStatus(
+	state: HarnessRunState,
+	id: HarnessGateId,
+	status: HarnessGateState["status"],
+	fields: Partial<Omit<HarnessGateState, "id" | "status">> = {},
+	agentDir?: string,
+): Promise<void> {
+	const gates = ensureHarnessGates(state);
+	const gate = gates.find(item => item.id === id);
+	if (!gate) return;
+	gate.status = status;
+	Object.assign(gate, fields);
+	if (status === "running") {
+		gate.startedAt = gate.startedAt ?? nowIso();
+		delete gate.completedAt;
+		delete gate.error;
+	}
+	if (status === "passed" || status === "failed" || status === "skipped") {
+		gate.completedAt = nowIso();
+	}
+	await writeRunState(state, agentDir);
+}
+
 export async function readTodos(runId: string, agentDir?: string): Promise<HarnessTodoItem[]> {
 	const file = path.join(getHarnessRunDir(runId, agentDir), "todo.json");
 	return JSON.parse(await fs.readFile(file, "utf8")) as HarnessTodoItem[];
@@ -100,6 +157,57 @@ export async function readTodos(runId: string, agentDir?: string): Promise<Harne
 export async function writeTodos(runId: string, todos: HarnessTodoItem[], agentDir?: string): Promise<void> {
 	const runDir = await ensureRunDirs(runId, agentDir);
 	await Bun.write(path.join(runDir, "todo.json"), `${JSON.stringify(todos, null, 2)}\n`);
+}
+
+export async function setTodoStatus(
+	runId: string,
+	title: string,
+	status: HarnessTodoItem["status"],
+	agentDir?: string,
+): Promise<void> {
+	const todos = await readTodos(runId, agentDir);
+	const target = todos.find(todo => todo.title === title);
+	if (!target) return;
+	target.status = status;
+	target.updatedAt = nowIso();
+	await writeTodos(runId, todos, agentDir);
+}
+
+export async function writeRunFile(
+	runId: string,
+	kind: "prompts" | "responses" | "artifacts" | "validation" | "packets",
+	name: string,
+	content: string | Uint8Array,
+	agentDir?: string,
+): Promise<string> {
+	const runDir = await ensureRunDirs(runId, agentDir);
+	const filePath = path.join(runDir, kind, name);
+	await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
+	await Bun.write(filePath, content);
+	return filePath;
+}
+
+export async function bindWorkerRole(
+	state: HarnessRunState,
+	role: string,
+	worker: {
+		workerId?: string;
+		requestId?: string;
+		conversationUrl?: string;
+		title?: string;
+		modelOption?: string;
+		thinkingOption?: string;
+		skillBundles?: string[];
+	},
+	agentDir?: string,
+): Promise<void> {
+	const existing = state.workers.find(item => item.role === role);
+	if (existing) {
+		Object.assign(existing, worker);
+	} else {
+		state.workers.push({ role, ...worker });
+	}
+	await writeRunState(state, agentDir);
 }
 
 export async function listHarnessRuns(agentDir?: string): Promise<HarnessRunState[]> {
@@ -132,6 +240,12 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		`- Validation entries: ${state.validation.length}`,
 		`- Verdict: ${state.verdict ?? "(pending)"}`,
 		"",
+		"## Gates",
+		"",
+		...(state.gates?.length
+			? state.gates.map(gate => `- ${gate.id}: ${gate.status}${gate.summary ? ` - ${gate.summary}` : ""}`)
+			: ["- None recorded"]),
+		"",
 		"## Workers",
 		"",
 		...(state.workers.length
@@ -143,6 +257,10 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		...(state.validation.length
 			? state.validation.map(v => `- ${v.status}: ${v.summary}${v.command ? ` (${v.command})` : ""}`)
 			: ["- No validation recorded yet"]),
+		"",
+		"## Reviewer Findings",
+		"",
+		...(state.reviewerFindings?.length ? state.reviewerFindings.map(finding => `- ${finding}`) : ["- None recorded"]),
 		"",
 	];
 	const reportPath = path.join(runDir, "report.md");

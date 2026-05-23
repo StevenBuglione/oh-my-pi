@@ -58,6 +58,31 @@ export type CriticEnvelope = z.infer<typeof CriticEnvelopeSchema>;
 export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
 
 export type HarnessTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
+export type HarnessRunStatus = "active" | "blocked" | "good_enough" | "not_good_enough" | "abandoned";
+export type HarnessGateStatus = "pending" | "running" | "passed" | "failed" | "skipped";
+export type HarnessGateId =
+	| "doctor"
+	| "packet"
+	| "planner"
+	| "builder"
+	| "download"
+	| "manifest"
+	| "validate"
+	| "fixer"
+	| "critic"
+	| "report";
+
+export const ProjectManifestSchema = z.object({
+	name: z.string().min(1),
+	description: z.string().min(1),
+	language: z.string().min(1),
+	entrypoints: z.array(z.string()).default([]),
+	test_command: z.string().min(1),
+	expected_files: z.array(z.string()).default([]),
+	limitations: z.array(z.string()).default([]),
+});
+
+export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
 
 export interface HarnessTodoItem {
 	id: string;
@@ -66,21 +91,42 @@ export interface HarnessTodoItem {
 	updatedAt: string;
 }
 
+export interface HarnessGateState {
+	id: HarnessGateId;
+	status: HarnessGateStatus;
+	startedAt?: string;
+	completedAt?: string;
+	inputPaths?: string[];
+	outputPaths?: string[];
+	workerRole?: "planner" | "builder" | "critic" | "fixer";
+	workerId?: string;
+	requestId?: string;
+	conversationUrl?: string;
+	summary?: string;
+	error?: string;
+}
+
 export interface HarnessRunState {
 	schemaVersion: typeof HARNESS_SCHEMA_VERSION;
 	runId: string;
 	objective: string;
-	status: "active" | "blocked" | "good_enough" | "not_good_enough";
+	template?: "artifact-project";
+	status: HarnessRunStatus;
 	createdAt: string;
 	updatedAt: string;
 	promptBudget: {
 		used: number;
 		limit: number;
 	};
+	gates?: HarnessGateState[];
 	workers: Array<{
-		role: string;
+		role: "planner" | "builder" | "critic" | "fixer" | string;
 		workerId?: string;
+		requestId?: string;
 		conversationUrl?: string;
+		title?: string;
+		modelOption?: string;
+		thinkingOption?: string;
 		skillBundles?: string[];
 	}>;
 	evidencePackets: string[];
@@ -97,7 +143,23 @@ export interface HarnessRunState {
 		status: "passed" | "failed" | "skipped";
 		summary: string;
 	}>;
+	reviewerFindings?: string[];
 	verdict?: string;
+	abandonedAt?: string;
+}
+
+export interface HarnessDoctorCheck {
+	id: string;
+	label: string;
+	ok: boolean;
+	blocking: boolean;
+	summary: string;
+	details?: unknown;
+}
+
+export interface HarnessDoctorResult {
+	ok: boolean;
+	checks: HarnessDoctorCheck[];
 }
 
 export interface EvidencePacketOptions {

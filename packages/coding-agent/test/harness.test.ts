@@ -4,15 +4,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getAgentDir, setAgentDir } from "@oh-my-gpt/gpt-utils/dirs";
 import { Snowflake } from "@oh-my-gpt/gpt-utils/snowflake";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import {
+	bindWorkerRole,
 	buildChatGptCommand,
 	buildEvidencePacket,
 	bundleChatGptSkill,
+	cleanupHarnessRuns,
 	createHarnessRun,
 	getHarnessRunDir,
+	listHarnessRuns,
 	parseChatGptJsonEnvelope,
+	readRunState,
+	resumeArtifactProjectHarness,
+	runArtifactProjectHarness,
+	runHarnessDoctor,
 	validateChatGptSkill,
+	validateProjectManifest,
 } from "../src/harness";
 
 describe("harness core", () => {
@@ -41,6 +49,16 @@ describe("harness core", () => {
 		expect(run.promptBudget.limit).toBe(3);
 	});
 
+	it("lists and exports canonical run state from the .omg run directory", async () => {
+		const run = await createHarnessRun("canonical objective");
+		const runs = await listHarnessRuns();
+		const exported = await readRunState(run.runId);
+
+		expect(runs.some(item => item.runId === run.runId)).toBe(true);
+		expect(exported.objective).toBe("canonical objective");
+		expect(getHarnessRunDir(run.runId)).toContain(path.join("agent", "harness", "runs"));
+	});
+
 	it("builds evidence packets with hashes and excludes blocked paths", async () => {
 		const cwd = path.join(tempRoot, "repo");
 		await fs.mkdir(path.join(cwd, "src"), { recursive: true });
@@ -63,6 +81,9 @@ describe("harness core", () => {
 		const zipPath = path.join(packet.packetDir, "REPO_SLICE.zip");
 		const unzipped = unzipSync(new Uint8Array(await Bun.file(zipPath).arrayBuffer()));
 		expect(Object.keys(unzipped)).toEqual(["src/app.ts"]);
+		expect(await Bun.file(path.join(packet.packetDir, "validate_response.py")).exists()).toBe(true);
+		expect(await Bun.file(path.join(packet.packetDir, "PROJECT_MANIFEST.schema.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(packet.packetDir, "schemas", "omg.handoff.v1.schema.json")).exists()).toBe(true);
 	});
 
 	it("validates and bundles ChatGPT worker skills", async () => {
@@ -88,6 +109,47 @@ describe("harness core", () => {
 		expect(await Bun.file(bundle.zipPath).exists()).toBe(true);
 	});
 
+	it("validates PROJECT_MANIFEST.json contracts", async () => {
+		const workspace = path.join(tempRoot, "manifest-workspace");
+		await fs.mkdir(workspace, { recursive: true });
+
+		expect((await validateProjectManifest(workspace)).ok).toBe(false);
+
+		await Bun.write(path.join(workspace, "PROJECT_MANIFEST.json"), "{nope");
+		expect((await validateProjectManifest(workspace)).ok).toBe(false);
+
+		await Bun.write(
+			path.join(workspace, "PROJECT_MANIFEST.json"),
+			JSON.stringify({
+				name: "bad",
+				description: "bad manifest",
+				language: "Python",
+				entrypoints: ["../escape.py"],
+				test_command: "",
+				expected_files: ["missing.py"],
+				limitations: [],
+			}),
+		);
+		const invalid = await validateProjectManifest(workspace);
+		expect(invalid.ok).toBe(false);
+		expect(invalid.errors.join("\n")).toContain("test_command");
+
+		await Bun.write(path.join(workspace, "app.py"), "print('ok')\n");
+		await Bun.write(
+			path.join(workspace, "PROJECT_MANIFEST.json"),
+			JSON.stringify({
+				name: "good",
+				description: "good manifest",
+				language: "Python",
+				entrypoints: ["app.py"],
+				test_command: "python app.py",
+				expected_files: ["app.py"],
+				limitations: [],
+			}),
+		);
+		expect((await validateProjectManifest(workspace)).ok).toBe(true);
+	});
+
 	it("builds ChatGPT CLI commands without running them", () => {
 		expect(
 			buildChatGptCommand({
@@ -96,12 +158,18 @@ describe("harness core", () => {
 				prompt: "Return JSON only",
 				files: ["packet.zip"],
 				skills: ["critic-review"],
+				modelOption: "Thinking",
+				thinkingOption: "Standard",
 				extraArgs: ["--json"],
 			}),
 		).toEqual([
 			"chatgpt",
 			"workers",
 			"send",
+			"--model-option",
+			"Thinking",
+			"--thinking-option",
+			"Standard",
 			"--file",
 			"packet.zip",
 			"--skill",
@@ -125,6 +193,14 @@ describe("harness core", () => {
 			"--download-dir",
 			"artifacts",
 		]);
+		expect(
+			buildChatGptCommand({
+				action: "rename",
+				worker: "bob-burger",
+				title: "OMG run planner bob-burger",
+				extraArgs: ["--json"],
+			}),
+		).toEqual(["chatgpt", "workers", "rename", "--json", "bob-burger", "OMG run planner bob-burger"]);
 	});
 
 	it("validates structured ChatGPT JSON envelopes", () => {
@@ -141,4 +217,886 @@ describe("harness core", () => {
 		expect(valid.ok).toBe(true);
 		expect(parseChatGptJsonEnvelope("{nope").ok).toBe(false);
 	});
+
+	it("reports blocking doctor failures with mocked commands", async () => {
+		const result = await runHarnessDoctor({
+			cwd: tempRoot,
+			cdp: "http://127.0.0.1:1",
+			requireLive: true,
+			runner: async command => ({
+				ok: command.includes("--help"),
+				exitCode: command.includes("--help") ? 0 : 1,
+				stdout: "",
+				stderr: command.includes("--help") ? "" : "workers unavailable",
+			}),
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.checks.some(check => check.id === "workers" && !check.ok)).toBe(true);
+		expect(result.checks.some(check => check.id === "chrome_cdp" && !check.ok)).toBe(true);
+		expect(result.checks.some(check => check.id === "artifact_download" && !check.ok)).toBe(true);
+	});
+
+	it("reports an OK doctor state with mocked commands and valid skills", async () => {
+		await writeSkill(tempRoot, "artifact-builder");
+		await writeSkill(tempRoot, "critic-review");
+		const server = Bun.serve({
+			port: 0,
+			fetch: () => Response.json({ Browser: "mock" }),
+		});
+		try {
+			const result = await runHarnessDoctor({
+				cwd: tempRoot,
+				cdp: server.url.origin,
+				requireLive: true,
+				runner: async command => {
+					const text = command.join(" ");
+					if (text === "omg --version") return commandOk("omg/15.2.4");
+					if (text === "chatgpt --help") return commandOk("chatgpt help");
+					if (text === "chatgpt --headless --help") return commandOk("usage --download-artifacts");
+					if (text === "chatgpt workers list --json") return commandOk("[]");
+					return { ok: false, exitCode: 1, stdout: "", stderr: "unexpected command" };
+				},
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.checks.some(check => check.id === "omg_bin" && check.ok)).toBe(true);
+			expect(result.checks.some(check => check.id === "artifact_download" && check.ok)).toBe(true);
+		} finally {
+			server.stop(true);
+		}
+	});
+
+	it("stores actual worker IDs by role without duplicating role bindings", async () => {
+		const run = await createHarnessRun("role binding");
+		await bindWorkerRole(run, "planner", { workerId: "planner-real-7" });
+		await bindWorkerRole(run, "planner", {
+			requestId: "req-1",
+			conversationUrl: "https://chatgpt.com/c/real",
+		});
+		const state = await readRunState(run.runId);
+
+		expect(state.workers).toHaveLength(1);
+		expect(state.workers[0]).toMatchObject({
+			role: "planner",
+			workerId: "planner-real-7",
+			requestId: "req-1",
+			conversationUrl: "https://chatgpt.com/c/real",
+		});
+	});
+
+	it("cleanup stops only run-scoped workers and marks that run abandoned", async () => {
+		const run = await createHarnessRun("cleanup target", { template: "artifact-project" });
+		const short = run.runId.split("-").at(-1)!.slice(0, 8);
+		await bindWorkerRole(run, "planner", { workerId: `omg-${short}-planner-1` });
+		await bindWorkerRole(run, "critic", { workerId: "random-critic" });
+		const stopped: string[] = [];
+
+		const result = await cleanupHarnessRuns({
+			runId: run.runId,
+			runner: async input => {
+				if (input.action === "stop" && input.worker) stopped.push(input.worker);
+				return { ...ok(input, "{}"), downloadedFiles: undefined };
+			},
+		});
+		const state = await readRunState(run.runId);
+
+		expect(result.cleaned).toEqual([`omg-${short}-planner-1`, "random-critic"]);
+		expect(stopped).toEqual([`omg-${short}-planner-1`, "random-critic"]);
+		expect(state.status).toBe("abandoned");
+		expect(state.workers.map(worker => worker.workerId)).toContain("random-critic");
+	});
+
+	it("runs a mocked artifact-project workflow to good_enough", async () => {
+		const cwd = path.join(tempRoot, "repo");
+		await writeSkill(cwd, "artifact-builder");
+		await writeSkill(cwd, "critic-review");
+
+		let workerIndex = 0;
+		let criticSendFiles: string[] | undefined;
+		const sendFileCounts: number[] = [];
+		const zipBytes = zipSync({
+			"workspace/README.md": new TextEncoder().encode("ok\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("test command: bun --version\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "tiny",
+				description: "Tiny test project",
+				language: "JavaScript",
+				entrypoints: ["README.md"],
+				test_command: `${process.execPath} --version`,
+				expected_files: ["README.md", "PROJECT_REPORT.md"],
+				limitations: [],
+			}),
+		});
+
+		const state = await runArtifactProjectHarness("build a tiny project", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "--version"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder", "critic"][workerIndex - 1] ?? "worker";
+					const workerId = `${role}-random-${workerIndex}`;
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: workerId, conversation_url: `https://chatgpt.com/c/${workerId}` }]),
+					);
+				}
+				if (input.action === "send") {
+					sendFileCounts.push(input.files?.length ?? 0);
+					if (input.worker?.includes("critic")) criticSendFiles = input.files;
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("planner")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.handoff.v1",
+								role: "planner",
+								status: "complete",
+								summary: "plan",
+								confidence: 0.9,
+								assumptions: [],
+								findings: [],
+								next_action: "send_to_builder",
+								artifacts: [],
+								patches: [],
+								requested_context: [],
+							}),
+						);
+					}
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, "workspace.zip attached");
+				}
+				if (input.action === "download_artifacts") {
+					await fs.mkdir(input.downloadDir!, { recursive: true });
+					await Bun.write(path.join(input.downloadDir!, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("good_enough");
+		const runDir = getHarnessRunDir(state.runId);
+		expect(await Bun.file(path.join(runDir, "prompts", "planner.md")).exists()).toBe(true);
+		expect(await Bun.file(path.join(runDir, "responses", "planner-copy.txt")).exists()).toBe(true);
+		expect(state.workers.map(worker => worker.role)).toEqual(["planner", "builder", "critic"]);
+		expect(sendFileCounts.every(count => count === 1)).toBe(true);
+		expect(criticSendFiles).toHaveLength(1);
+		expect(criticSendFiles?.[0]).toContain("critic-handoff.zip");
+	});
+
+	it("prefers downloaded worker JSON artifacts over copied chat text", async () => {
+		const cwd = path.join(tempRoot, "repo");
+		await writeSkill(cwd, "artifact-builder");
+		await writeSkill(cwd, "critic-review");
+
+		const zipBytes = zipSync({
+			"workspace/README.md": new TextEncoder().encode("ok\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("test command: bun --version\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "json-artifact",
+				description: "JSON artifact test project",
+				language: "JavaScript",
+				entrypoints: ["README.md"],
+				test_command: `${process.execPath} --version`,
+				expected_files: ["README.md", "PROJECT_REPORT.md"],
+				limitations: [],
+			}),
+		});
+		let copyMessageCount = 0;
+		let workerIndex = 0;
+
+		const state = await runArtifactProjectHarness("use json files", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "--version"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-json`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "status") {
+					return ok(
+						input,
+						JSON.stringify({ conversation_url: `https://chatgpt.com/c/${input.worker}`, is_generating: false }),
+					);
+				}
+				if (input.action === "copy_message") {
+					copyMessageCount += 1;
+					return ok(input, "not valid json");
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.conversationUrl?.includes("planner")) {
+						await Bun.write(
+							path.join(input.downloadDir, "response.json"),
+							JSON.stringify(handoff("plan from file")),
+						);
+						return { ...ok(input, "{}"), downloadedFiles: ["response.json"] };
+					}
+					if (input.conversationUrl?.includes("critic")) {
+						await Bun.write(
+							path.join(input.downloadDir, "review.json"),
+							JSON.stringify({
+								schema_version: "omg.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+						return { ...ok(input, "{}"), downloadedFiles: ["review.json"] };
+					}
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(copyMessageCount).toBe(1);
+		expect(await Bun.file(path.join(getHarnessRunDir(state.runId), "responses", "planner-copy.json")).exists()).toBe(
+			true,
+		);
+		expect(await Bun.file(path.join(getHarnessRunDir(state.runId), "responses", "critic-copy.json")).exists()).toBe(
+			true,
+		);
+	});
+
+	it("repairs invalid JSON once and then blocks cleanly", async () => {
+		const statePromise = runArtifactProjectHarness("invalid planner JSON", {
+			cwd: tempRoot,
+			checkDoctor: false,
+			workerRunner: async input => {
+				if (input.action === "create") {
+					return ok(
+						input,
+						JSON.stringify([
+							{ worker_id: "planner-json", conversation_url: "https://chatgpt.com/c/planner-json" },
+						]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "status") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+							is_generating: false,
+						}),
+					);
+				}
+				if (input.action === "copy_message") return ok(input, '{"schema_version":"omg.handoff.v1"}');
+				return ok(input, "{}");
+			},
+		});
+
+		await expect(statePromise).rejects.toThrow("valid OMG JSON envelope after one repair attempt");
+		const [state] = await listHarnessRuns();
+		expect(state.status).toBe("blocked");
+		expect(state.promptBudget.used).toBe(2);
+		expect(await Bun.file(path.join(getHarnessRunDir(state.runId), "prompts", "planner-repair.md")).exists()).toBe(
+			true,
+		);
+	});
+
+	it("blocks when the builder does not provide a zip artifact", async () => {
+		await writeSkill(tempRoot, "artifact-builder");
+		let workerIndex = 0;
+		const statePromise = runArtifactProjectHarness("missing artifact", {
+			cwd: tempRoot,
+			checkDoctor: false,
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-missing`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "status") {
+					return ok(
+						input,
+						JSON.stringify({ conversation_url: `https://chatgpt.com/c/${input.worker}`, is_generating: false }),
+					);
+				}
+				if (input.action === "copy_message") {
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: input.conversationUrl?.includes("planner") ? "omg.handoff.v1" : "omg.artifact.v1",
+							role: "planner",
+							status: "complete",
+							summary: "ok",
+							confidence: 1,
+							assumptions: [],
+							findings: [],
+							next_action: "send_to_builder",
+							artifacts: [],
+							patches: [],
+							requested_context: [],
+							artifact_name: "workspace.zip",
+							expected_root_entries: [],
+							test_commands: [],
+							limitations: [],
+						}),
+					);
+				}
+				if (input.action === "download_artifacts") return { ...ok(input, "{}"), downloadedFiles: [] };
+				return ok(input, "{}");
+			},
+		});
+
+		await expect(statePromise).rejects.toThrow("downloadable .zip artifact");
+		const [state] = await listHarnessRuns();
+		expect(state.status).toBe("blocked");
+		expect(state.verdict).toBe("blocked");
+	});
+
+	it("blocks unsafe artifact zip paths before validation", async () => {
+		await writeSkill(tempRoot, "artifact-builder");
+		let workerIndex = 0;
+		const unsafeZip = zipSync({
+			"../evil.txt": new TextEncoder().encode("bad\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "unsafe",
+				description: "unsafe archive",
+				language: "Text",
+				entrypoints: [],
+				test_command: "echo ok",
+				expected_files: [],
+				limitations: [],
+			}),
+		});
+
+		const statePromise = runArtifactProjectHarness("unsafe artifact", {
+			cwd: tempRoot,
+			checkDoctor: false,
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-unsafe`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "status") {
+					return ok(
+						input,
+						JSON.stringify({ conversation_url: `https://chatgpt.com/c/${input.worker}`, is_generating: false }),
+					);
+				}
+				if (input.action === "copy_message") {
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: input.conversationUrl?.includes("planner") ? "omg.handoff.v1" : "omg.artifact.v1",
+							role: "planner",
+							status: "complete",
+							summary: "ok",
+							confidence: 1,
+							assumptions: [],
+							findings: [],
+							next_action: "send_to_builder",
+							artifacts: [],
+							patches: [],
+							requested_context: [],
+							artifact_name: "workspace.zip",
+							expected_root_entries: [],
+							test_commands: ["echo ok"],
+							limitations: [],
+						}),
+					);
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), unsafeZip);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		await expect(statePromise).rejects.toThrow("unsafe path");
+		const [state] = await listHarnessRuns();
+		expect(state.status).toBe("blocked");
+	});
+
+	it("invokes a fixer once when artifact validation fails", async () => {
+		const cwd = path.join(tempRoot, "repo");
+		await writeSkill(cwd, "artifact-builder");
+		await writeSkill(cwd, "critic-review");
+
+		let workerIndex = 0;
+		let downloadCount = 0;
+		const brokenZip = zipSync({
+			"workspace/README.md": new TextEncoder().encode("broken\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("missing fixed marker\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "broken",
+				description: "Broken test project",
+				language: "JavaScript",
+				entrypoints: ["README.md"],
+				test_command: `${process.execPath} -e "process.exit(1)"`,
+				expected_files: ["README.md", "PROJECT_REPORT.md"],
+				limitations: [],
+			}),
+		});
+		const fixedZip = zipSync({
+			"workspace/README.md": new TextEncoder().encode("fixed\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("has fixed marker\n"),
+			"workspace/fixed.txt": new TextEncoder().encode("ok\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "fixed",
+				description: "Fixed test project",
+				language: "JavaScript",
+				entrypoints: ["fixed.txt"],
+				test_command: `${process.execPath} -e "process.exit(0)"`,
+				expected_files: ["README.md", "PROJECT_REPORT.md", "fixed.txt"],
+				limitations: [],
+			}),
+		});
+
+		const state = await runArtifactProjectHarness("build then fix a tiny project", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "-e", "process.exit((await Bun.file('fixed.txt').exists()) ? 0 : 1)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder", "fixer", "critic"][workerIndex - 1] ?? "worker";
+					const workerId = `${role}-random-${workerIndex}`;
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: workerId, conversation_url: `https://chatgpt.com/c/${workerId}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: "omg.handoff.v1",
+							role: "planner",
+							status: "complete",
+							summary: "build it",
+							confidence: 0.9,
+							assumptions: [],
+							findings: [],
+							next_action: "send_to_builder",
+							artifacts: [],
+							patches: [],
+							requested_context: [],
+						}),
+					);
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) {
+						return { ...ok(input, "{}"), downloadedFiles: [] };
+					}
+					downloadCount += 1;
+					await Bun.write(
+						path.join(input.downloadDir, "workspace.zip"),
+						downloadCount === 1 ? brokenZip : fixedZip,
+					);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.verdict).toBe("good_enough");
+		expect(downloadCount).toBe(2);
+		expect(state.workers.map(worker => worker.role)).toEqual(["planner", "builder", "fixer", "critic"]);
+		expect(state.validation.map(entry => entry.status)).toContain("failed");
+		expect(state.validation.map(entry => entry.status)).toContain("passed");
+	});
+
+	it("resumes a failed validation run without duplicating planner and builder", async () => {
+		const cwd = path.join(tempRoot, "repo");
+		await writeSkill(cwd, "artifact-builder");
+		await writeSkill(cwd, "critic-review");
+
+		let createCount = 0;
+		let plannerSendCount = 0;
+		let builderSendCount = 0;
+		let downloadCount = 0;
+		const workerRoles = new Map<string, string>();
+		const brokenZip = zipSync({
+			"workspace/README.md": new TextEncoder().encode("broken\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("broken\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "resume-broken",
+				description: "Broken before resume",
+				language: "JavaScript",
+				entrypoints: ["README.md"],
+				test_command: `${process.execPath} -e "process.exit(1)"`,
+				expected_files: ["README.md", "PROJECT_REPORT.md"],
+				limitations: [],
+			}),
+		});
+		const fixedZip = zipSync({
+			"workspace/README.md": new TextEncoder().encode("fixed\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("fixed\n"),
+			"workspace/fixed.txt": new TextEncoder().encode("ok\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "resume-fixed",
+				description: "Fixed after resume",
+				language: "JavaScript",
+				entrypoints: ["fixed.txt"],
+				test_command: `${process.execPath} -e "process.exit(0)"`,
+				expected_files: ["README.md", "PROJECT_REPORT.md", "fixed.txt"],
+				limitations: [],
+			}),
+		});
+
+		const runner = async (input: any) => {
+			if (input.action === "create") {
+				createCount += 1;
+				const role = ["planner", "builder", "fixer", "critic"][createCount - 1] ?? "worker";
+				return ok(
+					input,
+					JSON.stringify([{ worker_id: `${role}-resume`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+				);
+			}
+			if (input.action === "rename") {
+				const role = ["planner", "builder", "fixer", "critic"].find(item => input.title?.includes(` ${item} `));
+				if (role && input.worker) workerRoles.set(input.worker, role);
+				return ok(input, "{}");
+			}
+			if (input.action === "send") {
+				const role = workerRoles.get(input.worker) ?? "";
+				if (role === "planner") plannerSendCount += 1;
+				if (role === "builder") builderSendCount += 1;
+				return ok(
+					input,
+					JSON.stringify({
+						request_id: `req-${input.worker}`,
+						conversation_url: `https://chatgpt.com/c/${role || input.worker}`,
+					}),
+				);
+			}
+			if (input.action === "status") {
+				const role = workerRoles.get(input.worker) ?? input.worker;
+				return ok(
+					input,
+					JSON.stringify({ conversation_url: `https://chatgpt.com/c/${role}`, is_generating: false }),
+				);
+			}
+			if (input.action === "copy_message") {
+				if (input.conversationUrl?.includes("critic")) {
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: "omg.review.v1",
+							approved: true,
+							blocking_findings: [],
+							non_blocking_findings: [],
+							required_fixes: [],
+							verdict: "good_enough",
+						}),
+					);
+				}
+				return ok(
+					input,
+					JSON.stringify({
+						schema_version: input.conversationUrl?.includes("builder") ? "omg.artifact.v1" : "omg.handoff.v1",
+						role: "planner",
+						status: "complete",
+						summary: "ok",
+						confidence: 1,
+						assumptions: [],
+						findings: [],
+						next_action: "send_to_builder",
+						artifacts: [],
+						patches: [],
+						requested_context: [],
+						artifact_name: "workspace.zip",
+						expected_root_entries: [],
+						test_commands: [],
+						limitations: [],
+					}),
+				);
+			}
+			if (input.action === "download_artifacts" && input.downloadDir) {
+				downloadCount += 1;
+				await fs.mkdir(input.downloadDir, { recursive: true });
+				await Bun.write(path.join(input.downloadDir, "workspace.zip"), downloadCount === 1 ? brokenZip : fixedZip);
+				return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+			}
+			return ok(input, "{}");
+		};
+
+		await expect(
+			runArtifactProjectHarness("resume failed validation", {
+				cwd,
+				checkDoctor: false,
+				promptLimit: 2,
+				workerRunner: runner,
+			}),
+		).rejects.toThrow("prompt budget exhausted");
+		const [blocked] = await listHarnessRuns();
+		const resumed = await resumeArtifactProjectHarness(blocked.runId, {
+			cwd,
+			checkDoctor: false,
+			promptLimit: 10,
+			workerRunner: runner,
+		});
+
+		expect(resumed.status).toBe("good_enough");
+		expect(plannerSendCount).toBe(1);
+		expect(builderSendCount).toBe(1);
+		expect(createCount).toBeGreaterThanOrEqual(3);
+	});
+
+	it("does not mark good_enough when builder and fixer artifacts both fail validation", async () => {
+		const cwd = path.join(tempRoot, "repo");
+		await writeSkill(cwd, "artifact-builder");
+		await writeSkill(cwd, "critic-review");
+
+		let workerIndex = 0;
+		const brokenZip = zipSync({
+			"workspace/README.md": new TextEncoder().encode("broken\n"),
+			"workspace/PROJECT_REPORT.md": new TextEncoder().encode("missing fixed marker\n"),
+			"workspace/PROJECT_MANIFEST.json": manifestBytes({
+				name: "broken",
+				description: "Still broken test project",
+				language: "JavaScript",
+				entrypoints: ["README.md"],
+				test_command: `${process.execPath} -e "process.exit(1)"`,
+				expected_files: ["README.md", "PROJECT_REPORT.md"],
+				limitations: [],
+			}),
+		});
+
+		const state = await runArtifactProjectHarness("keep failing", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "-e", "process.exit((await Bun.file('fixed.txt').exists()) ? 0 : 1)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["planner", "builder", "fixer", "critic"][workerIndex - 1] ?? "worker";
+					const workerId = `${role}-random-${workerIndex}`;
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: workerId, conversation_url: `https://chatgpt.com/c/${workerId}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker}`,
+						}),
+					);
+				}
+				if (input.action === "status") {
+					return ok(
+						input,
+						JSON.stringify({ conversation_url: `https://chatgpt.com/c/${input.worker}`, is_generating: false }),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: ["local validation still failed"],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: "omg.handoff.v1",
+							role: "planner",
+							status: "complete",
+							summary: "build it",
+							confidence: 0.9,
+							assumptions: [],
+							findings: [],
+							next_action: "send_to_builder",
+							artifacts: [],
+							patches: [],
+							requested_context: [],
+						}),
+					);
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), brokenZip);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("not_good_enough");
+		expect(state.validation.filter(entry => entry.status === "failed")).toHaveLength(2);
+		expect(state.reviewerFindings).toContain("local validation still failed");
+	});
 });
+
+function ok(input: { action: string }, stdout: string) {
+	return {
+		ok: true,
+		action: input.action as any,
+		command: ["mock"],
+		exitCode: 0,
+		stdout,
+		stderr: "",
+	};
+}
+
+function commandOk(stdout: string) {
+	return { ok: true, exitCode: 0, stdout, stderr: "" };
+}
+
+function handoff(summary: string): Record<string, unknown> {
+	return {
+		schema_version: "omg.handoff.v1",
+		role: "planner",
+		status: "complete",
+		summary,
+		confidence: 0.9,
+		assumptions: [],
+		findings: [],
+		next_action: "send_to_builder",
+		artifacts: [],
+		patches: [],
+		requested_context: [],
+	};
+}
+
+async function writeSkill(cwd: string, name: string): Promise<void> {
+	const skillDir = path.join(cwd, ".omg", "chatgpt-skills", name);
+	await fs.mkdir(skillDir, { recursive: true });
+	await Bun.write(
+		path.join(skillDir, "SKILL.md"),
+		[
+			"---",
+			`name: ${name}`,
+			"description: Test skill",
+			"---",
+			"Return JSON in the expected output format.",
+			"Validation notes: local checks are authoritative.",
+		].join("\n"),
+	);
+}
+
+function manifestBytes(manifest: Record<string, unknown>): Uint8Array {
+	return new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`);
+}

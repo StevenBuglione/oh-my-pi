@@ -103,6 +103,7 @@ export type SymbolKey =
 	| "icon.context"
 	| "icon.cost"
 	| "icon.time"
+	| "icon.omg"
 	| "icon.pi"
 	| "icon.agents"
 	| "icon.cache"
@@ -267,7 +268,8 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"icon.context": "◫",
 	"icon.cost": "💲",
 	"icon.time": "⏱",
-	"icon.pi": "π",
+	"icon.omg": "✺",
+	"icon.pi": "✺",
 	"icon.agents": "👥",
 	"icon.cache": "💾",
 	"icon.input": "⤵",
@@ -495,8 +497,9 @@ const NERD_SYMBOLS: SymbolMap = {
 	"icon.cost": "\uf155",
 	// pick:  | alt: ◷ ◴
 	"icon.time": "\uf017",
-	// pick:  | alt: π ∏ ∑
-	"icon.pi": "\ue22c",
+	// pick: ✺ | alt: ⬡ ◌
+	"icon.omg": "✺",
+	"icon.pi": "✺",
 	// pick:  | alt: 
 	"icon.agents": "\uf0c0",
 	// pick:  | alt:  
@@ -690,7 +693,8 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"icon.context": "ctx:",
 	"icon.cost": "$",
 	"icon.time": "t:",
-	"icon.pi": "pi",
+	"icon.omg": "omg",
+	"icon.pi": "omg",
 	"icon.agents": "AG",
 	"icon.cache": "cache",
 	"icon.input": "in:",
@@ -1463,6 +1467,7 @@ export class Theme {
 			context: this.#symbols["icon.context"],
 			cost: this.#symbols["icon.cost"],
 			time: this.#symbols["icon.time"],
+			omg: this.#symbols["icon.omg"],
 			pi: this.#symbols["icon.pi"],
 			agents: this.#symbols["icon.agents"],
 			cache: this.#symbols["icon.cache"],

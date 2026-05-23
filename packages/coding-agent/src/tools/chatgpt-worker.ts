@@ -6,14 +6,17 @@ import chatgptWorkerDescription from "../prompts/tools/chatgpt-worker.md" with {
 
 const chatgptWorkerSchema = z.object({
 	action: z
-		.enum(["create", "send", "watch", "status", "upload", "download_artifacts", "copy_message"])
+		.enum(["create", "rename", "send", "watch", "status", "stop", "upload", "download_artifacts", "copy_message"])
 		.describe("ChatGPT CLI worker operation"),
 	worker: z.string().optional().describe("Worker id or name for worker subcommands"),
 	profile: z.string().optional().describe("ChatGPT worker profile, if creating or selecting a worker"),
+	title: z.string().optional().describe("Chat title for rename operations"),
 	prompt: z.string().optional().describe("Prompt text for send operations"),
 	conversationUrl: z.string().optional().describe("Conversation URL for watch/download/copy operations"),
 	files: z.array(z.string()).optional().describe("Files to upload or attach"),
 	skills: z.array(z.string()).optional().describe("ChatGPT skill ids or bundle paths to attach on send operations"),
+	modelOption: z.string().optional().describe("ChatGPT model option label to select before sending"),
+	thinkingOption: z.string().optional().describe("ChatGPT thinking option label to select before sending"),
 	downloadDir: z.string().optional().describe("Directory for downloaded artifacts"),
 	extraArgs: z.array(z.string()).optional().describe("Additional explicit chatgpt CLI arguments"),
 	timeoutMs: z

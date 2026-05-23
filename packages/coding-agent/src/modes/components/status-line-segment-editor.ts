@@ -16,7 +16,8 @@ import { ALL_SEGMENT_IDS } from "./status-line/segments";
 
 // Segment display names and short descriptions
 const SEGMENT_INFO: Record<StatusLineSegmentId, { label: string; short: string }> = {
-	pi: { label: "Pi", short: "π icon" },
+	omg: { label: "OMG", short: "OMG mark" },
+	pi: { label: "OMG", short: "legacy OMG mark" },
 	model: { label: "Model", short: "model name" },
 	mode: { label: "Mode", short: "plan/loop status" },
 	path: { label: "Path", short: "working dir" },

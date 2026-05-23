@@ -3,9 +3,11 @@ import * as path from "node:path";
 
 export type ChatGptWorkerAction =
 	| "create"
+	| "rename"
 	| "send"
 	| "watch"
 	| "status"
+	| "stop"
 	| "upload"
 	| "download_artifacts"
 	| "copy_message";
@@ -14,10 +16,13 @@ export interface ChatGptWorkerCommand {
 	action: ChatGptWorkerAction;
 	worker?: string;
 	profile?: string;
+	title?: string;
 	prompt?: string;
 	conversationUrl?: string;
 	files?: string[];
 	skills?: string[];
+	modelOption?: string;
+	thinkingOption?: string;
 	downloadDir?: string;
 	extraArgs?: string[];
 	timeoutMs?: number;
@@ -57,6 +62,8 @@ export function buildChatGptCommand(input: ChatGptWorkerCommand): string[] {
 	}
 	if (input.action === "send") {
 		if (!input.prompt) throw new Error("chatgpt workers send requires a prompt");
+		if (input.modelOption) args.push("--model-option", input.modelOption);
+		if (input.thinkingOption) args.push("--thinking-option", input.thinkingOption);
 		for (const file of input.files ?? []) args.push("--file", file);
 		for (const skill of input.skills ?? []) args.push("--skill", skill);
 		args.push(...(input.extraArgs ?? []));
@@ -69,7 +76,13 @@ export function buildChatGptCommand(input: ChatGptWorkerCommand): string[] {
 		args.push(input.worker!);
 		return args;
 	}
-	if (input.action === "watch" || input.action === "status") {
+	if (input.action === "rename") {
+		args.push(...(input.extraArgs ?? []));
+		args.push(input.worker!);
+		if (input.title) args.push(input.title);
+		return args;
+	}
+	if (input.action === "watch" || input.action === "status" || input.action === "stop") {
 		args.push(...(input.extraArgs ?? []));
 		args.push(input.worker!);
 		return args;

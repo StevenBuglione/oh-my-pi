@@ -121,6 +121,18 @@ describe("status line session accent", () => {
 	});
 });
 
+describe("OMG identity segment", () => {
+	it("renders the legacy pi segment as the custom OMG mark", () => {
+		const omg = renderSegment("omg", createCtx());
+		const legacyPi = renderSegment("pi", createCtx());
+
+		expect(omg.visible).toBe(true);
+		expect(legacyPi.visible).toBe(true);
+		expect(legacyPi.content).toBe(omg.content);
+		expect(legacyPi.content).not.toContain("π");
+	});
+});
+
 describe("path segment truncation at varying maxLength", () => {
 	let tmpDir: string;
 

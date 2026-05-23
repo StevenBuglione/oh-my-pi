@@ -69,12 +69,17 @@ function classifyProjectDir(pwd: string): { scratch: boolean; relative: string |
 // Segment Implementations
 // ═══════════════════════════════════════════════════════════════════════════
 
-const piSegment: StatusLineSegment = {
-	id: "pi",
+const omgSegment: StatusLineSegment = {
+	id: "omg",
 	render(_ctx) {
-		const content = theme.icon.pi ? `${theme.icon.pi} ` : "";
+		const content = theme.icon.omg ? `${theme.icon.omg} ` : "";
 		return { content: theme.fg("accent", content), visible: true };
 	},
+};
+
+const piSegment: StatusLineSegment = {
+	...omgSegment,
+	id: "pi",
 };
 
 const modelSegment: StatusLineSegment = {
@@ -471,6 +476,7 @@ const sessionNameSegment: StatusLineSegment = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
+	omg: omgSegment,
 	pi: piSegment,
 	model: modelSegment,
 	mode: modeSegment,

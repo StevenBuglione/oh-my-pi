@@ -78,7 +78,7 @@ export class WelcomeComponent implements Component {
 		}
 		const dualContentWidth = boxWidth - 3; // 3 = │ + │ + │
 		const preferredLeftCol = 26;
-		const minLeftCol = 12; // logo width
+		const minLeftCol = Math.max(...OMG_LOGO.map(line => visibleWidth(line)));
 		const minRightCol = 20;
 		const leftMinContentWidth = Math.max(
 			minLeftCol,
@@ -267,12 +267,12 @@ export class WelcomeComponent implements Component {
 		// the same ease-out curve so the highlight is gone by the resting frame.
 		const shinePos = (((progress * INTRO_SHINE_TRAVERSALS) % 1) + 1) % 1;
 		const shineStrength = (1 - eased) ** 1.5;
-		return gradientLogo(PI_LOGO, phase, { strength: shineStrength, pos: shinePos });
+		return gradientLogo(OMG_LOGO, phase, { strength: shineStrength, pos: shinePos });
 	}
 }
 
 // biome-ignore format: preserve ASCII art layout
-const PI_LOGO = ["▀██████████▀", " ╘██    ██  ", "  ██    ██  ", "  ██    ██  ", " ▄██▄  ▄██▄ "];
+const OMG_LOGO = ["▄██▄ █▄ ▄█ ▄██", "█  █ ██ ██ █  ", "█  █ █ █ █ ███", "█  █ █   █ █ █", "▀██▀ ▀   ▀ ▀██"];
 
 /** Multi-stop palette for the diagonal gradient. */
 const GRADIENT_STOPS: ReadonlyArray<readonly [number, number, number]> = [
@@ -373,4 +373,4 @@ const INTRO_SWEEPS = 2.5;
 const INTRO_SHINE_TRAVERSALS = 3;
 
 /** Resting gradient frame, cached for re-renders outside of the intro. */
-const REST_FRAME = gradientLogo(PI_LOGO, 0);
+const REST_FRAME = gradientLogo(OMG_LOGO, 0);
