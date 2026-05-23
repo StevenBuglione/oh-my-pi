@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1011
+ * Regression for https://github.com/can1357/oh-my-gpt/issues/1011
  *
  * In v14.5.13 `spawnTabWorker` (in `src/tools/browser/tab-supervisor.ts`)
  * resolved the worker entry as `new URL("./tab-worker-entry.ts", import.meta.url)`
@@ -28,7 +28,7 @@ import * as path from "node:path";
  *      spawn site but never emits the worker module into bunfs.
  *
  * Either half alone is insufficient — both must agree on the exact path.
- * Runtime end-to-end coverage lives in `omp --smoke-test` (via the stats
+ * Runtime end-to-end coverage lives in `omg --smoke-test` (via the stats
  * sync worker). This test is the cheap static contract that catches an
  * accidental regression of either half in code review / CI.
  */

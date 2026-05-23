@@ -1,5 +1,5 @@
 // Configuration injected by FastAPI at request time. The server replaces the
-// `__ROBOMP_CONFIG__` sentinel in `static/index.html` with a JSON blob so the
+// `__ROBOMG_CONFIG__` sentinel in `static/index.html` with a JSON blob so the
 // SPA never needs to make an extra round-trip just to learn whether the
 // trigger surface is enabled.
 
@@ -11,7 +11,7 @@ export interface AppConfig {
 function readConfig(): AppConfig {
   const node = document.getElementById("robomp-config");
   const text = node?.textContent?.trim();
-  if (!text || text === "__ROBOMP_CONFIG__") {
+  if (!text || text === "__ROBOMG_CONFIG__") {
     return { replayEnabled: false, replayToken: "" };
   }
   try {

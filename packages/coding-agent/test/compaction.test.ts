@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@oh-my-gpt/gpt-agent-core";
 import {
 	type CompactionSettings,
 	calculateContextTokens,
@@ -10,12 +10,12 @@ import {
 	getLastAssistantUsage,
 	prepareCompaction,
 	shouldCompact,
-} from "@oh-my-pi/pi-agent-core/compaction/compaction";
-import * as ai from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
-import { encodeTextSignatureV1 } from "@oh-my-pi/pi-ai/providers/openai-responses-shared";
-import type { AssistantMessage, Model, ProviderPayload, Usage } from "@oh-my-pi/pi-ai/types";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-agent-core/compaction/compaction";
+import * as ai from "@oh-my-gpt/gpt-ai";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
+import { encodeTextSignatureV1 } from "@oh-my-gpt/gpt-ai/providers/openai-responses-shared";
+import type { AssistantMessage, Model, ProviderPayload, Usage } from "@oh-my-gpt/gpt-ai/types";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 import {
 	buildSessionContext,
 	type CompactionEntry,

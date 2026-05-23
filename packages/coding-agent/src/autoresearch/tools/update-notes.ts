@@ -1,4 +1,4 @@
-import { Text } from "@oh-my-pi/pi-tui";
+import { Text } from "@oh-my-gpt/gpt-tui";
 import * as z from "zod/v4";
 import type { ToolDefinition } from "../../extensibility/extensions";
 import type { Theme } from "../../modes/theme/theme";

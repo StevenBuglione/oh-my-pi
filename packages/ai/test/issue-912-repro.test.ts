@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { stream } from "@oh-my-pi/pi-ai/stream";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
+import { stream } from "@oh-my-gpt/gpt-ai/stream";
+import type { Context, Model } from "@oh-my-gpt/gpt-ai/types";
 
 const originalFetch = global.fetch;
 

@@ -1,8 +1,14 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { TERMINAL } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber, getProjectDir, pathIsWithin, relativePathWithinRoot } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import { TERMINAL } from "@oh-my-gpt/gpt-tui";
+import {
+	formatDuration,
+	formatNumber,
+	getProjectDir,
+	pathIsWithin,
+	relativePathWithinRoot,
+} from "@oh-my-gpt/gpt-utils";
 import { type ThemeColor, theme } from "../../../modes/theme/theme";
 import { shortenPath } from "../../../tools/render-utils";
 import { getSessionAccentAnsi, getSessionAccentHex } from "../../../utils/session-color";

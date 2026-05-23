@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, APP_NAME, getToolsDir, logger, ptree, TempDir } from "@oh-my-pi/pi-utils";
+import { $which, APP_NAME, getToolsDir, logger, ptree, TempDir } from "@oh-my-gpt/gpt-utils";
 
 const TOOLS_DIR = getToolsDir();
 const TOOL_DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -194,7 +194,7 @@ async function downloadTool(tool: ToolName, signal?: AbortSignal): Promise<strin
 	await downloadFile(downloadUrl, archivePath, signal);
 
 	// Extract
-	const tmp = await TempDir.create("@omp-tools-extract-");
+	const tmp = await TempDir.create("@omg-tools-extract-");
 
 	try {
 		if (!assetName.endsWith(".tar.gz") && !assetName.endsWith(".zip")) {

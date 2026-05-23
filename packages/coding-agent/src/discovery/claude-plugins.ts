@@ -5,7 +5,7 @@
  * Priority: 70 (below claude.ts at 80, so user overrides in .claude/ take precedence)
  */
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type Hook, hookCapability } from "../capability/hook";
@@ -280,7 +280,7 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 		const obj = parsed as Record<string, unknown>;
 
 		// Two shapes are supported:
-		//   nested: { "mcpServers": { name: cfg, ... } }   (OMP/Claude Code project shape)
+		//   nested: { "mcpServers": { name: cfg, ... } }   (OMG/Claude Code project shape)
 		//   flat:   { name: cfg, ... }                      (Claude marketplace plugin shape)
 		// If "mcpServers" is present and an object, treat it as the canonical map.
 		// Otherwise, treat the whole object as the server map.

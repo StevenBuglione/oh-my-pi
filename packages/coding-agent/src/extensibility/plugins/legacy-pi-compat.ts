@@ -5,22 +5,29 @@ import * as url from "node:url";
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
-// resolved against the bundled copy that ships inside the omp binary. This
+// fork, or the canonical @oh-my-gpt scope itself) are remapped to this scope and
+// resolved against the bundled copy that ships inside the omg binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@oh-my-pi";
+const CANONICAL_PI_SCOPE = "@oh-my-gpt";
 
 // Scopes that have historically been used to publish (or alias) the same set
-// of internal pi-* packages. `@oh-my-pi` is intentionally included so that
+// of internal pi-* packages. `@oh-my-gpt` is intentionally included so that
 // direct imports of the canonical name still flow through `Bun.resolveSync`
 // against the host binary, avoiding a duplicate copy being pulled in from a
 // plugin's own node_modules tree at install time.
-const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["oh-my-gpt", "mariozechner", "earendil-works"] as const;
 
-// Internal pi-* package basenames bundled inside the omp binary.
-const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-coding-agent", "pi-natives", "pi-tui", "pi-utils"] as const;
+// Internal pi-* package basenames bundled inside the omg binary.
+const PI_PACKAGE_NAMES = [
+	"gpt-agent-core",
+	"gpt-ai",
+	"gpt-coding-agent",
+	"gpt-natives",
+	"gpt-tui",
+	"gpt-utils",
+] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
 const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");
@@ -32,10 +39,10 @@ const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");
 // bundled copy. Add new entries as `pkg/from -> pkg/to` whenever a plugin
 // surfaces another upstream-only subpath that breaks resolution.
 const PI_SUBPATH_REMAPS: ReadonlyMap<string, string> = new Map<string, string>([
-	// `@mariozechner/pi-ai/oauth` re-exported `./utils/oauth/index.js`.
-	// Our pi-ai keeps the implementation under `utils/oauth` but never added a
+	// `@mariozechner/gpt-ai/oauth` re-exported `./utils/oauth/index.js`.
+	// Our gpt-ai keeps the implementation under `utils/oauth` but never added a
 	// root-level re-export, so map the upstream subpath onto it directly.
-	["pi-ai/oauth", "pi-ai/utils/oauth"],
+	["gpt-ai/oauth", "gpt-ai/utils/oauth"],
 ]);
 
 const LEGACY_PI_SPECIFIER_FILTER = new RegExp(`^@(?:${PI_SCOPE_ALTERNATION})/(?:${PI_PACKAGE_ALTERNATION})(?:/.*)?$`);
@@ -43,8 +50,8 @@ const LEGACY_PI_IMPORT_SPECIFIER_REGEX = new RegExp(
 	`((?:from\\s+|import\\s*\\(\\s*)["'])(@(?:${PI_SCOPE_ALTERNATION})/(?:${PI_PACKAGE_ALTERNATION})(?:/[^"'()\\s]+)?)(["'])`,
 	"g",
 );
-const LEGACY_PI_FILE_PREFIX = "omp-legacy-pi-file:";
-const LEGACY_PI_FILE_NAMESPACE = "omp-legacy-pi-file";
+const LEGACY_PI_FILE_PREFIX = "omg-legacy-pi-file:";
+const LEGACY_PI_FILE_NAMESPACE = "omg-legacy-pi-file";
 const resolvedSpecifierFallbacks = new Map<string, string>();
 
 // Extensions that imported `@sinclair/typebox` directly used to resolve against a
@@ -212,7 +219,7 @@ async function mirrorLegacyPiFile(sourcePath: string, state: LegacyPiMirrorState
 }
 
 export async function loadLegacyPiModule(resolvedPath: string): Promise<unknown> {
-	const root = path.join(os.tmpdir(), "omp-legacy-pi-file", `entry-${Bun.hash(resolvedPath).toString(36)}`);
+	const root = path.join(os.tmpdir(), "omg-legacy-pi-file", `entry-${Bun.hash(resolvedPath).toString(36)}`);
 	await fs.rm(root, { recursive: true, force: true });
 	const state: LegacyPiMirrorState = { root, seen: new Map() };
 	const mirroredEntry = await mirrorLegacyPiFile(resolvedPath, state);
@@ -254,7 +261,7 @@ export function installLegacyPiSpecifierShim(): void {
 	isLegacyPiSpecifierShimInstalled = true;
 
 	Bun.plugin({
-		name: "omp:legacy-pi-shim",
+		name: "omg:legacy-pi-shim",
 		setup(build) {
 			build.onResolve({ filter: LEGACY_PI_SPECIFIER_FILTER, namespace: "file" }, resolveLegacyPiSpecifier);
 			build.onResolve(
@@ -268,7 +275,7 @@ export function installLegacyPiSpecifierShim(): void {
 				resolveTypeBoxSpecifier,
 			);
 
-			build.onResolve({ filter: /^omp-legacy-pi-file:/, namespace: "file" }, args => ({
+			build.onResolve({ filter: /^omg-legacy-pi-file:/, namespace: "file" }, args => ({
 				path: args.path.slice(LEGACY_PI_FILE_PREFIX.length),
 				namespace: LEGACY_PI_FILE_NAMESPACE,
 			}));

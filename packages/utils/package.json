@@ -1,18 +1,18 @@
 {
 	"type": "module",
-	"name": "@oh-my-pi/pi-utils",
+	"name": "@oh-my-gpt/gpt-utils",
 	"version": "15.2.4",
 	"description": "Shared utilities for pi packages",
-	"homepage": "https://omp.sh",
+	"homepage": "https://omg.sh",
 	"author": "Can Boluk",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/can1357/oh-my-gpt.git",
 		"directory": "packages/utils"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/can1357/oh-my-gpt/issues"
 	},
 	"keywords": [
 		"utilities",
@@ -31,7 +31,7 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@oh-my-pi/pi-natives": "catalog:",
+		"@oh-my-gpt/gpt-natives": "catalog:",
 		"beautiful-mermaid": "catalog:",
 		"handlebars": "catalog:",
 		"winston": "catalog:",

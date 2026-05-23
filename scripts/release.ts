@@ -236,15 +236,15 @@ async function cmdRelease(version: string): Promise<void> {
 	}
 	console.log();
 
-	// Update @oh-my-pi/* catalog entries in root package.json
+	// Update @oh-my-gpt/* catalog entries in root package.json
 	console.log("Updating root catalog versions...");
 	let rootPkgRaw = await Bun.file("package.json").text();
 	rootPkgRaw = rootPkgRaw.replace(
-		/("@oh-my-pi\/[^"]+":\s*)"[^"]+"/g,
+		/("@oh-my-gpt\/[^"]+":\s*)"[^"]+"/g,
 		`$1"${version}"`,
 	);
 	await Bun.write("package.json", rootPkgRaw);
-	console.log("  Updated root catalog @oh-my-pi/* entries");
+	console.log("  Updated root catalog @oh-my-gpt/* entries");
 
 	// 3. Update Rust workspace version
 	console.log(`Updating Rust workspace version to ${version}…`);
@@ -269,7 +269,7 @@ async function cmdRelease(version: string): Promise<void> {
 	}
 	console.log();
 
-	// 3b. Rename the pi-natives version sentinel so any `.node` left on disk from
+	// 3b. Rename the gpt-natives version sentinel so any `.node` left on disk from
 	// a previous release physically cannot expose the symbol the new `index.js`
 	// expects. The JS loader derives `VERSION_SENTINEL_EXPORT` from `package.json`
 	// at runtime, so the only thing that has to move on the Rust side is the
@@ -277,19 +277,19 @@ async function cmdRelease(version: string): Promise<void> {
 	// entries in `packages/natives/native/{index.d.ts,index.js}` on the next napi
 	// build, but bump them here too so the committed surface tracks the version
 	// without waiting for a local rebuild on the release host.
-	console.log(`Bumping pi-natives version sentinel to v${version}…`);
+	console.log(`Bumping gpt-natives version sentinel to v${version}…`);
 	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
 	const sentinelName = `__piNativesV${sentinelJsId}`;
 	const sentinelFiles = [
-		"crates/pi-natives/src/lib.rs",
+		"crates/gpt-natives/src/lib.rs",
 		"packages/natives/native/index.d.ts",
 		"packages/natives/native/index.js",
 	];
 	await $`sd '__piNativesV[A-Za-z0-9_]+' ${sentinelName} ${sentinelFiles}`;
-	const libRs = await Bun.file("crates/pi-natives/src/lib.rs").text();
+	const libRs = await Bun.file("crates/gpt-natives/src/lib.rs").text();
 	if (!libRs.includes(`js_name = "${sentinelName}"`)) {
 		console.error(
-			`Error: pi-natives version sentinel did not move to ${sentinelName} in crates/pi-natives/src/lib.rs. ` +
+			`Error: gpt-natives version sentinel did not move to ${sentinelName} in crates/gpt-natives/src/lib.rs. ` +
 				"The `__piNativesV…` literal may have been removed or renamed; restore it before releasing.",
 		);
 		process.exit(1);

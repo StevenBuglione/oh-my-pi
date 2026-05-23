@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { BankScope } from "@oh-my-pi/pi-coding-agent/hindsight/bank";
+import type { BankScope } from "@oh-my-gpt/gpt-coding-agent/hindsight/bank";
 import {
 	type HindsightApi,
 	HindsightApi as HindsightApiCtor,
 	type MentalModelSummary,
-} from "@oh-my-pi/pi-coding-agent/hindsight/client";
+} from "@oh-my-gpt/gpt-coding-agent/hindsight/client";
 import {
 	diffMentalModelContent,
 	ensureMentalModels,
@@ -12,7 +12,7 @@ import {
 	MENTAL_MODEL_RENDER_BUDGET_CHARS_DEFAULT,
 	renderMentalModelsBlock,
 	resolveSeedsForScope,
-} from "@oh-my-pi/pi-coding-agent/hindsight/mental-models";
+} from "@oh-my-gpt/gpt-coding-agent/hindsight/mental-models";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -28,7 +28,7 @@ afterEach(() => {
 
 describe("resolveSeedsForScope", () => {
 	it("global scoping emits only seeds whose scopes include 'global', and never project-tagged ones", () => {
-		const scope: BankScope = { bankId: "omp" };
+		const scope: BankScope = { bankId: "omg" };
 		const seeds = resolveSeedsForScope(scope, "global");
 		expect(seeds.length).toBeGreaterThan(0);
 		// project-conventions is per-project only — must not appear.
@@ -42,23 +42,23 @@ describe("resolveSeedsForScope", () => {
 
 	it("per-project-tagged scoping bakes the scope's retainTags into projectTagged seeds and leaves untagged seeds bare", () => {
 		const scope: BankScope = {
-			bankId: "omp",
-			retainTags: ["project:omp"],
-			recallTags: ["project:omp"],
+			bankId: "omg",
+			retainTags: ["project:omg"],
+			recallTags: ["project:omg"],
 			recallTagsMatch: "any",
 		};
 		const seeds = resolveSeedsForScope(scope, "per-project-tagged");
 		const projectConv = seeds.find(s => s.id === "project-conventions");
 		const userPrefs = seeds.find(s => s.id === "user-preferences");
 		expect(projectConv).toBeDefined();
-		expect(projectConv?.tags).toEqual(["project:omp"]);
+		expect(projectConv?.tags).toEqual(["project:omg"]);
 		// user-preferences is intentionally untagged so the refresh reads the
 		// whole bank, not just the project subset.
 		expect(userPrefs?.tags).toEqual([]);
 	});
 
 	it("per-project scoping yields project-conventions but the scope carries no tags so the seed is untagged", () => {
-		const scope: BankScope = { bankId: "omp-myproj" };
+		const scope: BankScope = { bankId: "omg-myproj" };
 		const seeds = resolveSeedsForScope(scope, "per-project");
 		const projectConv = seeds.find(s => s.id === "project-conventions");
 		expect(projectConv).toBeDefined();
@@ -96,19 +96,19 @@ function makeFakeApi(existing: MentalModelSummary[]): { api: HindsightApi; calls
 
 describe("ensureMentalModels", () => {
 	it("creates only the seeds that are missing on the bank", async () => {
-		const { api, calls } = makeFakeApi([{ id: "user-preferences", bank_id: "omp", name: "User Preferences" }]);
+		const { api, calls } = makeFakeApi([{ id: "user-preferences", bank_id: "omg", name: "User Preferences" }]);
 		await ensureMentalModels(
 			api,
-			"omp",
+			"omg",
 			[
 				{ id: "user-preferences", name: "User Preferences", sourceQuery: "q1", tags: [] },
-				{ id: "project-conventions", name: "Project Conventions", sourceQuery: "q2", tags: ["project:omp"] },
+				{ id: "project-conventions", name: "Project Conventions", sourceQuery: "q2", tags: ["project:omg"] },
 			],
 			false,
 		);
 		expect(calls.created).toHaveLength(1);
 		expect(calls.created[0].id).toBe("project-conventions");
-		expect(calls.created[0].tags).toEqual(["project:omp"]);
+		expect(calls.created[0].tags).toEqual(["project:omg"]);
 	});
 
 	it("does not modify existing models even if their fields drift from the seed list", async () => {
@@ -117,7 +117,7 @@ describe("ensureMentalModels", () => {
 		const { api, calls } = makeFakeApi([
 			{
 				id: "user-preferences",
-				bank_id: "omp",
+				bank_id: "omg",
 				name: "Old Name",
 				source_query: "old query",
 				tags: ["legacy"],
@@ -125,7 +125,7 @@ describe("ensureMentalModels", () => {
 		]);
 		await ensureMentalModels(
 			api,
-			"omp",
+			"omg",
 			[{ id: "user-preferences", name: "User Preferences", sourceQuery: "new query", tags: [] }],
 			false,
 		);
@@ -145,7 +145,7 @@ describe("ensureMentalModels", () => {
 		} as unknown as HindsightApi;
 
 		await expect(
-			ensureMentalModels(api, "omp", [{ id: "x", name: "X", sourceQuery: "q", tags: [] }], false),
+			ensureMentalModels(api, "omg", [{ id: "x", name: "X", sourceQuery: "q", tags: [] }], false),
 		).resolves.toBeUndefined();
 		expect(calls.created).toHaveLength(0);
 	});

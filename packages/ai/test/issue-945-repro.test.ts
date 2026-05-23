@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import type { Context, Model, Tool } from "@oh-my-pi/pi-ai/types";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
+import { streamOpenAICompletions } from "@oh-my-gpt/gpt-ai/providers/openai-completions";
+import type { Context, Model, Tool } from "@oh-my-gpt/gpt-ai/types";
 import * as z from "zod/v4";
 
 const originalFetch = global.fetch;

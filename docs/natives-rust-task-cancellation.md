@@ -1,21 +1,21 @@
-# Native Rust task execution and cancellation (`pi-natives`)
+# Native Rust task execution and cancellation (`gpt-natives`)
 
-This document describes how `crates/pi-natives` schedules native work and how cancellation flows from JS options (`timeoutMs`, `AbortSignal`) into Rust execution.
+This document describes how `crates/gpt-natives` schedules native work and how cancellation flows from JS options (`timeoutMs`, `AbortSignal`) into Rust execution.
 
 ## Implementation files
 
-- `crates/pi-natives/src/task.rs`
-- `crates/pi-natives/src/grep.rs`
-- `crates/pi-natives/src/glob.rs`
-- `crates/pi-natives/src/fd.rs`
-- `crates/pi-natives/src/ast.rs`
-- `crates/pi-natives/src/shell.rs`
-- `crates/pi-natives/src/pty.rs`
-- `crates/pi-natives/src/html.rs`
-- `crates/pi-natives/src/image.rs`
-- `crates/pi-natives/src/clipboard.rs`
-- `crates/pi-natives/src/text.rs`
-- `crates/pi-natives/src/ps.rs`
+- `crates/gpt-natives/src/task.rs`
+- `crates/gpt-natives/src/grep.rs`
+- `crates/gpt-natives/src/glob.rs`
+- `crates/gpt-natives/src/fd.rs`
+- `crates/gpt-natives/src/ast.rs`
+- `crates/gpt-natives/src/shell.rs`
+- `crates/gpt-natives/src/pty.rs`
+- `crates/gpt-natives/src/html.rs`
+- `crates/gpt-natives/src/image.rs`
+- `crates/gpt-natives/src/clipboard.rs`
+- `crates/gpt-natives/src/text.rs`
+- `crates/gpt-natives/src/ps.rs`
 
 ## Core primitives (`task.rs`)
 

@@ -12,8 +12,8 @@ import {
 	openMemoryDb,
 	tryClaimGlobalPhase2Job,
 	upsertThreads,
-} from "@oh-my-pi/pi-coding-agent/memories/storage";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/memories/storage";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 
 const GLOBAL_KIND = "memory_consolidate_global";
 const PROJECT_CWD = "/repo";

@@ -21,15 +21,15 @@ import {
 	UNK_CONTEXT_WINDOW,
 	UNK_MAX_TOKENS,
 	unregisterCustomApis,
-} from "@oh-my-pi/pi-ai";
+} from "@oh-my-gpt/gpt-ai";
 
 // Sentinel for local-only OAuth token (LM Studio, vLLM) — declared inline to avoid loading
 // any provider module at startup. Must match `DEFAULT_LOCAL_TOKEN` in oauth/lm-studio.ts.
 const DEFAULT_LOCAL_TOKEN = "lm-studio-local";
 
-import { registerOAuthProvider, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/utils/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/utils/oauth/types";
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
+import { registerOAuthProvider, unregisterOAuthProviders } from "@oh-my-gpt/gpt-ai/utils/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-gpt/gpt-ai/utils/oauth/types";
+import { isRecord, logger } from "@oh-my-gpt/gpt-utils";
 import { parseModelString, resolveProviderModelReference } from "../config/model-resolver";
 import { isValidThemeColor, type ThemeColor } from "../modes/theme/theme";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";
@@ -1965,7 +1965,7 @@ export class ModelRegistry {
 	/**
 	 * Check whether auth is configured for a model's provider.
 	 *
-	 * Mirrors the upstream `@mariozechner/pi-coding-agent` API surface so that
+	 * Mirrors the upstream `@mariozechner/gpt-coding-agent` API surface so that
 	 * external plugins/extensions and downstream wrappers (e.g. subagent launch
 	 * paths that pre-flight auth before model resolution) can probe a model
 	 * without resolving an API key. Returns true for keyless providers as well

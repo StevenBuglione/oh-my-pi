@@ -23,7 +23,7 @@ describe("AuthStorage OAuth refresh race", () => {
 	let events: CredentialDisabledEvent[] = [];
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-oauth-race-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-oauth-race-"));
 		store = await SqliteAuthCredentialStore.open(path.join(tempDir, "agent.db"));
 		events = [];
 		authStorage = new AuthStorage(store, {
@@ -48,7 +48,7 @@ describe("AuthStorage OAuth refresh race", () => {
 		if (!authStorage || !store) throw new Error("test setup failed");
 
 		// Seed the shared DB with one expired OAuth credential; this simulates the
-		// state two cooperating omp processes both load from the persisted row.
+		// state two cooperating omg processes both load from the persisted row.
 		await authStorage.set("anthropic", [
 			{
 				type: "oauth",

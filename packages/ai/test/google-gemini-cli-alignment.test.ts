@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 import {
 	ANTIGRAVITY_SYSTEM_INSTRUCTION,
 	buildRequest,

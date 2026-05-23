@@ -30,21 +30,21 @@ Extension loading builds a list of module entry files, imports each module with 
 
 Effective native locations:
 
-- Project: `<cwd>/.omp/extensions`
-- User: `~/.omp/agent/extensions`
+- Project: `<cwd>/.omg/extensions`
+- User: `~/.omg/agent/extensions`
 
 Path roots come from the native provider (`SOURCE_PATHS.native`).
 
 Notes:
 
-- Native auto-discovery is currently `.omp` based.
+- Native auto-discovery is currently `.omg` based.
 - Legacy `.pi` is still accepted in `package.json` manifest keys (`pi.extensions`), but not as a native root here.
 
 ### 2) Installed plugin extension entries
 
 After native auto-discovery, `discoverAndLoadExtensions()` appends extension entry points from enabled installed plugins via `getAllPluginExtensionPaths(cwd)`.
 
-Plugin extension entries come from package `omp.extensions` / `pi.extensions` manifests, including enabled feature entries.
+Plugin extension entries come from package `omg.extensions` / `pi.extensions` manifests, including enabled feature entries.
 
 ### 3) Explicitly configured paths
 
@@ -57,16 +57,16 @@ Configured path sources in the main session startup path (`sdk.ts`):
 
 Global settings file:
 
-- `~/.omp/agent/config.yml` (or custom agent dir via `PI_CODING_AGENT_DIR`)
+- `~/.omg/agent/config.yml` (or custom agent dir via `OMG_CODING_AGENT_DIR`)
 
 Project settings file:
 
-- `<cwd>/.omp/settings.json`
+- `<cwd>/.omg/settings.json`
 
 Examples:
 
 ```yaml
-# ~/.omp/agent/config.yml
+# ~/.omg/agent/config.yml
 extensions:
   - ~/my-exts/safety.ts
   - ./local/ext-pack
@@ -74,7 +74,7 @@ extensions:
 
 ```json
 {
-  "extensions": ["./.omp/extensions/my-extra"]
+  "extensions": ["./.omg/extensions/my-extra"]
 }
 ```
 
@@ -130,13 +130,13 @@ It is used directly as a module entry candidate.
 
 Resolution order:
 
-1. `package.json` in that directory with `omp.extensions` (or legacy `pi.extensions`) -> use declared entries
+1. `package.json` in that directory with `omg.extensions` (or legacy `pi.extensions`) -> use declared entries
 2. `index.ts`
 3. `index.js`
 4. Otherwise scan one level for extension entries:
    - direct `*.ts` / `*.js`
    - subdir `index.ts` / `index.js`
-   - subdir `package.json` with `omp.extensions` / `pi.extensions`
+   - subdir `package.json` with `omg.extensions` / `pi.extensions`
 
 Rules and constraints:
 
@@ -219,7 +219,7 @@ When events run through `ExtensionRunner`, handler exceptions are caught and emi
 ### User-level
 
 ```text
-~/.omp/agent/
+~/.omg/agent/
   config.yml
   extensions/
     guardrails.ts
@@ -231,7 +231,7 @@ When events run through `ExtensionRunner`, handler exceptions are caught and emi
 
 ```text
 <repo>/
-  .omp/
+  .omg/
     settings.json
     extensions/
       checks/
@@ -243,7 +243,7 @@ When events run through `ExtensionRunner`, handler exceptions are caught and emi
 
 ```json
 {
-  "omp": {
+  "omg": {
     "extensions": ["./src/check-a.ts", "./src/check-b.js"]
   }
 }

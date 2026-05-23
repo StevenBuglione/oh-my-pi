@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 import { searchWithParallel } from "../../src/web/parallel";
 import { searchParallel } from "../../src/web/search/providers/parallel";
 

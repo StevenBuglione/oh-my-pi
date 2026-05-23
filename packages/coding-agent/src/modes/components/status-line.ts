@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
-import { type Component, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatCount, getProjectDir } from "@oh-my-pi/pi-utils";
+import { type Component, truncateToWidth, visibleWidth } from "@oh-my-gpt/gpt-tui";
+import { formatCount, getProjectDir } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import { settings } from "../../config/settings";
 import type { StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "../../config/settings-schema";

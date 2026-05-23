@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { __resetAutoQaFlushStateForTests, flushGrievances } from "@oh-my-pi/pi-coding-agent/tools/report-tool-issue";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { __resetAutoQaFlushStateForTests, flushGrievances } from "@oh-my-gpt/gpt-coding-agent/tools/report-tool-issue";
+import * as piUtils from "@oh-my-gpt/gpt-utils";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 
 function openTempDb(): Database {
 	const db = new Database(":memory:");
@@ -132,7 +132,7 @@ describe("flushGrievances", () => {
 		expect(headers?.authorization).toBe("Bearer secret-token");
 
 		const body = JSON.parse(String(capturedInit?.body));
-		expect(body.agent?.name).toBe("omp");
+		expect(body.agent?.name).toBe("omg");
 		expect(typeof body.agent?.version).toBe("string");
 		expect(body.host).toBeUndefined();
 		expect(typeof body.platform).toBe("string");
@@ -144,7 +144,7 @@ describe("flushGrievances", () => {
 		]);
 
 		// Rows are retained for inspection — `pushed=1` flips, but the data
-		// stays so users can browse what they've shipped via `omp grievances`.
+		// stays so users can browse what they've shipped via `omg grievances`.
 		expect(selectIds(db)).toEqual([1, 2]);
 		expect(selectPushedIds(db)).toEqual([1, 2]);
 		expect(selectUnpushedIds(db)).toEqual([]);

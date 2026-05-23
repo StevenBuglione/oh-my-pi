@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AssistantMessageEventStream, clearCustomApis, Effort, getCustomApi } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/utils/oauth";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/utils/oauth/types";
-import { ModelRegistry, type ProviderConfigInput } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { type AssistantMessageEventStream, clearCustomApis, Effort, getCustomApi } from "@oh-my-gpt/gpt-ai";
+import { getOAuthProviders, unregisterOAuthProviders } from "@oh-my-gpt/gpt-ai/utils/oauth";
+import type { OAuthCredentials } from "@oh-my-gpt/gpt-ai/utils/oauth/types";
+import { ModelRegistry, type ProviderConfigInput } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

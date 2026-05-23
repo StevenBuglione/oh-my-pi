@@ -234,7 +234,7 @@ export const toolChoiceSchema = z.union([
 export const reasoningConfigSchema = z.object({
 	effort: z.string().optional(),
 	// `none` maps to hideThinkingSummary; auto/concise/detailed mean "show
-	// summary". pi-ai has no per-level plumbing for the latter — walker logs
+	// summary". gpt-ai has no per-level plumbing for the latter — walker logs
 	// once and treats them as default.
 	summary: z.enum(["auto", "concise", "detailed", "none"]).optional(),
 });

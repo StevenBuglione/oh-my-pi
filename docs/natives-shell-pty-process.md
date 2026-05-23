@@ -1,21 +1,21 @@
 # Natives Shell, PTY, Process, and Key Internals
 
-This document covers the execution/process/terminal primitives in `@oh-my-pi/pi-natives`: `shell`, `pty`, `ps`, and `keys`, using the architecture terms from `docs/natives-architecture.md`.
+This document covers the execution/process/terminal primitives in `@oh-my-gpt/gpt-natives`: `shell`, `pty`, `ps`, and `keys`, using the architecture terms from `docs/natives-architecture.md`.
 
 ## Implementation files
 
-- `crates/pi-natives/src/shell.rs`
-- `crates/pi-natives/src/shell/windows.rs` (Windows-only PATH enrichment)
-- `crates/pi-natives/src/pty.rs`
-- `crates/pi-natives/src/ps.rs`
-- `crates/pi-natives/src/keys.rs`
-- `crates/pi-natives/src/task.rs`
+- `crates/gpt-natives/src/shell.rs`
+- `crates/gpt-natives/src/shell/windows.rs` (Windows-only PATH enrichment)
+- `crates/gpt-natives/src/pty.rs`
+- `crates/gpt-natives/src/ps.rs`
+- `crates/gpt-natives/src/keys.rs`
+- `crates/gpt-natives/src/task.rs`
 - `packages/natives/native/index.d.ts`
 
 ## Layer ownership
 
 - **Package entrypoint** (`packages/natives/native/index.js`): loads the `.node` addon and exports generated N-API bindings.
-- **Rust N-API module layer** (`crates/pi-natives/src/*`): shell/PTY process execution, process-tree traversal/termination, and key-sequence parsing.
+- **Rust N-API module layer** (`crates/gpt-natives/src/*`): shell/PTY process execution, process-tree traversal/termination, and key-sequence parsing.
 - **Consumers** (`packages/coding-agent`, `packages/tui`): higher-level session policy, output artifact/minimizer handling, render policy, and UI key handling.
 
 ## Shell subsystem (`shell`)

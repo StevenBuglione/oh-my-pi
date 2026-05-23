@@ -1,9 +1,9 @@
 /**
  * List available models with optional fuzzy search
  */
-import { type Api, getSupportedEfforts, type Model } from "@oh-my-pi/pi-ai";
-import { fuzzyFilter } from "@oh-my-pi/pi-tui";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import { type Api, getSupportedEfforts, type Model } from "@oh-my-gpt/gpt-ai";
+import { fuzzyFilter } from "@oh-my-gpt/gpt-tui";
+import { formatNumber } from "@oh-my-gpt/gpt-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { discoverAndLoadExtensions, loadExtensions } from "../extensibility/extensions";
 import { EventBus } from "../utils/event-bus";

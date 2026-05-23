@@ -7,15 +7,15 @@
 ### Added
 
 - Added a per-release version sentinel napi export (`__piNativesV{major}_{minor}_{patch}`). The Rust `js_name` is bumped in lock-step with the package version by `scripts/release.ts`; the JS loader computes the expected name from `package.json#version` and throws an actionable error when the on-disk `.node` doesn't expose it. This converts the silent `<sym> is not a function` crash from a stale addon into a load-time failure pointing at the real fix.
-- Added `applyBashFixups(command)` — a synchronous brush-parser-driven rewrite that strips trailing `| head|tail …`, redundant `2>&1`, and the `|&` shorthand from top-level pipelines, returning `{ command, stripped }`. Replaces the hand-rolled top-level mask scanner in `pi-coding-agent`; tokenization, quoting, heredocs, command substitution, and nested compound commands are now handled by the real shell AST instead of regex/character-walking. Lives in `pi_shell::fixup` on the Rust side.
+- Added `applyBashFixups(command)` — a synchronous brush-parser-driven rewrite that strips trailing `| head|tail …`, redundant `2>&1`, and the `|&` shorthand from top-level pipelines, returning `{ command, stripped }`. Replaces the hand-rolled top-level mask scanner in `gpt-coding-agent`; tokenization, quoting, heredocs, command substitution, and nested compound commands are now handled by the real shell AST instead of regex/character-walking. Lives in `pi_shell::fixup` on the Rust side.
 
 ### Fixed
 
-- Fixed `<sym> is not a function` crashes on Windows after `bun install -g @oh-my-pi/pi-coding-agent` updates while an `omp` process was running. Bun cannot overwrite a locked `node_modules/@oh-my-pi/pi-natives/native/pi_natives.win32-x64.node` and silently keeps the old binary alongside the new ESM wrapper, so the next launch loads mismatched code. The loader now mirrors the addon into `~/.omp/natives/<version>/` on Windows npm installs and prefers that copy at load time — each version gets its own filesystem path, so future updates land in `node_modules` unchallenged. The new version sentinel detects any remaining drift up front.
+- Fixed `<sym> is not a function` crashes on Windows after `bun install -g @oh-my-gpt/gpt-coding-agent` updates while an `omg` process was running. Bun cannot overwrite a locked `node_modules/@oh-my-gpt/gpt-natives/native/pi_natives.win32-x64.node` and silently keeps the old binary alongside the new ESM wrapper, so the next launch loads mismatched code. The loader now mirrors the addon into `~/.omg/natives/<version>/` on Windows npm installs and prefers that copy at load time — each version gets its own filesystem path, so future updates land in `node_modules` unchallenged. The new version sentinel detects any remaining drift up front.
 
 ### Fixed
 
-- Fixed `$env:NAME` PowerShell references being collapsed to `:NAME` when brush forwarded a command to a PowerShell (or any) subprocess. `pi-shell` now defines `env=$env` as a non-exported global on every brush session so the bash parameter expansion of `$env` yields the literal `$env`, leaving `$env:NAME` intact. User-driven assignments (`env=prod`) push their own command-scope binding and shadow the fallback, preserving the bash POSIX contract. ([#1079](https://github.com/can1357/oh-my-pi/issues/1079))
+- Fixed `$env:NAME` PowerShell references being collapsed to `:NAME` when brush forwarded a command to a PowerShell (or any) subprocess. `pi-shell` now defines `env=$env` as a non-exported global on every brush session so the bash parameter expansion of `$env` yields the literal `$env`, leaving `$env:NAME` intact. User-driven assignments (`env=prod`) push their own command-scope binding and shadow the fallback, preserving the bash POSIX contract. ([#1079](https://github.com/can1357/oh-my-gpt/issues/1079))
 
 ## [15.0.1] - 2026-05-14
 ### Breaking Changes
@@ -167,7 +167,7 @@
 
 ### Added
 
-- Added Dart support to `astGrep` and `astEdit` through the native tree-sitter Dart grammar ([#748](https://github.com/can1357/oh-my-pi/pull/748) by [@0fflineuser](https://github.com/0fflineuser))
+- Added Dart support to `astGrep` and `astEdit` through the native tree-sitter Dart grammar ([#748](https://github.com/can1357/oh-my-gpt/pull/748) by [@0fflineuser](https://github.com/0fflineuser))
 
 ## [14.1.1] - 2026-04-14
 
@@ -185,7 +185,7 @@
 ### Breaking Changes
 
 - Made `tabWidth` parameter required (no longer optional) for `visibleWidth`, `truncateToWidth`, `wrapTextWithAnsi`, `sliceWithWidth`, and `extractSegments`
-- Removed `getIndentation`, `getDefaultTabWidth`, and `setDefaultTabWidth` (moved to `@oh-my-pi/pi-utils`)
+- Removed `getIndentation`, `getDefaultTabWidth`, and `setDefaultTabWidth` (moved to `@oh-my-gpt/gpt-utils`)
 - `visibleWidth`, `truncateToWidth`, `wrapTextWithAnsi`, `sliceWithWidth`, and `extractSegments` now require an explicit `tabWidth` argument
 
 ## [14.0.4] - 2026-04-10
@@ -249,7 +249,7 @@
 - Changed `EditOperation` interface to use `find` parameter for scoped find/replace operations instead of `line` and `endLine` parameters
 - Changed `EditParams` documentation to remove mention of scheduling reordering for line-scoped groups
 - Simplified native build pipeline by removing `--dev` flag support; debug builds no longer available through npm scripts
-- Updated native module loader to check `XDG_DATA_HOME` environment variable for native addon location before falling back to `~/.omp/natives`
+- Updated native module loader to check `XDG_DATA_HOME` environment variable for native addon location before falling back to `~/.omg/natives`
 - Removed native binding validation function that checked for required exports at load time
 - Refactored build pipeline to use napi-rs generated bindings instead of hand-written TypeScript wrappers
 - Updated `build-native.ts` to generate runtime enum exports after native compilation
@@ -258,7 +258,7 @@
 ### Removed
 
 - Removed `dev:native` npm script — use `build:native` for all build scenarios
-- Removed inline pi-utils helpers and dependency on `@oh-my-pi/pi-utils` from native module loader
+- Removed inline gpt-utils helpers and dependency on `@oh-my-gpt/gpt-utils` from native module loader
 - Removed `logger.time()` wrapper calls from native module loading
 - Removed all TypeScript wrapper modules from `src/` directory (appearance, ast, chunk, clipboard, glob, grep, highlight, html, image, keys, projfs, ps, pty, shell, text, work)
 - Removed `src/bindings.ts` and `src/index.ts` entry points
@@ -469,7 +469,7 @@
 
 ### Added
 
-- Added automatic extraction of embedded native addon to `~/.omp/natives/<version>` on first run for compiled binaries
+- Added automatic extraction of embedded native addon to `~/.omg/natives/<version>` on first run for compiled binaries
 - Added `embed:native` build script to embed platform-specific native addon payloads into compiled binaries
 - Exported `Shell` class for creating persistent shell sessions with `run()` method and session options
 - Exported `ShellOptions`, `ShellRunOptions`, and `ShellRunResult` types for shell session management
@@ -495,7 +495,7 @@
 - Refactored module exports to use direct destructuring from native bindings instead of wrapper functions
 - Changed `PhotonImage` API to use instance methods (`resize()`, `encode()`) instead of standalone functions
 - Changed `PhotonImage` to use property accessors for `width` and `height` instead of getter methods
-- Embedded native addon payload for compiled binaries and extract to `~/.omp/natives/<version>` on first run
+- Embedded native addon payload for compiled binaries and extract to `~/.omg/natives/<version>` on first run
 
 ## [9.7.0] - 2026-02-01
 
@@ -504,7 +504,7 @@
 - Exported `killTree` function to kill a process and all its descendants using platform-native APIs
 - Exported `listDescendants` function to list all descendant PIDs of a process
 - Added `dev:native` npm script to build debug native binaries with `--dev` flag
-- Added `OMP_DEV` environment variable support for loading and debugging development native builds
+- Added `OMG_DEV` environment variable support for loading and debugging development native builds
 - Exported keyboard parsing and matching functions: `parseKey`, `parseKittySequence`, `matchesLegacySequence`, and `matchesKey` for terminal input handling
 - Exported `KeyEventType` enum and `ParsedKittyResult` type for Kitty keyboard protocol support
 - Added `parseKey` function to parse terminal input and return normalized key identifiers (e.g., "ctrl+c", "shift+tab")

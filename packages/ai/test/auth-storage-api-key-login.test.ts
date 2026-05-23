@@ -29,7 +29,7 @@ describe("AuthStorage api-key login replacement", () => {
 	let loginOllamaCloudSpy: Mock<typeof ollamaCloudModule.loginOllamaCloud>;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-api-key-login-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-api-key-login-"));
 		dbPath = path.join(tempDir, "agent.db");
 		store = await SqliteAuthCredentialStore.open(dbPath);
 		authStorage = new AuthStorage(store);

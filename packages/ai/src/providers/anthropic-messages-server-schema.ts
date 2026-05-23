@@ -5,7 +5,7 @@
  * `.refine(...)` so the error mentions them explicitly.
  *
  * Used by `anthropic-messages.ts:parseRequest` to validate the inbound JSON
- * before walking it into pi-ai's canonical `Context`.
+ * before walking it into gpt-ai's canonical `Context`.
  */
 import type {
 	ContentBlockParam,
@@ -18,10 +18,10 @@ import type {
 } from "@anthropic-ai/sdk/resources/messages";
 import * as z from "zod/v4";
 
-// `cache_control` is accepted and translated to pi-ai's per-request
+// `cache_control` is accepted and translated to gpt-ai's per-request
 // `cacheRetention` (any `ttl: "1h"` marker upgrades the request to "long";
 // any other ephemeral marker maps to "short"). The walker doesn't try to
-// preserve per-block breakpoints — pi-ai's anthropic provider re-applies them
+// preserve per-block breakpoints — gpt-ai's anthropic provider re-applies them
 // against the rebuilt outbound request anyway.
 export const cacheControlSchema = z
 	.object({

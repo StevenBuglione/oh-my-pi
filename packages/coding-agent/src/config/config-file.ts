@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { getAgentDir, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import { JSONC, YAML } from "bun";
 import type { ZodType } from "zod/v4";
 

@@ -10,7 +10,7 @@ import {
 	parseApplyPatch,
 	parseDiffHunks,
 	seekSequence,
-} from "@oh-my-pi/pi-coding-agent/edit";
+} from "@oh-my-gpt/gpt-coding-agent/edit";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Test-local adapters over the production Codex envelope API.

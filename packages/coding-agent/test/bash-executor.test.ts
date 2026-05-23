@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { executeBash } from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import { DEFAULT_MAX_BYTES } from "@oh-my-pi/pi-coding-agent/session/streaming-output";
-import * as shellSnapshot from "@oh-my-pi/pi-coding-agent/utils/shell-snapshot";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { executeBash } from "@oh-my-gpt/gpt-coding-agent/exec/bash-executor";
+import { DEFAULT_MAX_BYTES } from "@oh-my-gpt/gpt-coding-agent/session/streaming-output";
+import * as shellSnapshot from "@oh-my-gpt/gpt-coding-agent/utils/shell-snapshot";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.
@@ -15,7 +15,7 @@ const KILL_MARKER_DELAY_SECONDS = "0.4";
 const KILL_MARKER_ASSERTION_WAIT_MS = 900;
 
 function makeTempDir(): string {
-	return fs.mkdtempSync(path.join(os.tmpdir(), "omp-bash-exec-"));
+	return fs.mkdtempSync(path.join(os.tmpdir(), "omg-bash-exec-"));
 }
 
 describe("executeBash", () => {

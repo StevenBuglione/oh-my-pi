@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Process, ProcessStatus } from "@oh-my-pi/pi-natives";
+import { Process, ProcessStatus } from "@oh-my-gpt/gpt-natives";
 import type { Subprocess } from "bun";
 import { $env, filterProcessEnv } from "./env";
 import { $which } from "./which";
@@ -127,7 +127,7 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 			return cachedShellConfig;
 		}
 		throw new Error(
-			`Custom shell path not found: ${customShellPath}\nPlease update shellPath in ~/.omp/agent/settings.json`,
+			`Custom shell path not found: ${customShellPath}\nPlease update shellPath in ~/.omg/agent/settings.json`,
 		);
 	}
 
@@ -161,7 +161,7 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 			`No bash shell found. Options:\n` +
 				`  1. Install Git for Windows: https://git-scm.com/download/win\n` +
 				`  2. Add your bash to PATH (Cygwin, MSYS2, etc.)\n` +
-				`  3. Set shellPath in ~/.omp/agent/settings.json\n\n` +
+				`  3. Set shellPath in ~/.omg/agent/settings.json\n\n` +
 				`Searched Git Bash in:\n${paths.map(p => `  ${p}`).join("\n")}`,
 		);
 	}

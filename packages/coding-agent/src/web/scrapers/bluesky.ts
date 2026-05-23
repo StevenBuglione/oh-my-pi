@@ -1,8 +1,8 @@
-import { tryParseJson } from "@oh-my-pi/pi-utils";
+import { tryParseJson } from "@oh-my-gpt/gpt-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatNumber, loadPage } from "./types";
 
-const API_BASE = "https://public.api.bsky.app/xrpc";
+const AOMG_BASE = "https://public.api.bsky.app/xrpc";
 
 interface BlueskyProfile {
 	did: string;
@@ -56,7 +56,7 @@ interface ThreadViewPost {
  * Resolve a handle to DID using the profile API
  */
 async function resolveHandle(handle: string, timeout: number, signal?: AbortSignal): Promise<string | null> {
-	const url = `${API_BASE}/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`;
+	const url = `${AOMG_BASE}/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`;
 	const result = await loadPage(url, {
 		timeout,
 		headers: { Accept: "application/json" },
@@ -175,7 +175,7 @@ export const handleBluesky: SpecialHandler = async (
 
 				// Construct AT URI and fetch thread
 				const atUri = `at://${did}/app.bsky.feed.post/${rkey}`;
-				const threadUrl = `${API_BASE}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(atUri)}&depth=6&parentHeight=3`;
+				const threadUrl = `${AOMG_BASE}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(atUri)}&depth=6&parentHeight=3`;
 
 				const result = await loadPage(threadUrl, {
 					timeout,
@@ -220,7 +220,7 @@ export const handleBluesky: SpecialHandler = async (
 			}
 
 			// Profile only
-			const profileUrl = `${API_BASE}/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`;
+			const profileUrl = `${AOMG_BASE}/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`;
 			const result = await loadPage(profileUrl, {
 				timeout,
 				headers: { Accept: "application/json" },

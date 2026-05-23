@@ -2,14 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ModelRegistry, ProviderDiscoveryState } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { ModelRegistry as ModelRegistryImpl } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ModelSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/model-selector";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { TUI } from "@oh-my-pi/pi-tui";
-import { hookFetch, Snowflake } from "@oh-my-pi/pi-utils";
+import type { ModelRegistry, ProviderDiscoveryState } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { ModelRegistry as ModelRegistryImpl } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { ModelSelectorComponent } from "@oh-my-gpt/gpt-coding-agent/modes/components/model-selector";
+import { getThemeByName, setThemeInstance } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import type { TUI } from "@oh-my-gpt/gpt-tui";
+import { hookFetch, Snowflake } from "@oh-my-gpt/gpt-utils";
 
 function normalizeRenderedText(text: string): string {
 	return text

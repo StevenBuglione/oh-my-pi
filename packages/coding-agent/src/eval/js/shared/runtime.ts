@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as util from "node:util";
 
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 
 import { ToolError } from "../../../tools/tool-errors";
 import { createHelpers, type HelperBundle } from "./helpers";

@@ -4,10 +4,10 @@
  * Custom tools are TypeScript modules that define additional tools for the agent.
  * They can provide custom rendering for tool calls and results in the TUI.
  */
-import type { AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
-import type { Model, Static, TSchema } from "@oh-my-pi/pi-ai";
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { AgentToolResult, AgentToolUpdateCallback } from "@oh-my-gpt/gpt-agent-core";
+import type { CompactionResult } from "@oh-my-gpt/gpt-agent-core/compaction";
+import type { Model, Static, TSchema } from "@oh-my-gpt/gpt-ai";
+import type { Component } from "@oh-my-gpt/gpt-tui";
 import type { Rule } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";
@@ -50,12 +50,12 @@ export interface CustomToolAPI {
 	/** Whether UI is available (false in print/RPC mode) */
 	hasUI: boolean;
 	/** File logger for error/warning/debug messages */
-	logger: typeof import("@oh-my-pi/pi-utils").logger;
+	logger: typeof import("@oh-my-gpt/gpt-utils").logger;
 	/** Injected zod-backed typebox shim (legacy/compat — Zod-authored tools are preferred). */
 	typebox: typeof import("../typebox");
 	/** Injected zod module for Zod-authored custom tools. */
 	zod: typeof import("zod/v4");
-	/** Injected pi-coding-agent exports */
+	/** Injected gpt-coding-agent exports */
 	pi: typeof import("../..");
 	/** Push a preview action that can later be resolved with the hidden resolve tool */
 	pushPendingAction(action: CustomToolPendingAction): void;

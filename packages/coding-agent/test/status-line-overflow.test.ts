@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { visibleWidth } from "@oh-my-gpt/gpt-tui";
+import { getProjectDir, setProjectDir } from "@oh-my-gpt/gpt-utils";
 import { resetSettingsForTest, Settings } from "../src/config/settings";
 import type { StatusLineSegmentId } from "../src/config/settings-schema";
 import { StatusLineComponent } from "../src/modes/components/status-line";
@@ -125,7 +125,7 @@ describe("path segment truncation at varying maxLength", () => {
 	let tmpDir: string;
 
 	beforeAll(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overflow-very-long-directory-name-for-testing-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-overflow-very-long-directory-name-for-testing-"));
 		setProjectDir(tmpDir);
 	});
 
@@ -161,7 +161,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 
 	beforeAll(() => {
 		// Long dir name guarantees the path segment is wide
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overflow-a-very-long-worktree-directory-name-here-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-overflow-a-very-long-worktree-directory-name-here-"));
 		setProjectDir(tmpDir);
 	});
 
@@ -266,7 +266,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 
 	it("shrinks a short path when maxLength exceeds actual path length", () => {
 		// Short dir name — rendered path is well under maxLength=80
-		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-short-"));
+		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-short-"));
 		setProjectDir(shortDir);
 		try {
 			const ctx = createCtx({ pathMaxLength: 80, branch: "feat/long-branch-name" });
@@ -291,7 +291,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 		}
 	});
 	it("preserves git when overflow is only 1-2 columns", () => {
-		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-narrow-ovf-"));
+		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-narrow-ovf-"));
 		setProjectDir(shortDir);
 		try {
 			const ctx = createCtx({ pathMaxLength: 80, branch: "main" });

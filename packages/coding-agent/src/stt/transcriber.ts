@@ -1,4 +1,4 @@
-import { $which, logger } from "@oh-my-pi/pi-utils";
+import { $which, logger } from "@oh-my-gpt/gpt-utils";
 import transcribeScript from "./transcribe.py" with { type: "text" };
 
 export interface TranscribeOptions {

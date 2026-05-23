@@ -5,10 +5,10 @@
  * Requires OAuth credentials stored in agent.db for provider "google-gemini-cli" or "google-antigravity".
  * Returns synthesized answers with citations and source metadata from grounding chunks.
  */
-import { ANTIGRAVITY_SYSTEM_INSTRUCTION, getAntigravityUserAgent, getGeminiCliHeaders } from "@oh-my-pi/pi-ai";
-import { refreshAntigravityToken } from "@oh-my-pi/pi-ai/utils/oauth/google-antigravity";
-import { refreshGoogleCloudToken } from "@oh-my-pi/pi-ai/utils/oauth/google-gemini-cli";
-import { fetchWithRetry, getAgentDbPath } from "@oh-my-pi/pi-utils";
+import { ANTIGRAVITY_SYSTEM_INSTRUCTION, getAntigravityUserAgent, getGeminiCliHeaders } from "@oh-my-gpt/gpt-ai";
+import { refreshAntigravityToken } from "@oh-my-gpt/gpt-ai/utils/oauth/google-antigravity";
+import { refreshGoogleCloudToken } from "@oh-my-gpt/gpt-ai/utils/oauth/google-gemini-cli";
+import { fetchWithRetry, getAgentDbPath } from "@oh-my-gpt/gpt-utils";
 
 import { AgentStorage } from "../../../session/agent-storage";
 import type { SearchCitation, SearchResponse, SearchSource } from "../../../web/search/types";
@@ -256,7 +256,7 @@ async function callGeminiSearch(
 				requestId: `agent-${crypto.randomUUID()}`,
 			}
 		: {
-				userAgent: "pi-coding-agent",
+				userAgent: "gpt-coding-agent",
 				requestId: `pi-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
 			};
 
@@ -491,7 +491,7 @@ export async function searchGemini(params: GeminiSearchParams): Promise<SearchRe
 	const auth = await findGeminiAuth();
 	if (!auth) {
 		throw new Error(
-			"No Gemini OAuth credentials found. Login with 'omp /login google-gemini-cli' or 'omp /login google-antigravity' to enable Gemini web search.",
+			"No Gemini OAuth credentials found. Login with 'omg /login google-gemini-cli' or 'omg /login google-antigravity' to enable Gemini web search.",
 		);
 	}
 

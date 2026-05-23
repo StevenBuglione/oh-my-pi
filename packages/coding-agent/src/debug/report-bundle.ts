@@ -5,8 +5,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { WorkProfile } from "@oh-my-pi/pi-natives";
-import { APP_NAME, getLogPath, getLogsDir, getReportsDir, isEnoent } from "@oh-my-pi/pi-utils";
+import type { WorkProfile } from "@oh-my-gpt/gpt-natives";
+import { APP_NAME, getLogPath, getLogsDir, getReportsDir, isEnoent } from "@oh-my-gpt/gpt-utils";
 import type { CpuProfile, HeapSnapshot } from "./profiler";
 import { collectSystemInfo, sanitizeEnv } from "./system-info";
 
@@ -81,7 +81,7 @@ export async function createReportBundle(options: ReportBundleOptions): Promise<
 	await fs.mkdir(reportsDir, { recursive: true });
 
 	const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-	const outputPath = path.join(reportsDir, `omp-report-${timestamp}.tar.gz`);
+	const outputPath = path.join(reportsDir, `omg-report-${timestamp}.tar.gz`);
 
 	const data: Record<string, string> = {};
 	const files: string[] = [];

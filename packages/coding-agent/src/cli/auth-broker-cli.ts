@@ -1,5 +1,5 @@
 /**
- * `omp auth-broker` command handlers.
+ * `omg auth-broker` command handlers.
  *
  * Sub-verbs:
  *   - `serve [--bind=…]` — boots the broker against the local SQLite store.
@@ -30,8 +30,8 @@ import {
 	type OAuthProvider,
 	SqliteAuthCredentialStore,
 	startAuthBroker,
-} from "@oh-my-pi/pi-ai";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
@@ -112,7 +112,7 @@ async function ensureToken(): Promise<string> {
 async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	// The broker is a long-running headless service: route structured logs to
 	// stdout so a process supervisor (pm2, journald, k8s) captures them, and
-	// skip the rotating ~/.omp/logs/ file the TUI default would have used.
+	// skip the rotating ~/.omg/logs/ file the TUI default would have used.
 	logger.setTransports({ console: true, file: false });
 
 	const bind = flags.bind ?? DEFAULT_AUTH_BROKER_BIND;
@@ -170,7 +170,7 @@ async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const providerArg = flags.provider;
 	if (!providerArg) {
-		throw new Error("Usage: omp auth-broker login <provider> [--via=user@host]");
+		throw new Error("Usage: omg auth-broker login <provider> [--via=user@host]");
 	}
 	const oauthProviders = new Set<string>(getOAuthProviders().map(p => p.id));
 	if (!oauthProviders.has(providerArg)) {
@@ -184,9 +184,9 @@ async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 }
 
 async function runLocalLogin(provider: OAuthProvider): Promise<void> {
-	// Spawn the pi-ai CLI in-process — it handles the per-provider OAuth dance
+	// Spawn the gpt-ai CLI in-process — it handles the per-provider OAuth dance
 	// and persists into the same SQLite store the broker uses.
-	const piAiCli = Bun.fileURLToPath(import.meta.resolve("@oh-my-pi/pi-ai/cli"));
+	const piAiCli = Bun.fileURLToPath(import.meta.resolve("@oh-my-gpt/gpt-ai/cli"));
 	const proc = Bun.spawn({
 		cmd: [process.execPath, piAiCli, "login", provider],
 		stdin: "inherit",
@@ -195,7 +195,7 @@ async function runLocalLogin(provider: OAuthProvider): Promise<void> {
 	});
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
-		throw new Error(`pi-ai login exited with code ${exitCode}`);
+		throw new Error(`gpt-ai login exited with code ${exitCode}`);
 	}
 }
 
@@ -237,7 +237,7 @@ async function runRemoteLogin(provider: string, via: string, dryRun: boolean): P
 async function runLogout(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const providerArg = flags.provider;
 	if (!providerArg) {
-		throw new Error("Usage: omp auth-broker logout <provider>");
+		throw new Error("Usage: omg auth-broker logout <provider>");
 	}
 	const store = await SqliteAuthCredentialStore.open(getAgentDbPath());
 	try {
@@ -251,7 +251,7 @@ async function runLogout(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 // ─── CLIProxyAPI import ─────────────────────────────────────────────────
 
 /**
- * Maps the `type` field of a CLIProxyAPI credential JSON to the omp provider id.
+ * Maps the `type` field of a CLIProxyAPI credential JSON to the omg provider id.
  * The filename also encodes the type (e.g. `claude-foo@bar.json`), but the
  * in-file `type` is authoritative — we only fall back to filename if absent.
  */
@@ -347,7 +347,7 @@ async function loadImportPlan(
 		if (!provider) {
 			skipped.push({
 				file,
-				reason: `cannot determine omp provider from type=${json.type ?? "?"} (pass --provider to override)`,
+				reason: `cannot determine omg provider from type=${json.type ?? "?"} (pass --provider to override)`,
 			});
 			continue;
 		}
@@ -393,7 +393,7 @@ function describeImportEntry(entry: ImportPlanEntry): string {
 async function runImport(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const target = flags.source;
 	if (!target) {
-		throw new Error("Usage: omp auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]");
+		throw new Error("Usage: omg auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]");
 	}
 	const resolvedTarget = path.resolve(target.startsWith("~") ? target.replace(/^~/, os.homedir()) : target);
 	const { entries, skipped } = await loadImportPlan(resolvedTarget, flags.provider, flags.includeDisabled === true);
@@ -532,12 +532,12 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"OMP_AUTH_BROKER_URL must be set (or `auth.broker.url` in config.yml). `migrate` uploads local credentials to a configured broker.",
+			"OMG_AUTH_BROKER_URL must be set (or `auth.broker.url` in config.yml). `migrate` uploads local credentials to a configured broker.",
 		);
 	}
 	if (flags.fromLocal !== true) {
 		throw new Error(
-			"`omp auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
+			"`omg auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
 		);
 	}
 
@@ -555,7 +555,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 	const plannedApiKeyProviders = new Set<string>();
 	try {
 		for (const row of localStore.listAuthCredentials()) {
-			// Skip placeholder sentinels that pi-ai treats as "authenticated via
+			// Skip placeholder sentinels that gpt-ai treats as "authenticated via
 			// out-of-band mechanism" (Bedrock/Vertex `<authenticated>`). They
 			// aren't real keys and uploading them would store garbage on the
 			// broker. Mirrors the env-var path's guard below.
@@ -685,7 +685,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 async function runStatus(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const cfg = await resolveAuthBrokerConfig();
 	if (!cfg) {
-		const message = "No auth-broker configured (set OMP_AUTH_BROKER_URL to enable).";
+		const message = "No auth-broker configured (set OMG_AUTH_BROKER_URL to enable).";
 		if (flags.json) process.stdout.write(`${JSON.stringify({ ok: false, reason: "not_configured" })}\n`);
 		else process.stdout.write(`${chalk.yellow(message)}\n`);
 		return;

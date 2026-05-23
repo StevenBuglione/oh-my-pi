@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
+import { toolWireSchema } from "@oh-my-gpt/gpt-ai/utils/schema";
+import { validateToolArguments } from "@oh-my-gpt/gpt-ai/utils/validation";
 import { Settings } from "../../src/config/settings";
 import { TaskTool } from "../../src/task";
 import * as discoveryModule from "../../src/task/discovery";

@@ -1,6 +1,6 @@
 # Natives Build, Release, and Debugging Runbook
 
-This runbook describes how `@oh-my-pi/pi-natives` produces `.node` addons, generated declarations, and compiled-binary embedded payloads, and how to debug loader/build failures.
+This runbook describes how `@oh-my-gpt/gpt-natives` produces `.node` addons, generated declarations, and compiled-binary embedded payloads, and how to debug loader/build failures.
 
 It follows the architecture terms from `docs/natives-architecture.md`:
 
@@ -16,7 +16,7 @@ It follows the architecture terms from `docs/natives-architecture.md`:
 - `packages/natives/package.json`
 - `packages/natives/native/index.js`
 - `packages/natives/native/loader-state.js`
-- `crates/pi-natives/Cargo.toml`
+- `crates/gpt-natives/Cargo.toml`
 
 ## Build pipeline overview
 
@@ -34,7 +34,7 @@ Root scripts include `build:native` as `bun --cwd=packages/natives run build`.
 `build-native.ts` invokes the `@napi-rs/cli` binary directly from `node_modules/.bin` with:
 
 - `napi build`
-- `--manifest-path crates/pi-natives/Cargo.toml`
+- `--manifest-path crates/gpt-natives/Cargo.toml`
 - `--package-json-path packages/natives/package.json`
 - `--platform`
 - `--no-js`
@@ -42,7 +42,7 @@ Root scripts include `build:native` as `bun --cwd=packages/natives run build`.
 - `--profile local` for non-CI local native builds, otherwise `--profile ci`
 - optional `--target <CROSS_TARGET>`
 
-`crates/pi-natives/Cargo.toml` declares `crate-type = ["cdylib"]`; napi-rs emits `.node` artifacts plus generated `index.d.ts` in an isolated temporary output directory under `packages/natives/native/.build/`.
+`crates/gpt-natives/Cargo.toml` declares `crate-type = ["cdylib"]`; napi-rs emits `.node` artifacts plus generated `index.d.ts` in an isolated temporary output directory under `packages/natives/native/.build/`.
 
 ### 3) Artifact install
 
@@ -85,7 +85,7 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
 ## Runtime flags
 
 - `PI_NATIVE_VARIANT`: x64 runtime override; valid values are `modern` and `baseline`.
-- `PI_COMPILED`: legacy compiled-mode signal. A populated embedded-addon manifest is also a compiled-mode signal and is the authoritative signal for Bun standalone builds that do not preserve `process.env.PI_COMPILED`.
+- `OMG_COMPILED`: legacy compiled-mode signal. A populated embedded-addon manifest is also a compiled-mode signal and is the authoritative signal for Bun standalone builds that do not preserve `process.env.OMG_COMPILED`.
 
 ## Build-time flags/options
 
@@ -112,7 +112,7 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
    - x64 cross-build without `TARGET_VARIANT` → hard error;
    - x64 local build without override → detect host AVX2.
 3. **CPU policy**: set `RUSTFLAGS` for the resolved variant unless the caller already provided one.
-4. **Compile**: run napi-rs against `crates/pi-natives` into an isolated output directory.
+4. **Compile**: run napi-rs against `crates/gpt-natives` into an isolated output directory.
 5. **Locate artifact**: accept the canonical filename or a single napi-rs-generated `pi_natives.<platform>-<arch>*.node` candidate.
 6. **Install**: copy/rename addon into `packages/natives/native`.
 7. **Install generated bindings**: copy `index.js`/`index.d.ts` if needed.
@@ -145,13 +145,13 @@ Typical local loop:
 
 ## Shipped/compiled binary workflow
 
-In compiled mode (`PI_COMPILED`, Bun embedded URL markers, or populated embedded manifest):
+In compiled mode (`OMG_COMPILED`, Bun embedded URL markers, or populated embedded manifest):
 
 1. Loader computes versioned cache dir: `<getNativesDir()>/<packageVersion>`.
 2. If embedded manifest matches current platform+version, loader may extract the selected embedded file into that versioned dir.
 3. Runtime candidate order includes:
    - versioned cache dir,
-   - legacy compiled-binary dir (`%LOCALAPPDATA%/omp` on Windows, `~/.local/bin` elsewhere),
+   - legacy compiled-binary dir (`%LOCALAPPDATA%/omg` on Windows, `~/.local/bin` elsewhere),
    - package/executable directories.
 4. First successfully loaded addon is returned.
 
@@ -218,7 +218,7 @@ bun --cwd=packages/natives run embed:native -- --reset
 
 ## Orchestrator-side content-addressed build cache (robomp)
 
-When `pi-natives` is built inside the robomp orchestrator (`python/robomp/`), workspaces share built artifacts through a content-addressed cache instead of rebuilding from scratch in every per-issue worktree. The cache is **orchestrator-side only** — `bun --cwd=packages/natives run build` itself is unchanged; the cache lives outside the build pipeline and is populated/captured around `ensure_workspace` and post-task success in `python/robomp/src/natives_cache.py`.
+When `gpt-natives` is built inside the robomp orchestrator (`python/robomp/`), workspaces share built artifacts through a content-addressed cache instead of rebuilding from scratch in every per-issue worktree. The cache is **orchestrator-side only** — `bun --cwd=packages/natives run build` itself is unchanged; the cache lives outside the build pipeline and is populated/captured around `ensure_workspace` and post-task success in `python/robomp/src/natives_cache.py`.
 
 ### What is cached
 
@@ -236,7 +236,7 @@ An entry is only considered a hit when the `.node` glob matches AND every compan
 
 The key is `sha256` over `(path \t git-tree-hash \n)` pairs for the following inputs, in this order (order is significant), followed by the target triple:
 
-1. `crates` (whole subtree — pi-natives transitively depends on other workspace crates)
+1. `crates` (whole subtree — gpt-natives transitively depends on other workspace crates)
 2. `Cargo.lock`
 3. `Cargo.toml`
 4. `rust-toolchain.toml`
@@ -248,7 +248,7 @@ Anything outside this input set (Rust toolchain auto-installed delta, host glibc
 
 ### Layout and ownership
 
-- Root: `/data/cache/pi-natives` (provisioned by `entrypoint.sh` alongside the cargo caches, owned `root:omp`, mode `02770` setgid so cached files inherit `gid=omp` and stay readable by every slot user).
+- Root: `/data/cache/gpt-natives` (provisioned by `entrypoint.sh` alongside the cargo caches, owned `root:omg`, mode `02770` setgid so cached files inherit `gid=omg` and stay readable by every slot user).
 - Per-repo subdirectory: `<root>/<repo-slug>/` where the slug is `owner__repo` (mirrors `SandboxManager.pool_path`).
 - Per-entry directory: `<root>/<repo-slug>/<sha256-key>/` containing the cached files plus `manifest.json`.
 - Per-repo lockfile: `<root>/<repo-slug>/.lock` (advisory `fcntl.flock`, exclusive on capture and GC).
@@ -257,7 +257,7 @@ Anything outside this input set (Rust toolchain auto-installed delta, host glibc
 ### Populate and capture semantics
 
 - **Populate** (workspace ← cache) runs inside `ensure_workspace`. On a key hit the `.node` is **hardlinked** into the workspace (zero-copy, shared inode); the companion `index.d.ts` / `index.js` / `embedded-addon.js` are **copied** (independent inodes) because the napi build's `installGeneratedBindings` and `gen-enums.ts` rewrite those files via `open(..., 'w')` — an in-place truncate that would otherwise propagate through a hardlink and corrupt the cache. Cross-device hardlink failures (`EXDEV`) fall back to copy.
-- **Capture** (cache ← workspace) runs from the post-task success path when the build produced a complete artifact set. Capture uses **copy**, not hardlink: hardlinking a slot-owned workspace file would preserve slot UID ownership on the cached inode and defeat the shared-group model. Copying creates a fresh root-owned, `gid=omp` inode via the setgid cache root. Capture is idempotent under the per-repo flock: a concurrent capture for the same key returns the existing entry.
+- **Capture** (cache ← workspace) runs from the post-task success path when the build produced a complete artifact set. Capture uses **copy**, not hardlink: hardlinking a slot-owned workspace file would preserve slot UID ownership on the cached inode and defeat the shared-group model. Copying creates a fresh root-owned, `gid=omg` inode via the setgid cache root. Capture is idempotent under the per-repo flock: a concurrent capture for the same key returns the existing entry.
 
 ### Garbage collection
 
@@ -272,17 +272,17 @@ Workspaces that hardlinked a `.node` before GC retain access via the kernel inod
 
 | Env var                                      | Default                  | Effect                                                        |
 | -------------------------------------------- | ------------------------ | ------------------------------------------------------------- |
-| `ROBOMP_NATIVES_CACHE_ENABLED`               | `true`                   | Master switch. When false the populate/capture hooks no-op and every workspace builds from scratch. |
-| `ROBOMP_NATIVES_CACHE_ROOT`                  | `/data/cache/pi-natives` | Cache root directory. Must be `root:omp 02770` for cross-slot reads.                                  |
-| `ROBOMP_NATIVES_CACHE_MAX_ENTRIES_PER_REPO`  | `8`                      | LRU entry-count cap, per repo slug.                                                                  |
-| `ROBOMP_NATIVES_CACHE_MAX_BYTES`             | `4294967296` (4 GiB)     | LRU byte cap, per repo slug.                                                                          |
-| `ROBOMP_NATIVES_CACHE_GC_INTERVAL_SECONDS`   | `3600`                   | Period of the background GC loop in `WorkerPool`.                                                    |
+| `ROBOMG_NATIVES_CACHE_ENABLED`               | `true`                   | Master switch. When false the populate/capture hooks no-op and every workspace builds from scratch. |
+| `ROBOMG_NATIVES_CACHE_ROOT`                  | `/data/cache/gpt-natives` | Cache root directory. Must be `root:omg 02770` for cross-slot reads.                                  |
+| `ROBOMG_NATIVES_CACHE_MAX_ENTRIES_PER_REPO`  | `8`                      | LRU entry-count cap, per repo slug.                                                                  |
+| `ROBOMG_NATIVES_CACHE_MAX_BYTES`             | `4294967296` (4 GiB)     | LRU byte cap, per repo slug.                                                                          |
+| `ROBOMG_NATIVES_CACHE_GC_INTERVAL_SECONDS`   | `3600`                   | Period of the background GC loop in `WorkerPool`.                                                    |
 
 ### Manual invalidation
 
-- One key: `rm -rf /data/cache/pi-natives/<repo-slug>/<sha256>`.
-- One repo: `rm -rf /data/cache/pi-natives/<repo-slug>`.
-- Everything: `rm -rf /data/cache/pi-natives/*` (preserve the root so its setgid mode survives).
-- Stuck lock: `rm /data/cache/pi-natives/<repo-slug>/.lock` (only when no orchestrator process is touching the repo).
+- One key: `rm -rf /data/cache/gpt-natives/<repo-slug>/<sha256>`.
+- One repo: `rm -rf /data/cache/gpt-natives/<repo-slug>`.
+- Everything: `rm -rf /data/cache/gpt-natives/*` (preserve the root so its setgid mode survives).
+- Stuck lock: `rm /data/cache/gpt-natives/<repo-slug>/.lock` (only when no orchestrator process is touching the repo).
 
 Trigger an automatic miss by editing any path in the key set: a single touched byte under `crates/`, `Cargo.lock`, `Cargo.toml`, `rust-toolchain.toml`, or `packages/natives/` shifts the tree hash and forces a fresh build at the next populate.

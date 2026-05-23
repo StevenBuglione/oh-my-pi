@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai";
+import { AssistantMessageEventStream } from "@oh-my-gpt/gpt-ai/utils/event-stream";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-gpt/gpt-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 
 let tempDir: TempDir;

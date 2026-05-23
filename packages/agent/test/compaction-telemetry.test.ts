@@ -16,17 +16,17 @@ import {
 	generateBranchSummary,
 	generateHandoff,
 	generateSummary,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@oh-my-gpt/gpt-agent-core/compaction";
 import {
 	type AgentTelemetryConfig,
 	GenAIAttr,
 	GenAIOperation,
 	PiGenAIAttr,
 	resolveTelemetry,
-} from "@oh-my-pi/pi-agent-core/telemetry";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core/types";
-import type { AssistantMessage, Model, Usage } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
+} from "@oh-my-gpt/gpt-agent-core/telemetry";
+import type { AgentMessage } from "@oh-my-gpt/gpt-agent-core/types";
+import type { AssistantMessage, Model, Usage } from "@oh-my-gpt/gpt-ai";
+import * as ai from "@oh-my-gpt/gpt-ai";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
 	BasicTracerProvider,

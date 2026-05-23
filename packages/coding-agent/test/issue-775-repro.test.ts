@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { Effort, getBundledModel, type Model } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@oh-my-gpt/gpt-agent-core";
+import { Effort, getBundledModel, type Model } from "@oh-my-gpt/gpt-ai";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 
 describe("issue #775: per-model defaultLevel", () => {
 	let tempDir: TempDir;

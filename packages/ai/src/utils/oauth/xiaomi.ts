@@ -15,8 +15,8 @@ import type { OAuthController } from "./types";
 const PROVIDER_ID = "xiaomi";
 const PROVIDER_NAME = "Xiaomi MiMo";
 const STANDARD_AUTH_URL = "https://platform.xiaomimimo.com/#/console/api-keys";
-const STANDARD_API_BASE_URL = "https://api.xiaomimimo.com/anthropic";
-const TOKEN_PLAN_API_BASE_URL = "https://token-plan-ams.xiaomimimo.com/anthropic";
+const STANDARD_AOMG_BASE_URL = "https://api.xiaomimimo.com/anthropic";
+const TOKEN_PLAN_AOMG_BASE_URL = "https://token-plan-ams.xiaomimimo.com/anthropic";
 const TOKEN_PLAN_KEY_PREFIX = "tp-";
 const STANDARD_VALIDATION_MODEL = "mimo-v2-flash";
 const TOKEN_PLAN_VALIDATION_MODEL = "mimo-v2.5";
@@ -27,9 +27,9 @@ function isTokenPlanKey(apiKey: string): boolean {
 
 function resolveEndpoint(apiKey: string): { baseUrl: string; model: string } {
 	if (isTokenPlanKey(apiKey)) {
-		return { baseUrl: TOKEN_PLAN_API_BASE_URL, model: TOKEN_PLAN_VALIDATION_MODEL };
+		return { baseUrl: TOKEN_PLAN_AOMG_BASE_URL, model: TOKEN_PLAN_VALIDATION_MODEL };
 	}
-	return { baseUrl: STANDARD_API_BASE_URL, model: STANDARD_VALIDATION_MODEL };
+	return { baseUrl: STANDARD_AOMG_BASE_URL, model: STANDARD_VALIDATION_MODEL };
 }
 const ANTHROPIC_VERSION = "2023-06-01";
 const VALIDATION_TIMEOUT_MS = 15_000;

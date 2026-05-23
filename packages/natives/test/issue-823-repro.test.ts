@@ -1,13 +1,13 @@
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/823.
+ * Regression for https://github.com/can1357/oh-my-gpt/issues/823.
  *
  * On WSL (and any host where the user moves the standalone binary away from the
- * build-time native artifacts), the compiled `omp` binary fails to load
+ * build-time native artifacts), the compiled `omg` binary fails to load
  * `pi_natives.linux-x64-*.node`. Root cause: the old loader's
  * `isCompiledBinary` detection relied on signals that are unreliable in a Bun
  * standalone binary:
- *   - `process.env.PI_COMPILED` — never set, because `bun build --compile
- *     --define PI_COMPILED=true` substitutes the bare identifier, not
+ *   - `process.env.OMG_COMPILED` — never set, because `bun build --compile
+ *     --define OMG_COMPILED=true` substitutes the bare identifier, not
  *     property accesses on `process.env`.
  *   - CommonJS `__filename` bunfs markers — Bun's compiled binaries kept the
  *     original build-host absolute path there, while `import.meta.url` is the
@@ -15,7 +15,7 @@
  *
  * When both signals were false, the loader skipped the embedded-addon
  * extraction path and only tried `nativeDir` (the dev machine's checkout) and
- * `execDir`. On WSL with `~/.local/bin/omp` and no sibling `.node` file, this
+ * `execDir`. On WSL with `~/.local/bin/omg` and no sibling `.node` file, this
  * failed with the error reported in the issue.
  *
  * The fix is to make the loader's compiled-binary detection authoritative on
@@ -32,7 +32,7 @@ import { detectCompiledBinary, getAddonFilenames, resolveLoaderCandidates } from
 describe("issue 823: standalone-binary native loader path resolution", () => {
 	it("detects compiled-binary mode from embedded-addon presence when env and url markers are absent", () => {
 		// Mirrors what a Bun standalone binary actually sees on linux-x64 / WSL:
-		// - `process.env.PI_COMPILED` is undefined (the build flag does not substitute property accesses).
+		// - `process.env.OMG_COMPILED` is undefined (the build flag does not substitute property accesses).
 		// - `import.meta.url` points at `$bunfs` for bundled modules; the old CJS
 		//   loader used `__filename`, which is NOT rewritten.
 		// The embedded-addon module is the authoritative compiled-mode signal: it is `null` in
@@ -65,11 +65,11 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 			}),
 		).toBe(false);
 
-		// Env override (e.g. user-set PI_COMPILED=1) still wins.
+		// Env override (e.g. user-set OMG_COMPILED=1) still wins.
 		expect(
 			detectCompiledBinary({
 				embeddedAddon: null,
-				env: { PI_COMPILED: "1" },
+				env: { OMG_COMPILED: "1" },
 				importMetaUrl: "/anywhere",
 			}),
 		).toBe(true);
@@ -85,7 +85,7 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 	});
 
 	it("places embedded-extracted candidates ahead of build-host candidates for linux-x64 standalone", () => {
-		const versionedDir = "/home/u/.omp/natives/14.5.2";
+		const versionedDir = "/home/u/.omg/natives/14.5.2";
 		const userDataDir = "/home/u/.local/bin";
 		const nativeDir = "/build-host/packages/natives/native";
 		const execDir = "/home/u/.local/bin";
@@ -104,8 +104,8 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 		const buildHostModern = path.join(nativeDir, "pi_natives.linux-x64-modern.node");
 
 		// Versioned cache and user-data dir candidates must exist for compiled binaries —
-		// these are where the embedded-addon extraction lands (~/.omp/natives/<v>) and where
-		// `omp update` writes the standalone binary on linux (~/.local/bin).
+		// these are where the embedded-addon extraction lands (~/.omg/natives/<v>) and where
+		// `omg update` writes the standalone binary on linux (~/.local/bin).
 		expect(candidates).toContain(versionedModern);
 		expect(candidates).toContain(versionedBaseline);
 		expect(candidates).toContain(userDataModern);
@@ -116,7 +116,7 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 	});
 
 	it("does not probe user-data candidates when running outside a standalone binary", () => {
-		const versionedDir = "/home/u/.omp/natives/14.5.2";
+		const versionedDir = "/home/u/.omg/natives/14.5.2";
 		const userDataDir = "/home/u/.local/bin";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "linux-x64", arch: "x64", variant: "baseline" }),

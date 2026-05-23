@@ -33,7 +33,7 @@ When no matches exist:
 
 ## Flow
 1. `HindsightRecallTool.createIf(...)` only exposes the tool when `memory.backend == "hindsight"`.
-2. `execute(...)` wraps the whole operation in `untilAborted(...)` from `@oh-my-pi/pi-utils`.
+2. `execute(...)` wraps the whole operation in `untilAborted(...)` from `@oh-my-gpt/gpt-utils`.
 3. It reads the active `HindsightSessionState`; missing state throws `Hindsight backend is not initialised for this session.`
 4. It calls `state.client.recall(...)` with:
    - `bankId` from session bootstrap,

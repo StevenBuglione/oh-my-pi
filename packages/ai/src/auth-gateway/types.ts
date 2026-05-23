@@ -2,12 +2,12 @@ import type { Effort } from "../model-thinking";
 import type { AssistantMessage, AssistantMessageEventStream, CacheRetention, Context, ServiceTier } from "../types";
 
 /**
- * Wire types for the omp auth-gateway.
+ * Wire types for the omg auth-gateway.
  *
- * The gateway sits between unauthenticated clients (containerized omp,
+ * The gateway sits between unauthenticated clients (containerized omg,
  * llm-git, …) and the broker. It accepts provider-format HTTP requests
  * (OpenAI chat-completions / Anthropic messages / OpenAI Responses),
- * dispatches them through pi-ai's `streamSimple()`, and translates the
+ * dispatches them through gpt-ai's `streamSimple()`, and translates the
  * canonical event stream back to the matching wire format. The gateway
  * injects `Authorization` server-side so clients never see access tokens.
  */
@@ -67,7 +67,7 @@ export interface AuthGatewayParsedRequestOptions {
 	serviceTier?: ServiceTier;
 	/** Cache retention hint derived from inbound `cache_control` markers. */
 	cacheRetention?: CacheRetention;
-	/** OpenAI Responses `prompt_cache_key`; bridges to pi-ai `sessionId`. */
+	/** OpenAI Responses `prompt_cache_key`; bridges to gpt-ai `sessionId`. */
 	promptCacheKey?: string;
 	/** OpenAI Responses `previous_response_id` for response chaining. */
 	previousResponseId?: string;

@@ -1,4 +1,4 @@
-import { structuredCloneJSON } from "@oh-my-pi/pi-utils";
+import { structuredCloneJSON } from "@oh-my-gpt/gpt-utils";
 import type OpenAI from "openai";
 import type {
 	ResponseCustomToolCall,
@@ -679,7 +679,7 @@ export function applyResponsesReasoningParams<P extends OpenAI.Responses.Respons
 	if (!model.reasoning) return;
 	// Always request encrypted reasoning content so reasoning items can be replayed in
 	// multi-turn conversations when store is false (items aren't persisted server-side, so
-	// we must include the full content). See: https://github.com/can1357/oh-my-pi/issues/41
+	// we must include the full content). See: https://github.com/can1357/oh-my-gpt/issues/41
 	params.include = ["reasoning.encrypted_content"];
 
 	if (options?.reasoning || options?.reasoningSummary !== undefined) {

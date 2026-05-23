@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentTool, INTENT_FIELD } from "@oh-my-pi/pi-agent-core";
-import { buildSystemPrompt, buildSystemPromptToolMetadata } from "@oh-my-pi/pi-coding-agent/system-prompt";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { type AgentTool, INTENT_FIELD } from "@oh-my-gpt/gpt-agent-core";
+import { buildSystemPrompt, buildSystemPromptToolMetadata } from "@oh-my-gpt/gpt-coding-agent/system-prompt";
+import { prompt } from "@oh-my-gpt/gpt-utils";
 import Handlebars from "handlebars";
 import * as z from "zod/v4";
 

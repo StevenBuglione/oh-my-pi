@@ -28,7 +28,7 @@ import {
 	type AgentTool,
 	resolveTelemetry,
 	ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@oh-my-gpt/gpt-agent-core";
 import {
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
 	CompactionCancelledError,
@@ -44,8 +44,8 @@ import {
 	prepareCompaction,
 	type SummaryOptions,
 	shouldCompact,
-} from "@oh-my-pi/pi-agent-core/compaction";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@oh-my-pi/pi-agent-core/compaction/pruning";
+} from "@oh-my-gpt/gpt-agent-core/compaction";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@oh-my-gpt/gpt-agent-core/compaction/pruning";
 import type {
 	AssistantMessage,
 	Context,
@@ -62,7 +62,7 @@ import type {
 	ToolChoice,
 	Usage,
 	UsageReport,
-} from "@oh-my-pi/pi-ai";
+} from "@oh-my-gpt/gpt-ai";
 import {
 	calculateRateLimitBackoffMs,
 	clearAnthropicFastModeFallback,
@@ -73,8 +73,8 @@ import {
 	parseRateLimitReason,
 	resolveServiceTier,
 	streamSimple,
-} from "@oh-my-pi/pi-ai";
-import { MacOSPowerAssertion } from "@oh-my-pi/pi-natives";
+} from "@oh-my-gpt/gpt-ai";
+import { MacOSPowerAssertion } from "@oh-my-gpt/gpt-natives";
 import {
 	extractRetryHint,
 	getAgentDbPath,
@@ -83,7 +83,7 @@ import {
 	logger,
 	prompt,
 	Snowflake,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import { type AsyncJob, type AsyncJobDeliveryState, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
 import type { Rule } from "../capability/rule";
@@ -524,7 +524,7 @@ function buildSessionMetadata(
 			// is derived solely from the OAuth UUID the user already consented to
 			// share with Anthropic. Omitted when no OAuth credential is available
 			// (API-key callers) to avoid sending a hash of an empty string.
-			userId.device_id = crypto.createHash("sha256").update(`omp-device-id-v1:${accountUuid}`).digest("hex");
+			userId.device_id = crypto.createHash("sha256").update(`omg-device-id-v1:${accountUuid}`).digest("hex");
 		}
 	}
 	return { user_id: JSON.stringify(userId) };
@@ -936,7 +936,7 @@ export class AgentSession {
 		if (!idle && !system && !user && !display) return;
 		try {
 			this.#powerAssertion = MacOSPowerAssertion.start({
-				reason: "Oh My Pi agent session",
+				reason: "Oh My GPT agent session",
 				idle,
 				system,
 				user,
@@ -1250,7 +1250,7 @@ export class AgentSession {
 	 *  Does NOT push to the agent's steering/followUp queue — that happens
 	 *  separately inside `sendCustomMessage`. */
 	enqueueCustomMessageDisplay(text: string, mode: "steer" | "followUp"): string {
-		const tag = `omp-cmd-${Date.now()}-${++this.#customDisplayTagCounter}`;
+		const tag = `omg-cmd-${Date.now()}-${++this.#customDisplayTagCounter}`;
 		const displayText = text.trim();
 		if (!displayText) return tag;
 		const entry: QueuedDisplayEntry = { text: displayText, tag };

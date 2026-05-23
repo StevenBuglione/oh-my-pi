@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeAnthropicToolSchema } from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { Tool } from "@oh-my-pi/pi-ai/types";
+import { normalizeAnthropicToolSchema } from "@oh-my-gpt/gpt-ai/providers/anthropic";
+import type { Tool } from "@oh-my-gpt/gpt-ai/types";
 import {
 	isZodSchema,
 	normalizeEmptySchemas,
@@ -8,7 +8,7 @@ import {
 	normalizeSchemaForGoogle,
 	toolWireSchema,
 	zodToWireSchema,
-} from "@oh-my-pi/pi-ai/utils/schema";
+} from "@oh-my-gpt/gpt-ai/utils/schema";
 import { z } from "zod/v4";
 
 describe("isZodSchema", () => {

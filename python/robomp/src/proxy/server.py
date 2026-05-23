@@ -143,7 +143,7 @@ def _resolve_token(cfg: Settings) -> str:
 
 def _resolve_hmac_key(cfg: Settings) -> bytes:
     if cfg.gh_proxy_hmac_key is None:
-        raise HTTPException(500, "gh-proxy: ROBOMP_GH_PROXY_HMAC_KEY not configured")
+        raise HTTPException(500, "gh-proxy: ROBOMG_GH_PROXY_HMAC_KEY not configured")
     return cfg.gh_proxy_hmac_key.get_secret_value().encode("utf-8")
 
 

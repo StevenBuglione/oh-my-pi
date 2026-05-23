@@ -15,9 +15,9 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 | `packages/coding-agent` | Main CLI application (primary focus)                 |
 | `packages/tui`          | Terminal UI library with differential rendering      |
 | `packages/natives`      | Bindings for native text/image/grep operations       |
-| `packages/stats`        | Local observability dashboard (`omp stats`)          |
+| `packages/stats`        | Local observability dashboard (`omg stats`)          |
 | `packages/utils`        | Shared utilities (logger, streams, temp files)       |
-| `crates/pi-natives`     | Rust crate for performance-critical text/grep ops    |
+| `crates/gpt-natives`     | Rust crate for performance-critical text/grep ops    |
 
 ## Code Quality
 
@@ -31,14 +31,14 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 - **Prompts**: never build prompts in code (no inline strings, template literals, or concatenation). Prompts live in static `.md` files; use Handlebars for dynamic content. Import them via `import content from "./prompt.md" with { type: "text" }` — not `readFile`.
 - **Worker scripts**: spawn workers with the dev/compile-safe hybrid pattern. `with { type: "file" }` only copies the entry as a raw asset and does **not** bundle its imports — workers crashed silently in compiled binaries on every prior incarnation of that pattern (issues #1011, #1027). Use this shape instead:
   ```ts
-  import { isCompiledBinary } from "@oh-my-pi/pi-utils";
+  import { isCompiledBinary } from "@oh-my-gpt/gpt-utils";
   const worker = isCompiledBinary()
   	? new Worker("./packages/<pkg>/src/<worker>.ts", { type: "module" })
   	: new Worker(new URL("./<worker>.ts", import.meta.url).href, { type: "module" });
   ```
   The literal in the compiled branch is what Bun's `--compile` static analyzer needs to discover the worker — its path is **`--root`-relative** (repo root, since `build-binary.ts` passes `--root ../..`), so it must start with `./packages/...`. The `new URL` form in the dev branch keeps spawns portable across cwds.
   In addition, every worker entry **MUST** be listed as an extra `--compile` entrypoint in `packages/coding-agent/scripts/build-binary.ts`. Without that the analyzer sees the literal but the worker never gets emitted into bunfs. The three current entries (`sync-worker.ts`, `tab-worker-entry.ts`, `worker-entry.ts`) live there as the working reference.
-  Validate any new worker with the dedicated smoke probe: `omp --smoke-test` spawns the stats sync worker, pings it, and exits — it's wired into `ci:test:smoke` and `scripts/install-tests/run-ci.sh` so binary, source-link, and tarball installs all exercise it. Add a sibling smoke if the new worker is on a different module graph.
+  Validate any new worker with the dedicated smoke probe: `omg --smoke-test` spawns the stats sync worker, pings it, and exits — it's wired into `ci:test:smoke` and `scripts/install-tests/run-ci.sh` so binary, source-link, and tarball installs all exercise it. Add a sibling smoke if the new worker is on a different module graph.
 
 ## Bun Over Node
 
@@ -51,7 +51,7 @@ Use Bun APIs where they provide a cleaner alternative; fall back to `node:*` onl
 | File read/write | `Bun.file()`, `Bun.write()`               | `readFileSync`, `writeFileSync` |
 | Spawn process   | `` $`cmd` ``, `Bun.spawn()`               | `child_process`                 |
 | Sleep           | `Bun.sleep(ms)`                           | `setTimeout` promise            |
-| Binary lookup   | `$which("git")` from `@oh-my-pi/pi-utils` | `spawnSync(["which", "git"])`   |
+| Binary lookup   | `$which("git")` from `@oh-my-gpt/gpt-utils` | `spawnSync(["which", "git"])`   |
 | HTTP server     | `Bun.serve()`                             | `http.createServer()`           |
 | SQLite          | `bun:sqlite`                              | `better-sqlite3`                |
 | Hashing         | `Bun.hash()`, `Bun.password.*`, WebCrypto | `node:crypto`                   |
@@ -115,7 +115,7 @@ Use `node:fs/promises` for directory ops (`fs.mkdir`, `fs.rm`, `fs.readdir`) —
 - `mkdir(dirname(path), …)` before `Bun.write(path, …)` → redundant; `Bun.write` handles it.
 - `if (await file.exists()) { await file.json() }` → two syscalls plus race. Use try-catch with `isEnoent`:
   ```typescript
-  import { isEnoent } from "@oh-my-pi/pi-utils";
+  import { isEnoent } from "@oh-my-gpt/gpt-utils";
   try {
   	return await Bun.file(path).json();
   } catch (err) {
@@ -161,21 +161,21 @@ Regenerate with `bun --cwd=packages/ai run generate-models` and commit `models.j
 **NEVER use `console.log`/`error`/`warn`** in the coding-agent package — it corrupts TUI rendering. Use the centralized logger:
 
 ```typescript
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 
 logger.error("MCP request failed", { url, method });
 logger.warn("Theme file invalid, using fallback", { path });
 logger.debug("LSP fallback triggered", { reason });
 ```
 
-Logs go to `~/.omp/logs/omp.YYYY-MM-DD.log` with automatic rotation.
+Logs go to `~/.omg/logs/omg.YYYY-MM-DD.log` with automatic rotation.
 
 ## TUI Sanitization
 
 All text displayed in tool renderers must be sanitized. Raw content (file contents, error messages, tool output) breaks terminal rendering: tabs → visual holes, long lines → overflow, paths → leak home directory.
 
 **Rules:**
-- **Tabs → spaces** via `replaceTabs()` (from `@oh-my-pi/pi-tui` or `../tools/render-utils`).
+- **Tabs → spaces** via `replaceTabs()` (from `@oh-my-gpt/gpt-tui` or `../tools/render-utils`).
 - **Truncate** lines with `truncateToWidth()` / `ui.truncate()`. Use `TRUNCATE_LENGTHS` constants.
 - **Shorten paths** with `shortenPath()` (replaces home with `~`).
 - **Preview limits** from `PREVIEW_LIMITS`. No ad-hoc numbers.
@@ -235,8 +235,8 @@ Location: `packages/*/CHANGELOG.md` (per package).
 - Never modify already-released sections (e.g., `## [0.12.2]`) — they are immutable.
 
 **Attribution:**
-- Internal (from issues): `Fixed foo bar ([#123](https://github.com/can1357/oh-my-pi/issues/123))`.
-- External contributions: `Added feature X ([#456](https://github.com/can1357/oh-my-pi/pull/456) by [@username](https://github.com/username))`.
+- Internal (from issues): `Fixed foo bar ([#123](https://github.com/can1357/oh-my-gpt/issues/123))`.
+- External contributions: `Added feature X ([#456](https://github.com/can1357/oh-my-gpt/pull/456) by [@username](https://github.com/username))`.
 
 ## Releasing
 

@@ -1,5 +1,5 @@
-import type { ImageContent, Message, Model, TextContent } from "@oh-my-pi/pi-ai";
-import type { Component, TUI } from "@oh-my-pi/pi-tui";
+import type { ImageContent, Message, Model, TextContent } from "@oh-my-gpt/gpt-ai";
+import type { Component, TUI } from "@oh-my-gpt/gpt-tui";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";
 import type { ExecOptions, ExecResult } from "../../exec/exec";
@@ -570,12 +570,12 @@ export interface HookAPI {
 	exec(command: string, args: string[], options?: ExecOptions): Promise<ExecResult>;
 
 	/** File logger for error/warning/debug messages */
-	logger: typeof import("@oh-my-pi/pi-utils").logger;
+	logger: typeof import("@oh-my-gpt/gpt-utils").logger;
 	/** Injected zod-backed typebox shim (legacy/compat — prefer `zod`). */
 	typebox: typeof import("../typebox");
 	/** Injected zod module for Zod-authored hooks. */
 	zod: typeof import("zod/v4");
-	/** Injected pi-coding-agent exports */
+	/** Injected gpt-coding-agent exports */
 	pi: typeof import("../..");
 }
 

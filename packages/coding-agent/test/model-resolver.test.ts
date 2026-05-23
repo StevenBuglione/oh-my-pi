@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effort, type Model } from "@oh-my-pi/pi-ai";
+import { Effort, type Model } from "@oh-my-gpt/gpt-ai";
 import {
 	expandRoleAlias,
 	parseModelPattern,
@@ -10,8 +10,8 @@ import {
 	resolveModelOverride,
 	resolveModelRoleValue,
 	resolveModelScope,
-} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+} from "@oh-my-gpt/gpt-coding-agent/config/model-resolver";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [

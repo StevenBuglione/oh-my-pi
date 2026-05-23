@@ -1,7 +1,7 @@
 /**
  * Show what the read tool will return for a given path.
  */
-import { Args, Command } from "@oh-my-pi/pi-utils/cli";
+import { Args, Command } from "@oh-my-gpt/gpt-utils/cli";
 import { type ReadCommandArgs, runReadCommand } from "../cli/read-cli";
 import { initTheme } from "../modes/theme/theme";
 
@@ -16,12 +16,12 @@ export default class Read extends Command {
 	};
 
 	static examples = [
-		"omp read src/foo.ts",
-		"omp read src/foo.ts:50-100",
-		"omp read src/foo.ts:raw",
-		"omp read https://example.com",
-		"omp read path/to/archive.zip:dir/file.ts",
-		"omp read path/to/db.sqlite:users:42",
+		"omg read src/foo.ts",
+		"omg read src/foo.ts:50-100",
+		"omg read src/foo.ts:raw",
+		"omg read https://example.com",
+		"omg read path/to/archive.zip:dir/file.ts",
+		"omg read path/to/db.sqlite:users:42",
 	];
 
 	async run(): Promise<void> {

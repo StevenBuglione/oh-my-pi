@@ -41,8 +41,8 @@ def _require_proxy_mode(cfg: Settings) -> tuple[str, bytes]:
         )
     if cfg.gh_proxy_url is None or cfg.gh_proxy_hmac_key is None:
         raise SystemExit(
-            "robomp orchestrator requires ROBOMP_GH_PROXY_URL and "
-            "ROBOMP_GH_PROXY_HMAC_KEY (run gh-proxy in a sibling container)."
+            "robomp orchestrator requires ROBOMG_GH_PROXY_URL and "
+            "ROBOMG_GH_PROXY_HMAC_KEY (run gh-proxy in a sibling container)."
         )
     return cfg.gh_proxy_url, cfg.gh_proxy_hmac_key.get_secret_value().encode("utf-8")
 
@@ -93,7 +93,7 @@ def triage(issue_ref: str, wait_timeout: float | None) -> None:
         click.echo(str(exc), err=True)
         sys.exit(2)
     if not cfg.allows(repo_full):
-        click.echo(f"refusing: {repo_full} not in ROBOMP_REPO_ALLOWLIST", err=True)
+        click.echo(f"refusing: {repo_full} not in ROBOMG_REPO_ALLOWLIST", err=True)
         sys.exit(2)
 
     async def _go() -> None:

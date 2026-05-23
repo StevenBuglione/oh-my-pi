@@ -9,7 +9,7 @@ describe("FileSessionStorage.deleteSessionWithArtifacts", () => {
 	let storage: { deleteSessionWithArtifacts(sessionPath: string): Promise<void> };
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-storage-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omg-session-storage-"));
 		const { FileSessionStorage } = await import("../src/session/session-storage");
 		storage = new FileSessionStorage();
 	});

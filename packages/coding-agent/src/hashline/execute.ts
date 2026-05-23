@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@oh-my-gpt/gpt-agent-core";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 import { generateDiffString } from "../edit/diff";
 import { getFileReadCache } from "../edit/file-read-cache";
 import { detectLineEnding, normalizeToLF, restoreLineEndings, stripBom } from "../edit/normalize";

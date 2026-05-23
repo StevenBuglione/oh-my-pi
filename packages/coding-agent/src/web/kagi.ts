@@ -1,4 +1,4 @@
-import { getEnvApiKey } from "@oh-my-pi/pi-ai";
+import { getEnvApiKey } from "@oh-my-gpt/gpt-ai";
 import { findCredential, withHardTimeout } from "./search/providers/utils";
 
 const KAGI_SEARCH_URL = "https://kagi.com/api/v0/search";
@@ -127,7 +127,7 @@ function getAuthHeaders(apiKey: string): Record<string, string> {
 export async function searchWithKagi(query: string, options: KagiSearchOptions = {}): Promise<KagiSearchResult> {
 	const apiKey = await findKagiApiKey();
 	if (!apiKey) {
-		throw new KagiApiError("Kagi credentials not found. Set KAGI_API_KEY or login with 'omp /login kagi'.");
+		throw new KagiApiError("Kagi credentials not found. Set KAGI_API_KEY or login with 'omg /login kagi'.");
 	}
 
 	const requestUrl = new URL(KAGI_SEARCH_URL);

@@ -2,11 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { type ChildProcess, execSync, spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
-import { complete, getEnvApiKey, stream } from "@oh-my-pi/pi-ai/stream";
-import type { Api, Context, ImageContent, Model, OptionsForApi, Tool, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { $which } from "@oh-my-pi/pi-utils";
+import { Effort } from "@oh-my-gpt/gpt-ai";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
+import { complete, getEnvApiKey, stream } from "@oh-my-gpt/gpt-ai/stream";
+import type {
+	Api,
+	Context,
+	ImageContent,
+	Model,
+	OptionsForApi,
+	Tool,
+	ToolResultMessage,
+} from "@oh-my-gpt/gpt-ai/types";
+import { $which } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 

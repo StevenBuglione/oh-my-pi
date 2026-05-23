@@ -1,4 +1,4 @@
-import { $env, ptree } from "@oh-my-pi/pi-utils";
+import { $env, ptree } from "@oh-my-gpt/gpt-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 
@@ -87,7 +87,7 @@ export async function fetchGitHubApi(
 
 		const headers: Record<string, string> = {
 			Accept: "application/vnd.github.v3+json",
-			"User-Agent": "omp-web-fetch/1.0",
+			"User-Agent": "omg-web-fetch/1.0",
 		};
 
 		// Use GITHUB_TOKEN if available

@@ -11,15 +11,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createTools, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Agent } from "@oh-my-gpt/gpt-agent-core";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { createTools, type ToolSession } from "@oh-my-gpt/gpt-coding-agent/tools";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import { e2eApiKey } from "./utilities";
 
 describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("AgentSession branching", () => {

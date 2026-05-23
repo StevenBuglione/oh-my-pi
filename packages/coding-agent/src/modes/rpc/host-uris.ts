@@ -1,4 +1,4 @@
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import { InternalUrlRouter } from "../../internal-urls";
 import type {
 	InternalResource,

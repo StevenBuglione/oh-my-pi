@@ -186,7 +186,7 @@ describe("DAP launch failure handling", () => {
 
 describe("DebugTool launch validation", () => {
 	it("rejects directory-valued launch programs before adapter selection", async () => {
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-program-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omg-debug-program-"));
 		try {
 			await fs.mkdir(path.join(cwd, "python"));
 			const session: ToolSession = {

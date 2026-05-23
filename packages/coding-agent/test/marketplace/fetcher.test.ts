@@ -7,7 +7,7 @@ import {
 	classifySource,
 	fetchMarketplace,
 	parseMarketplaceCatalog,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@oh-my-gpt/gpt-coding-agent/extensibility/plugins/marketplace";
 
 // Fixture lives at test/marketplace/fixtures/valid-marketplace/
 const FIXTURE_DIR = path.join(import.meta.dir, "fixtures", "valid-marketplace");
@@ -152,7 +152,7 @@ describe("fetchMarketplace", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-fetcher-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-fetcher-test-"));
 	});
 
 	afterEach(() => {

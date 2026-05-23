@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentTelemetryConfig, Tracer } from "@oh-my-pi/pi-agent-core";
-import { type AssistantMessage, Effort } from "@oh-my-pi/pi-ai";
+import type { AgentTelemetryConfig, Tracer } from "@oh-my-gpt/gpt-agent-core";
+import { type AssistantMessage, Effort } from "@oh-my-gpt/gpt-ai";
 import { Settings } from "../../src/config/settings";
 import type { LoadExtensionsResult } from "../../src/extensibility/extensions/types";
 import type { CreateAgentSessionResult } from "../../src/sdk";

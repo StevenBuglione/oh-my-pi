@@ -17,7 +17,7 @@ def _settings_or_die() -> Settings:
 
     Routes through `load_proxy_settings` (NOT the orchestrator `Settings()`
     ctor) so the gh-proxy container only needs `GITHUB_TOKEN` +
-    `ROBOMP_GH_PROXY_HMAC_KEY` — the orchestrator's webhook secret,
+    `ROBOMG_GH_PROXY_HMAC_KEY` — the orchestrator's webhook secret,
     bot_login, and proxy-URL fields are irrelevant here.
     """
     try:
@@ -44,7 +44,7 @@ def serve() -> None:
         click.echo("gh-proxy: GITHUB_TOKEN is required in proxy mode", err=True)
         sys.exit(2)
     if cfg.gh_proxy_hmac_key is None:
-        click.echo("gh-proxy: ROBOMP_GH_PROXY_HMAC_KEY is required in proxy mode", err=True)
+        click.echo("gh-proxy: ROBOMG_GH_PROXY_HMAC_KEY is required in proxy mode", err=True)
         sys.exit(2)
     app = create_proxy_app(cfg)
     uvicorn.run(

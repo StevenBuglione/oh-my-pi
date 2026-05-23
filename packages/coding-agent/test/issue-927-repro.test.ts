@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { submitInteractiveInput } from "@oh-my-pi/pi-coding-agent/main";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@oh-my-gpt/gpt-agent-core";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { submitInteractiveInput } from "@oh-my-gpt/gpt-coding-agent/main";
+import { InteractiveMode } from "@oh-my-gpt/gpt-coding-agent/modes/interactive-mode";
+import { initTheme } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 
 describe("issue #927 optimistic pending spinner", () => {
 	let authStorage: AuthStorage;

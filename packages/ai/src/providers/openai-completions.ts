@@ -1,4 +1,4 @@
-import { $env, extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
+import { $env, extractHttpStatusFromError } from "@oh-my-gpt/gpt-utils";
 import OpenAI from "openai";
 import type {
 	ChatCompletionAssistantMessageParam,
@@ -916,7 +916,7 @@ async function createClient(
 		// SDK UA so traffic is identifiable in upstream provider logs.
 		// https://openrouter.ai/docs/app-attribution
 		headers["User-Agent"] = `Oh-My-Pi/${packageJson.version}`;
-		headers["HTTP-Referer"] = "https://omp.sh/";
+		headers["HTTP-Referer"] = "https://omg.sh/";
 		headers["X-OpenRouter-Title"] = "Oh-My-Pi";
 		headers["X-OpenRouter-Categories"] = "cli-agent";
 		// Always-on response caching: identical requests return cached responses for free.

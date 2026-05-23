@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
-import { type GeneratedProvider, getBundledModel, type Usage } from "@oh-my-pi/pi-ai";
-import { getConfigRootDir, getStatsDbPath } from "@oh-my-pi/pi-utils";
+import { type GeneratedProvider, getBundledModel, type Usage } from "@oh-my-gpt/gpt-ai";
+import { getConfigRootDir, getStatsDbPath } from "@oh-my-gpt/gpt-utils";
 import type {
 	AggregatedStats,
 	BehaviorModelStats,

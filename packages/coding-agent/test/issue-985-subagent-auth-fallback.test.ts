@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import { kNoAuth } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import type { Api, Model } from "@oh-my-gpt/gpt-ai";
+import { kNoAuth } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
 import {
 	type ModelLookupRegistry,
 	resolveModelOverrideWithAuthFallback,
-} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+} from "@oh-my-gpt/gpt-coding-agent/config/model-resolver";
 
 /**
  * Regression test for #985.

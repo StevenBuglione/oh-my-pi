@@ -7,7 +7,7 @@ import { HistoryStorage } from "../src/session/history-storage";
 let tempDir = "";
 
 async function freshStorage(): Promise<HistoryStorage> {
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-history-search-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omg-history-search-"));
 	HistoryStorage.resetInstance();
 	return HistoryStorage.open(path.join(tempDir, "history.db"));
 }

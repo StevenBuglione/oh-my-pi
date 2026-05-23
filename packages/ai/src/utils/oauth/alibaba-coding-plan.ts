@@ -13,7 +13,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://modelstudio.console.alibabacloud.com/";
-const API_BASE_URL = "https://coding-intl.dashscope.aliyuncs.com/v1";
+const AOMG_BASE_URL = "https://coding-intl.dashscope.aliyuncs.com/v1";
 const VALIDATION_MODEL = "qwen3.5-plus";
 
 /**
@@ -50,7 +50,7 @@ export async function loginAlibabaCodingPlan(options: OAuthController): Promise<
 	await validateOpenAICompatibleApiKey({
 		provider: "Alibaba Coding Plan",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

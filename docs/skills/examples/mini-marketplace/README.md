@@ -1,6 +1,6 @@
 # mini-marketplace
 
-A minimal `oh-my-pi` marketplace catalog that demonstrates the `marketplace.json` format. It lists one plugin (`my-plugin`) using a relative path source.
+A minimal `oh-my-gpt` marketplace catalog that demonstrates the `marketplace.json` format. It lists one plugin (`my-plugin`) using a relative path source.
 
 ## Install command
 
@@ -12,8 +12,8 @@ A minimal `oh-my-pi` marketplace catalog that demonstrates the `marketplace.json
 Or from the CLI:
 
 ```
-omp plugin marketplace add ./docs/skills/examples/mini-marketplace
-omp plugin install my-plugin@example-marketplace
+omg plugin marketplace add ./docs/skills/examples/mini-marketplace
+omg plugin install my-plugin@example-marketplace
 ```
 
 ## What it demonstrates
@@ -30,7 +30,7 @@ mini-marketplace/
     marketplace.json      ← catalog
   README.md
   my-plugin/
-    package.json          ← omp.extensions manifest
+    package.json          ← omg.extensions manifest
     index.ts              ← extension entry point
 ```
 

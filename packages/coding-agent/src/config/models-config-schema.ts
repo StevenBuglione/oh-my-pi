@@ -152,10 +152,10 @@ const ProviderConfigSchema = z.object({
 	modelOverrides: z.record(z.string(), ModelOverrideSchema).optional(),
 	disableStrictTools: z.boolean().optional(),
 	/**
-	 * Streaming transport override. When set to `"pi-native"`, omp dispatches
+	 * Streaming transport override. When set to `"pi-native"`, omg dispatches
 	 * every model under this provider via the auth-gateway's
 	 * `POST /v1/pi/stream` endpoint instead of the per-provider SDK. The
-	 * provider's `baseUrl` must point at a compatible `omp auth-gateway`
+	 * provider's `baseUrl` must point at a compatible `omg auth-gateway`
 	 * and `apiKey` must carry the gateway bearer.
 	 */
 	transport: z.literal("pi-native").optional(),

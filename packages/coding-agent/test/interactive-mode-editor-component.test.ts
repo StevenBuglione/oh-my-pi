@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@oh-my-gpt/gpt-agent-core";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { initTheme } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { CustomEditor } from "../src/modes/components/custom-editor";
 import { InteractiveMode } from "../src/modes/interactive-mode";

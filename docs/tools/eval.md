@@ -154,7 +154,7 @@ Implemented in `packages/coding-agent/src/eval/py/executor.ts`, `packages/coding
 - The Python prelude defines synchronous helpers with the same surface as JS (except `tool.<name>` exists only in JS)
 - `display(value)` wraps dict/list/tuple values in `IPython.display.JSON`; rich display MIME bundles are preserved
 - Kernel `display_data` / `execute_result` messages map to:
-  - `application/x-omp-status` → status event
+  - `application/x-omg-status` → status event
   - `image/png` → image output
   - `application/json` → JSON output
   - `text/markdown` → markdown output

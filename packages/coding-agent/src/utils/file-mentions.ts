@@ -7,11 +7,11 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { glob } from "@oh-my-pi/pi-natives";
-import { fuzzyMatch } from "@oh-my-pi/pi-tui";
-import { formatAge, formatBytes, readImageMetadata } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@oh-my-gpt/gpt-agent-core";
+import type { ImageContent } from "@oh-my-gpt/gpt-ai";
+import { glob } from "@oh-my-gpt/gpt-natives";
+import { fuzzyMatch } from "@oh-my-gpt/gpt-tui";
+import { formatAge, formatBytes, readImageMetadata } from "@oh-my-gpt/gpt-utils";
 import { formatHashLines } from "../hashline/hash";
 import type { FileMentionMessage } from "../session/messages";
 import {

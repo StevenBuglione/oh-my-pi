@@ -4,7 +4,7 @@
  * Uses brush-core via native bindings for shell execution.
  */
 import * as fs from "node:fs/promises";
-import { executeShell, type MinimizerOptions, Shell } from "@oh-my-pi/pi-natives";
+import { executeShell, type MinimizerOptions, Shell } from "@oh-my-gpt/gpt-natives";
 import { Settings, type ShellMinimizerSettings } from "../config/settings";
 import { OutputSink } from "../session/streaming-output";
 import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "../tools/output-meta";

@@ -1,9 +1,9 @@
 import * as path from "node:path";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@oh-my-pi/pi-natives";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { Text } from "@oh-my-pi/pi-tui";
-import { $envpos, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-gpt/gpt-agent-core";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@oh-my-gpt/gpt-natives";
+import type { Component } from "@oh-my-gpt/gpt-tui";
+import { Text } from "@oh-my-gpt/gpt-tui";
+import { $envpos, prompt, untilAborted } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { computeLineHash, HL_BODY_SEP } from "../hashline/hash";

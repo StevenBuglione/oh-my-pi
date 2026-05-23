@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, $pickenv, extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
+import { $env, $pickenv, extractHttpStatusFromError } from "@oh-my-gpt/gpt-utils";
 import { getCustomApi } from "./api-registry";
 import type { Effort } from "./model-thinking";
 import {
@@ -181,7 +181,7 @@ export function getEnvApiKey(provider: string): string | undefined {
 
 /**
  * Enumerate every provider that has an env-var fallback for `getEnvApiKey`.
- * Used by `omp auth-broker migrate --include-env` to discover env-sourced keys
+ * Used by `omg auth-broker migrate --include-env` to discover env-sourced keys
  * that should be uploaded to the broker.
  */
 export function listProvidersWithEnvKey(): string[] {

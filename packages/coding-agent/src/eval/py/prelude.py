@@ -1,5 +1,5 @@
 from __future__ import annotations
-# OMP prelude helpers (loaded once into the runner namespace)
+# OMG prelude helpers (loaded once into the runner namespace)
 if "__omp_prelude_loaded__" not in globals():
     __omp_prelude_loaded__ = True
     from pathlib import Path
@@ -36,7 +36,7 @@ if "__omp_prelude_loaded__" not in globals():
 
     def _emit_status(op: str, **data):
         """Emit structured status event for TUI rendering."""
-        _omp_display({"application/x-omp-status": {"op": op, **data}}, raw=True)
+        _omp_display({"application/x-omg-status": {"op": op, **data}}, raw=True)
 
 
     def env(key: str | None = None, value: str | None = None):

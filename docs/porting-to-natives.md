@@ -1,6 +1,6 @@
-# Porting to pi-natives (N-API) — Field Notes
+# Porting to gpt-natives (N-API) — Field Notes
 
-This is a practical guide for moving hot paths into `crates/pi-natives` and wiring them through the generated native package entrypoint. It exists to avoid the same failures happening twice.
+This is a practical guide for moving hot paths into `crates/gpt-natives` and wiring them through the generated native package entrypoint. It exists to avoid the same failures happening twice.
 
 ## When to port
 
@@ -16,21 +16,21 @@ Avoid ports that depend on JS-only state or dynamic imports. N-API exports shoul
 
 ## Current package shape
 
-`@oh-my-pi/pi-natives` no longer has a `packages/natives/src/<module>` TypeScript wrapper layer. The package root points at generated native artifacts:
+`@oh-my-gpt/gpt-natives` no longer has a `packages/natives/src/<module>` TypeScript wrapper layer. The package root points at generated native artifacts:
 
 - runtime entry: `packages/natives/native/index.js`
 - types entry: `packages/natives/native/index.d.ts`
 - loader helpers: `packages/natives/native/loader-state.js`
 - embedded manifest: `packages/natives/native/embedded-addon.js`
 
-Consumers import directly from `@oh-my-pi/pi-natives`. The generated declarations are produced during `bun --cwd=packages/natives run build`.
+Consumers import directly from `@oh-my-gpt/gpt-natives`. The generated declarations are produced during `bun --cwd=packages/natives run build`.
 
 ## Anatomy of a native export
 
 **Rust side:**
 
-- Implementation lives in `crates/pi-natives/src/<module>.rs`.
-- If you add a new module, register it in `crates/pi-natives/src/lib.rs`.
+- Implementation lives in `crates/gpt-natives/src/<module>.rs`.
+- If you add a new module, register it in `crates/gpt-natives/src/lib.rs`.
 - Export with `#[napi]`; snake_case exports are converted to camelCase automatically. Use explicit JS names only for true aliases/non-default names. Use `#[napi(object)]` for object-shaped structs.
 - For CPU-bound or blocking work, use `task::blocking(tag, cancel_token, work)`.
 - For async work that needs Tokio, use `task::future(env, tag, work)`.
@@ -40,7 +40,7 @@ Consumers import directly from `@oh-my-pi/pi-natives`. The generated declaration
 
 - `packages/natives/scripts/build-native.ts` runs napi-rs, installs the `.node` artifact, copies generated `index.js`/`index.d.ts`, and appends enum runtime exports.
 - `packages/natives/native/index.js` is the loader that chooses a candidate `.node` file and returns the loaded addon.
-- `packages/natives/package.json` exposes only the package root (`@oh-my-pi/pi-natives`).
+- `packages/natives/package.json` exposes only the package root (`@oh-my-gpt/gpt-natives`).
 
 **Consumer side:**
 
@@ -52,7 +52,7 @@ Consumers import directly from `@oh-my-pi/pi-natives`. The generated declaration
 1. **Add the Rust implementation**
 
 - Put the core logic in a plain Rust function.
-- If it is a new module, add it to `crates/pi-natives/src/lib.rs`.
+- If it is a new module, add it to `crates/gpt-natives/src/lib.rs`.
 - Expose it with `#[napi]` so the default snake_case -> camelCase mapping stays consistent.
 - Keep signatures owned and simple: `String`, `Vec<String>`, `Uint8Array`, `Either<JsString, Uint8Array>`, or `#[napi(object)]` structs.
 - For CPU-bound or blocking work, use `task::blocking`; for async work, use `task::future`.
@@ -66,7 +66,7 @@ Consumers import directly from `@oh-my-pi/pi-natives`. The generated declaration
 
 3. **Update consumers**
 
-- Import the new export directly from `@oh-my-pi/pi-natives`.
+- Import the new export directly from `@oh-my-gpt/gpt-natives`.
 - Replace only callsites where the native implementation is faster/equivalent and preserves behavior.
 - Remove obsolete JS implementation code in the same change when the native path becomes canonical.
 
@@ -105,7 +105,7 @@ rm packages/natives/native/pi_natives.<platform>-<arch>-baseline.node
 bun --cwd=packages/natives run build
 ```
 
-For compiled binaries, delete the versioned addon cache shown in the loader error (normally under `~/.omp/natives/<version>` unless `$XDG_DATA_HOME/omp` is used).
+For compiled binaries, delete the versioned addon cache shown in the loader error (normally under `~/.omg/natives/<version>` unless `$XDG_DATA_HOME/omg` is used).
 
 ### 2) Generated types do not match loaded binary
 

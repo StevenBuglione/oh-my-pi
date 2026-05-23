@@ -78,7 +78,7 @@ The write is not confirmed before the tool returns. The queue flushes later; flu
 - Shared auto-retain settings on the same backend:
   - `hindsight.retainEveryNTurns` default `3`
   - `hindsight.retainOverlapTurns` default `2`
-  - `hindsight.retainContext` default `"omp"`
+  - `hindsight.retainContext` default `"omg"`
   - `hindsight.retainMode` default `"full-session"`
   from `packages/coding-agent/src/config/settings-schema.ts`.
 

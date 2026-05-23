@@ -1,13 +1,13 @@
 /**
- * Discovery integration tests for OMP plugin registry reading.
+ * Discovery integration tests for OMG plugin registry reading.
  *
  * NOTE: listClaudePluginRoots() lives in discovery/helpers.ts which imports
- * @oh-my-pi/pi-natives (native Rust addon via glob). We cannot call it here.
+ * @oh-my-gpt/gpt-natives (native Rust addon via glob). We cannot call it here.
  *
  * Instead these tests validate the structural contract that listClaudePluginRoots
  * depends on:
- *   1. OMP registry lives at path.join(home, ".omp", "plugins", "installed_plugins.json")
- *      (matches getConfigDirName() == ".omp")
+ *   1. OMG registry lives at path.join(home, ".omg", "plugins", "installed_plugins.json")
+ *      (matches getConfigDirName() == ".omg")
  *   2. The registry format passes the same validator that parseClaudePluginsRegistry uses
  *   3. readInstalledPluginsRegistry / writeInstalledPluginsRegistry produce files that
  *      satisfy that validator
@@ -19,18 +19,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InstalledPluginEntry } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+import type { InstalledPluginEntry } from "@oh-my-gpt/gpt-coding-agent/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	buildPluginId,
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@oh-my-gpt/gpt-coding-agent/extensibility/plugins/marketplace";
 
 // ── Inline validator ───────────────────────────────────────────────────────────
 //
 // Mirrors parseClaudePluginsRegistry() in discovery/helpers.ts exactly.
-// Kept here to avoid importing helpers.ts (which pulls in @oh-my-pi/pi-natives).
+// Kept here to avoid importing helpers.ts (which pulls in @oh-my-gpt/gpt-natives).
 function validateClaudeRegistryFormat(content: string): Record<string, unknown> | null {
 	let data: Record<string, unknown>;
 	try {
@@ -51,10 +51,10 @@ function validateClaudeRegistryFormat(content: string): Record<string, unknown> 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// Matches getConfigDirName() — single source of truth is in @oh-my-pi/pi-utils,
-// but we know the value is ".omp" and hardcoding it here keeps tests free of
+// Matches getConfigDirName() — single source of truth is in @oh-my-gpt/gpt-utils,
+// but we know the value is ".omg" and hardcoding it here keeps tests free of
 // native-addon transitive imports.
-const OMP_CONFIG_DIR = ".omp";
+const OMG_CONFIG_DIR = ".omg";
 
 function makeEntry(installPath: string, version = "1.0.0"): InstalledPluginEntry {
 	return {
@@ -69,12 +69,12 @@ function makeEntry(installPath: string, version = "1.0.0"): InstalledPluginEntry
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 let tmpHome: string;
-/** ~/.omp/plugins/installed_plugins.json inside tmpHome */
+/** ~/.omg/plugins/installed_plugins.json inside tmpHome */
 let ompRegistryPath: string;
 
 beforeEach(() => {
-	tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-discovery-test-"));
-	ompRegistryPath = path.join(tmpHome, OMP_CONFIG_DIR, "plugins", "installed_plugins.json");
+	tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omg-discovery-test-"));
+	ompRegistryPath = path.join(tmpHome, OMG_CONFIG_DIR, "plugins", "installed_plugins.json");
 	fs.mkdirSync(path.dirname(ompRegistryPath), { recursive: true });
 });
 
@@ -84,25 +84,25 @@ afterEach(() => {
 
 // ── Path contract ─────────────────────────────────────────────────────────────
 
-describe("OMP registry path contract", () => {
-	it("OMP registry lives at home/.omp/plugins/installed_plugins.json", () => {
+describe("OMG registry path contract", () => {
+	it("OMG registry lives at home/.omg/plugins/installed_plugins.json", () => {
 		// This is the path that listClaudePluginRoots reads.
 		// Any change to this path must be reflected in helpers.ts.
-		const expected = path.join(tmpHome, ".omp", "plugins", "installed_plugins.json");
+		const expected = path.join(tmpHome, ".omg", "plugins", "installed_plugins.json");
 		expect(ompRegistryPath).toBe(expected);
 	});
 
-	it("OMP config dir name is .omp", () => {
+	it("OMG config dir name is .omg", () => {
 		// Validate our hardcoded constant matches getConfigDirName().
 		// If getConfigDirName() ever changes, this assertion will fail and
 		// we'll know the path constant here must be updated too.
-		expect(OMP_CONFIG_DIR).toBe(".omp");
+		expect(OMG_CONFIG_DIR).toBe(".omg");
 	});
 });
 
 // ── Format compatibility ───────────────────────────────────────────────────────
 
-describe("OMP registry format compatibility with Claude parser", () => {
+describe("OMG registry format compatibility with Claude parser", () => {
 	it("empty registry written by writeInstalledPluginsRegistry passes validator", async () => {
 		await writeInstalledPluginsRegistry(ompRegistryPath, { version: 2, plugins: {} });
 
@@ -148,7 +148,7 @@ describe("OMP registry format compatibility with Claude parser", () => {
 
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
-describe("OMP registry round-trip", () => {
+describe("OMG registry round-trip", () => {
 	it("reads back what was written — single plugin", async () => {
 		const id = buildPluginId("hello-plugin", "test-marketplace");
 		const entry = makeEntry("/tmp/fake-plugin-path");
@@ -210,18 +210,18 @@ describe("OMP registry round-trip", () => {
 
 // ── Precedence contract (structural) ─────────────────────────────────────────
 //
-// listClaudePluginRoots must replace Claude entries with OMP entries when the same
+// listClaudePluginRoots must replace Claude entries with OMG entries when the same
 // plugin ID appears in both registries. We cannot call that function here, but we
 // can verify the data shapes that the replacement logic reads are correct.
 
-describe("OMP precedence contract (registry structure)", () => {
-	it("same plugin ID in both registries — OMP entry has required fields for deduplication", () => {
+describe("OMG precedence contract (registry structure)", () => {
+	it("same plugin ID in both registries — OMG entry has required fields for deduplication", () => {
 		// The replacement logic: roots.filter(r => r.id !== pluginId) keyed by id.
-		// OMP entries must have installPath so they can be added to roots[].
+		// OMG entries must have installPath so they can be added to roots[].
 		const id = buildPluginId("shared-plugin", "common-mkt");
-		const ompEntry = makeEntry("/omp/cached/path");
+		const ompEntry = makeEntry("/omg/cached/path");
 
-		// OMP registry entry has installPath (required by listClaudePluginRoots)
+		// OMG registry entry has installPath (required by listClaudePluginRoots)
 		expect(ompEntry.installPath).toBeTruthy();
 		expect(typeof ompEntry.installPath).toBe("string");
 		// ID parses correctly with lastIndexOf("@")

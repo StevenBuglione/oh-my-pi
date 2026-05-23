@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { installH2Fetch } from "@oh-my-pi/pi-ai";
-import { APP_NAME, MIN_BUN_VERSION, procmgr, VERSION } from "@oh-my-pi/pi-utils";
+import { installH2Fetch } from "@oh-my-gpt/gpt-ai";
+import { APP_NAME, MIN_BUN_VERSION, procmgr, VERSION } from "@oh-my-gpt/gpt-utils";
 
 // Activate HTTP/2 for all `fetch()` calls (provider streams, OAuth, model
 // discovery, web tools). Bun's HTTP/2 client is gated on a startup flag we
 // can't toggle from JS, so we patch globalThis.fetch to pass
 // `protocol: "http2"` per request, with transparent HTTP/1.1 fallback on
-// `HTTP2Unsupported`. See @oh-my-pi/pi-ai/utils/h2-fetch for details.
+// `HTTP2Unsupported`. See @oh-my-gpt/gpt-ai/utils/h2-fetch for details.
 installH2Fetch();
 
 // Strip macOS malloc-stack-logging env vars before any subprocess is spawned.
@@ -16,9 +16,9 @@ procmgr.scrubProcessEnv();
 
 /**
  * CLI entry point — registers all commands explicitly and delegates to the
- * lightweight CLI runner from pi-utils.
+ * lightweight CLI runner from gpt-utils.
  */
-import { type CliConfig, type CommandEntry, run } from "@oh-my-pi/pi-utils/cli";
+import { type CliConfig, type CommandEntry, run } from "@oh-my-gpt/gpt-utils/cli";
 
 if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 	process.stderr.write(
@@ -39,6 +39,7 @@ const commands: CommandEntry[] = [
 	{ name: "config", load: () => import("./commands/config").then(m => m.default) },
 	{ name: "grep", load: () => import("./commands/grep").then(m => m.default) },
 	{ name: "grievances", load: () => import("./commands/grievances").then(m => m.default) },
+	{ name: "harness", load: () => import("./commands/harness").then(m => m.default) },
 	{ name: "plugin", load: () => import("./commands/plugin").then(m => m.default) },
 	{ name: "setup", load: () => import("./commands/setup").then(m => m.default) },
 	{ name: "shell", load: () => import("./commands/shell").then(m => m.default) },
@@ -51,7 +52,7 @@ const commands: CommandEntry[] = [
 ];
 
 async function showHelp(config: CliConfig): Promise<void> {
-	const { renderRootHelp } = await import("@oh-my-pi/pi-utils/cli");
+	const { renderRootHelp } = await import("@oh-my-gpt/gpt-utils/cli");
 	const { getExtraHelpText } = await import("./cli/args");
 	renderRootHelp(config);
 	const extra = getExtraHelpText();
@@ -82,7 +83,7 @@ function isSubcommand(first: string | undefined): boolean {
  * installs all exercise it on every CI run.
  */
 async function runSmokeTest(): Promise<void> {
-	const { smokeTestSyncWorker } = await import("@oh-my-pi/omp-stats");
+	const { smokeTestSyncWorker } = await import("@oh-my-gpt/omg-stats");
 	await smokeTestSyncWorker();
 	process.stdout.write("smoke-test: ok\n");
 }

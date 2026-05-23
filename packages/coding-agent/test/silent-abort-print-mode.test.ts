@@ -6,7 +6,7 @@
  * (and exit with code 1). This test verifies the guard skips silent-abort.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@oh-my-gpt/gpt-ai";
 import type { AgentSession } from "../src/session/agent-session";
 import { SILENT_ABORT_MARKER } from "../src/session/messages";
 

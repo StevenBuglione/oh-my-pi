@@ -5,10 +5,10 @@
  */
 
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { recordHandoff, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import { type JsonSchemaValidationIssue, validateJsonSchemaValue } from "@oh-my-pi/pi-ai/utils/schema";
-import { logger, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import { recordHandoff, resolveTelemetry } from "@oh-my-gpt/gpt-agent-core";
+import { type JsonSchemaValidationIssue, validateJsonSchemaValue } from "@oh-my-gpt/gpt-ai/utils/schema";
+import { logger, prompt, untilAborted } from "@oh-my-gpt/gpt-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { resolveModelOverrideWithAuthFallback } from "../config/model-resolver";
 import type { PromptTemplate } from "../config/prompt-templates";

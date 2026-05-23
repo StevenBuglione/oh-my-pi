@@ -1,10 +1,10 @@
 # Install ID
 
-A persistent per-install UUID that identifies a single oh-my-pi installation across sessions. Used as a stable correlation key for server-side dedup of telemetry-style pushes (currently the auto-QA grievance flush from `report_tool_issue`).
+A persistent per-install UUID that identifies a single oh-my-gpt installation across sessions. Used as a stable correlation key for server-side dedup of telemetry-style pushes (currently the auto-QA grievance flush from `report_tool_issue`).
 
 ## API
 
-Exported from `@oh-my-pi/pi-utils` (`packages/utils/src/dirs.ts`):
+Exported from `@oh-my-gpt/gpt-utils` (`packages/utils/src/dirs.ts`):
 
 | Symbol | Purpose |
 | --- | --- |
@@ -15,10 +15,10 @@ The returned value is a canonical lowercase RFC 4122 UUID matching `^[0-9a-f]{8}
 
 ## Storage
 
-- Path: `<config-root>/install-id` — i.e. `~/.omp/install-id` by default, respecting `PI_CONFIG_DIR` via `getConfigRootDir()`.
+- Path: `<config-root>/install-id` — i.e. `~/.omg/install-id` by default, respecting `OMG_CONFIG_DIR` via `getConfigRootDir()`.
 - Format: a single UUID line (trailing `\n`).
 - Permissions: file is created with mode `0o600`.
-- Lifecycle: independent of `~/.omp/agent/`. Wiping agent state (sessions, settings, DB) does NOT regenerate the install ID; only deleting the `install-id` file itself does.
+- Lifecycle: independent of `~/.omg/agent/`. Wiping agent state (sessions, settings, DB) does NOT regenerate the install ID; only deleting the `install-id` file itself does.
 
 ## Generation and lifecycle
 
@@ -37,5 +37,5 @@ New consumers MUST treat the value as opaque and MUST NOT derive PII from it; th
 
 ## See also
 
-- [environment-variables.md](environment-variables.md) — `PI_CONFIG_DIR` controls where `install-id` lives.
+- [environment-variables.md](environment-variables.md) — `OMG_CONFIG_DIR` controls where `install-id` lives.
 - [config-usage.md](config-usage.md) — broader config-root layout.

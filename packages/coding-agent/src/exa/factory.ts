@@ -1,7 +1,7 @@
 /**
  * Shared factory for creating Exa tools with consistent error handling and response formatting.
  */
-import type { TSchema } from "@oh-my-pi/pi-ai";
+import type { TSchema } from "@oh-my-gpt/gpt-ai";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import { callExaTool, findApiKey, formatGenericResponse, formatSearchResults, isSearchResponse } from "./mcp-client";
 import type { ExaRenderDetails } from "./types";

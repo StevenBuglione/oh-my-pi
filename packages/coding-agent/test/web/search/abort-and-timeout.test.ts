@@ -12,7 +12,7 @@
  * helper itself is exercised directly.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 import type { ToolSession } from "../../../src/tools";
 import { ToolAbortError } from "../../../src/tools/tool-errors";
 import { WebSearchTool } from "../../../src/web/search";

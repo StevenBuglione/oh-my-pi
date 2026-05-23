@@ -91,7 +91,7 @@ Stdout and stderr are merged before the model sees them. Non-zero exit codes are
   - May allocate and write artifact files for full output (`bash`) and minimizer-preserved raw output (`bash-original`).
   - `expandInternalUrls(..., { ensureLocalParentDirs: true })` creates parent directories for `local://` paths before execution.
 - Subprocesses / native bindings
-  - Non-PTY uses native shell execution via `@oh-my-pi/pi-natives` (`Shell.run()` or `executeShell()`).
+  - Non-PTY uses native shell execution via `@oh-my-gpt/gpt-natives` (`Shell.run()` or `executeShell()`).
   - PTY uses native `PtySession.start()`.
 - Session state
   - Reads session settings for async, auto-background, interceptor, tool availability, and shell configuration.

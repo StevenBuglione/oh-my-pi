@@ -1,4 +1,4 @@
-import { tryParseJson } from "@oh-my-pi/pi-utils";
+import { tryParseJson } from "@oh-my-gpt/gpt-utils";
 import type { SpecialHandler } from "./types";
 import { buildResult, decodeHtmlEntities, formatIsoDate, loadPage } from "./types";
 
@@ -20,10 +20,10 @@ interface HNItem {
 	descendants?: number;
 }
 
-const API_BASE = "https://hacker-news.firebaseio.com/v0";
+const AOMG_BASE = "https://hacker-news.firebaseio.com/v0";
 
 async function fetchItem(id: number, timeout: number, signal?: AbortSignal): Promise<HNItem | null> {
-	const url = `${API_BASE}/item/${id}.json`;
+	const url = `${AOMG_BASE}/item/${id}.json`;
 	const { content, ok } = await loadPage(url, { timeout, signal });
 	if (!ok) return null;
 	return tryParseJson<HNItem>(content);
@@ -151,21 +151,21 @@ export const handleHackerNews: SpecialHandler = async (url, timeout, signal) => 
 			content = await renderStory(item, timeout, 0, signal);
 			notes.push(`Fetched HN item ${itemId} with top-level comments (depth 2)`);
 		} else if (parsed.pathname === "/" || parsed.pathname === "/news") {
-			const { content: raw, ok } = await loadPage(`${API_BASE}/topstories.json`, { timeout, signal });
+			const { content: raw, ok } = await loadPage(`${AOMG_BASE}/topstories.json`, { timeout, signal });
 			if (!ok) throw new Error("Failed to fetch top stories");
 			const ids = tryParseJson<number[]>(raw);
 			if (!ids) throw new Error("Failed to parse top stories");
 			content = await renderListing(ids, timeout, "Hacker News - Top Stories", signal);
 			notes.push("Fetched top 20 stories from HN front page");
 		} else if (parsed.pathname === "/newest") {
-			const { content: raw, ok } = await loadPage(`${API_BASE}/newstories.json`, { timeout, signal });
+			const { content: raw, ok } = await loadPage(`${AOMG_BASE}/newstories.json`, { timeout, signal });
 			if (!ok) throw new Error("Failed to fetch new stories");
 			const ids = tryParseJson<number[]>(raw);
 			if (!ids) throw new Error("Failed to parse new stories");
 			content = await renderListing(ids, timeout, "Hacker News - New Stories", signal);
 			notes.push("Fetched top 20 new stories");
 		} else if (parsed.pathname === "/best") {
-			const { content: raw, ok } = await loadPage(`${API_BASE}/beststories.json`, { timeout, signal });
+			const { content: raw, ok } = await loadPage(`${AOMG_BASE}/beststories.json`, { timeout, signal });
 			if (!ok) throw new Error("Failed to fetch best stories");
 			const ids = tryParseJson<number[]>(raw);
 			if (!ids) throw new Error("Failed to parse best stories");

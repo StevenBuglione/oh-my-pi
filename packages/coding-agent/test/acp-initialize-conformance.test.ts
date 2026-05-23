@@ -9,8 +9,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentSideConnection, InitializeRequest } from "@agentclientprotocol/sdk";
 import { zInitializeResponse } from "@agentclientprotocol/sdk/dist/schema/zod.gen.js";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getConfigRootDir, setAgentDir, VERSION } from "@oh-my-pi/pi-utils";
+import type { Model } from "@oh-my-gpt/gpt-ai";
+import { getConfigRootDir, setAgentDir, VERSION } from "@oh-my-gpt/gpt-utils";
 import { AcpAgent } from "../src/modes/acp/acp-agent";
 import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "../src/modes/acp/terminal-auth";
 import type { AgentSession } from "../src/session/agent-session";
@@ -117,7 +117,7 @@ class FakeAgentSession {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.OMG_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -125,7 +125,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.OMG_CODING_AGENT_DIR;
 	}
 	for (const root of cleanupRoots.splice(0)) {
 		await fs.promises.rm(root, { recursive: true, force: true });
@@ -133,7 +133,7 @@ afterEach(async () => {
 });
 
 async function createAgent(): Promise<AcpAgent> {
-	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-acp-init-"));
+	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omg-acp-init-"));
 	cleanupRoots.push(root);
 	const agentDir = path.join(root, "agent");
 	const cwd = path.join(root, "cwd");
@@ -219,8 +219,8 @@ describe("ACP initialize conformance", () => {
 		const pkg = (await Bun.file(pkgPath).json()) as { version: string };
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
-				name: "oh-my-pi",
-				title: "Oh My Pi",
+				name: "oh-my-gpt",
+				title: "Oh My GPT",
 				version: VERSION,
 			}),
 		);

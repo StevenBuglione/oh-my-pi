@@ -2,8 +2,8 @@ import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@oh-my-pi/pi-natives";
-import { getWorktreeDir, hashPath, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import * as natives from "@oh-my-gpt/gpt-natives";
+import { getWorktreeDir, hashPath, logger, Snowflake } from "@oh-my-gpt/gpt-utils";
 import * as git from "../utils/git";
 
 const { IsoBackendKind } = natives;
@@ -104,7 +104,7 @@ async function captureRepoBaseline(repoRoot: string): Promise<RepoBaseline> {
 }
 
 async function writeSyntheticTree(repoDir: string, baseTreeish: string, patches: readonly string[]): Promise<string> {
-	const tempIndex = path.join(os.tmpdir(), `omp-task-index-${Snowflake.next()}`);
+	const tempIndex = path.join(os.tmpdir(), `omg-task-index-${Snowflake.next()}`);
 	try {
 		await git.readTree(repoDir, baseTreeish, {
 			env: { GIT_INDEX_FILE: tempIndex },
@@ -386,13 +386,13 @@ export async function commitToBranch(
 	if (!rootPatch.trim() && nestedPatches.length === 0) return null;
 
 	const repoRoot = baseline.root.repoRoot;
-	const branchName = `omp/task/${taskId}`;
+	const branchName = `omg/task/${taskId}`;
 	const fallbackMessage = description || taskId;
 
 	// Only create a branch if the root repo has changes
 	if (rootPatch.trim()) {
 		await git.branch.create(repoRoot, branchName);
-		const tmpDir = path.join(os.tmpdir(), `omp-branch-${Snowflake.next()}`);
+		const tmpDir = path.join(os.tmpdir(), `omg-branch-${Snowflake.next()}`);
 		try {
 			await git.worktree.add(repoRoot, tmpDir, branchName);
 			try {
@@ -443,7 +443,7 @@ export async function mergeTaskBranches(
 
 	// Stash dirty working tree so cherry-pick can operate on a clean HEAD.
 	// Without this, cherry-pick refuses to run when uncommitted changes exist.
-	const didStash = await git.stash.push(repoRoot, "omp-task-merge");
+	const didStash = await git.stash.push(repoRoot, "omg-task-merge");
 
 	let conflictResult: MergeBranchResult | undefined;
 

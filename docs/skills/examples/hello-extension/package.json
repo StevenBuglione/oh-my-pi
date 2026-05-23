@@ -1,8 +1,8 @@
 {
   "name": "hello-extension",
   "version": "1.0.0",
-  "description": "Minimal oh-my-pi extension example",
-  "omp": {
+  "description": "Minimal oh-my-gpt extension example",
+  "omg": {
     "extensions": ["./index.ts"]
   }
 }

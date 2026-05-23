@@ -17,7 +17,7 @@ runs/
 .wt/
 .opencode/
 .pi_config/
-.omp/plugins/
+.omg/plugins/
 
 # VCS, editors, IDEs.
 .git/
@@ -54,7 +54,7 @@ packages/natives/native/.build/
 packages/natives/native/pi_natives.darwin-*.node
 packages/natives/native/pi_natives.dev.node
 packages/ai/test/.temp-images/
-python/omp-rpc/src/omp_rpc.egg-info/
+python/omg-rpc/src/omg_rpc.egg-info/
 python/robomp/data/
 python/robomp/.cache/
 python/robomp/src/robomp/static/
@@ -70,7 +70,7 @@ pi-*.html
 .env
 
 # Robomp-only excludes. Natives + wheel + python + bun + rustup all come
-# from PI_BASE; the web-builder stage only needs root manifests + the
+# from OMG_BASE; the web-builder stage only needs root manifests + the
 # python/robomp/web tree; the runtime stage only COPYs python/robomp/
 # pyproject + src + entrypoint. Everything below is dead weight in the
 # robomp build context.

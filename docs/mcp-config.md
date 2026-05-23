@@ -1,6 +1,6 @@
-# MCP configuration in OMP
+# MCP configuration in OMG
 
-This guide explains how to add, edit, and validate MCP servers for the OMP coding agent.
+This guide explains how to add, edit, and validate MCP servers for the OMG coding agent.
 
 Source of truth in code:
 
@@ -12,17 +12,17 @@ Source of truth in code:
 
 ## Preferred config locations
 
-OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for OMP-native configuration you should usually use one of these files:
+OMG can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for OMG-native configuration you should usually use one of these files:
 
-- Project: `.omp/mcp.json`
-- User: `~/.omp/agent/mcp.json`
+- Project: `.omg/mcp.json`
+- User: `~/.omg/agent/mcp.json`
 
-OMP also accepts fallback standalone files in the project root:
+OMG also accepts fallback standalone files in the project root:
 
 - `mcp.json`
 - `.mcp.json`
 
-Use `.omp/mcp.json` or `~/.omp/agent/mcp.json` when you want OMP to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
+Use `.omg/mcp.json` or `~/.omg/agent/mcp.json` when you want OMG to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
 
 ## Add a schema reference
 
@@ -30,20 +30,20 @@ Add this line at the top of the file for editor autocomplete and validation:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {}
 }
 ```
 
-OMP now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update an OMP-managed MCP file.
+OMG now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update an OMG-managed MCP file.
 
 ## File shape
 
-OMP supports this top-level structure:
+OMG supports this top-level structure:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "server-name": {
       "type": "stdio",
@@ -59,7 +59,7 @@ Top-level keys:
 
 - `$schema` — optional JSON Schema URL for tooling
 - `mcpServers` — map of server name to server config
-- `disabledServers` — user-level denylist used to turn off discovered servers by name; runtime loading reads this list from `~/.omp/agent/mcp.json`
+- `disabledServers` — user-level denylist used to turn off discovered servers by name; runtime loading reads this list from `~/.omg/agent/mcp.json`
 
 Server names must match `^[a-zA-Z0-9_.-]{1,100}$`.
 
@@ -69,7 +69,7 @@ Shared fields for every transport:
 
 - `enabled?: boolean` — skip this server when `false`
 - `timeout?: number` — connection timeout in milliseconds
-- `auth?: { ... }` — auth metadata used by OMP for OAuth/API-key flows
+- `auth?: { ... }` — auth metadata used by OMG for OAuth/API-key flows
 - `oauth?: { ... }` — explicit OAuth client settings used during auth/reauth
 
 ### `stdio` transport
@@ -91,7 +91,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
@@ -123,7 +123,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "type": "http",
@@ -150,7 +150,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "legacy-remote": {
       "type": "sse",
@@ -164,7 +164,7 @@ Example:
 
 ## Auth fields
 
-OMP understands two auth-related objects.
+OMG understands two auth-related objects.
 
 ### `auth`
 
@@ -178,7 +178,7 @@ OMP understands two auth-related objects.
 }
 ```
 
-Use this when OMP should remember how to rehydrate credentials for a server.
+Use this when OMG should remember how to rehydrate credentials for a server.
 
 ### `oauth`
 
@@ -200,7 +200,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "slack": {
       "type": "http",
@@ -232,7 +232,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
@@ -251,7 +251,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "type": "http",
@@ -265,7 +265,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "github": {
       "command": "docker",
@@ -291,7 +291,7 @@ This matches GitHub's official local Docker image `ghcr.io/github/github-mcp-ser
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "slack": {
       "type": "http",
@@ -315,14 +315,14 @@ This matches GitHub's official local Docker image `ghcr.io/github/github-mcp-ser
 
 This is the part that usually trips people up.
 
-### In `.omp/mcp.json` and `~/.omp/agent/mcp.json`
+### In `.omg/mcp.json` and `~/.omg/agent/mcp.json`
 
-Before OMP launches a stdio server or makes an HTTP/SSE request, it resolves stdio `env` values and HTTP/SSE `headers` values like this:
+Before OMG launches a stdio server or makes an HTTP/SSE request, it resolves stdio `env` values and HTTP/SSE `headers` values like this:
 
-1. If a value starts with `!`, OMP runs the rest as a shell command with a 10s timeout and uses trimmed stdout.
+1. If a value starts with `!`, OMG runs the rest as a shell command with a 10s timeout and uses trimmed stdout.
 2. If the command fails, times out, or prints only whitespace, that `env`/`headers` entry is omitted.
-3. Otherwise OMP checks whether the value names an environment variable.
-4. If that environment variable is set to a non-empty value, OMP uses the environment value; otherwise it uses the string literally.
+3. Otherwise OMG checks whether the value names an environment variable.
+4. If that environment variable is set to a non-empty value, OMG uses the environment value; otherwise it uses the string literally.
 
 Examples:
 
@@ -363,17 +363,17 @@ Example:
 }
 ```
 
-If you want the least surprising OMP behavior, prefer `.omp/mcp.json` or `~/.omp/agent/mcp.json` and use explicit env/header values.
+If you want the least surprising OMG behavior, prefer `.omg/mcp.json` or `~/.omg/agent/mcp.json` and use explicit env/header values.
 
 ## `disabledServers`
 
-`disabledServers` is read from the user config file (`~/.omp/agent/mcp.json`) when a server is discovered from any source and you want OMP to ignore it without editing that other tool's config.
+`disabledServers` is read from the user config file (`~/.omg/agent/mcp.json`) when a server is discovered from any source and you want OMG to ignore it without editing that other tool's config.
 
 Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-gpt/main/packages/coding-agent/src/config/mcp-schema.json",
   "disabledServers": ["github", "slack"]
 }
 ```
@@ -396,7 +396,7 @@ After editing, use:
 - `/mcp reconnect <name>` to reconnect one server without rediscovering all configs
 - `/mcp resources`, `/mcp prompts`, and `/mcp notifications` to inspect non-tool MCP capabilities
 
-## Validation rules OMP enforces
+## Validation rules OMG enforces
 
 From `validateServerConfig()` in `packages/coding-agent/src/mcp/config.ts`:
 
@@ -408,16 +408,16 @@ From `validateServerConfig()` in `packages/coding-agent/src/mcp/config.ts`:
 Practical implications:
 
 - Omitting `type` means `stdio`
-- If you paste a remote server config and forget `"type": "http"`, OMP will treat it as `stdio` and complain that `command` is missing
+- If you paste a remote server config and forget `"type": "http"`, OMG will treat it as `stdio` and complain that `command` is missing
 - `sse` remains valid for compatibility, but new hosted servers should usually be configured as `http`
 
 ## Discovery and precedence
 
-OMP does not merge duplicate server definitions across files. Discovery providers are prioritized, and the higher-priority definition wins. Separately, `disabledServers` from `~/.omp/agent/mcp.json` can suppress a discovered server by name.
+OMG does not merge duplicate server definitions across files. Discovery providers are prioritized, and the higher-priority definition wins. Separately, `disabledServers` from `~/.omg/agent/mcp.json` can suppress a discovered server by name.
 
 In practice:
 
-- prefer `.omp/mcp.json` or `~/.omp/agent/mcp.json` when you want an OMP-specific override
+- prefer `.omg/mcp.json` or `~/.omg/agent/mcp.json` when you want an OMG-specific override
 - keep server names unique across tools when possible
 - use `disabledServers` in the user config when a third-party config keeps reintroducing a server you do not want
 
@@ -429,7 +429,7 @@ You probably omitted `type: "http"` on a remote server.
 
 ### `Server "name": both "command" and "url" are set`
 
-Pick one transport. OMP treats `command` as stdio and `url` as http/sse.
+Pick one transport. OMG treats `command` as stdio and `url` as http/sse.
 
 ### `/mcp add` worked but the server still does not connect
 
@@ -440,9 +440,9 @@ The JSON is valid, but the server may still be unreachable. Use `/mcp test <name
 - the remote URL is reachable
 - the OAuth or API token is valid
 
-### The server exists in another tool's config but not in OMP
+### The server exists in another tool's config but not in OMG
 
-Run `/mcp list`. OMP discovers many third-party MCP files, but project-level loading can also be disabled via the `mcp.enableProjectConfig` setting, and a user-level `disabledServers` entry can suppress a server by name.
+Run `/mcp list`. OMG discovers many third-party MCP files, but project-level loading can also be disabled via the `mcp.enableProjectConfig` setting, and a user-level `disabledServers` entry can suppress a server by name.
 
 ## References
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
+import type { AgentToolContext } from "@oh-my-gpt/gpt-agent-core";
+import { validateToolArguments } from "@oh-my-gpt/gpt-ai/utils/validation";
 import type { BashInterceptorRule } from "../../src/config/settings-schema";
 import type { ToolSession } from "../../src/tools";
 import { BashTool, type BashToolInput } from "../../src/tools/bash";

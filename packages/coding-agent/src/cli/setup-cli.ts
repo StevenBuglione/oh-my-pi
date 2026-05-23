@@ -1,10 +1,10 @@
 /**
  * Setup CLI command handler.
  *
- * Handles `omp setup <component>` to install dependencies for optional features.
+ * Handles `omg setup <component>` to install dependencies for optional features.
  */
 import * as path from "node:path";
-import { $which, APP_NAME, getPythonEnvDir } from "@oh-my-pi/pi-utils";
+import { $which, APP_NAME, getPythonEnvDir } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
@@ -102,7 +102,7 @@ async function checkPythonSetup(): Promise<PythonCheckResult> {
  * Install Python packages using uv (preferred) or pip.
  */
 // Python installation helper removed: the subprocess runner has no Python
-// package dependencies beyond a working interpreter. `omp setup python --check`
+// package dependencies beyond a working interpreter. `omg setup python --check`
 // remains as a probe; users install optional libs (pandas, matplotlib, ...)
 // directly via pip or the in-process `%pip` magic.
 

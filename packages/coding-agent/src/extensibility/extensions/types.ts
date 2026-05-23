@@ -7,8 +7,8 @@
  * - Register commands, keyboard shortcuts, and CLI flags
  * - Interact with the user via UI primitives
  */
-import type { AgentMessage, AgentToolResult, AgentToolUpdateCallback, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
+import type { AgentMessage, AgentToolResult, AgentToolUpdateCallback, ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { CompactionResult } from "@oh-my-gpt/gpt-agent-core/compaction";
 import type {
 	Api,
 	AssistantMessageEvent,
@@ -21,10 +21,10 @@ import type {
 	Static,
 	TextContent,
 	TSchema,
-} from "@oh-my-pi/pi-ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/utils/oauth/types";
-import type * as piCodingAgent from "@oh-my-pi/pi-coding-agent";
-import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@oh-my-pi/pi-tui";
+} from "@oh-my-gpt/gpt-ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-gpt/gpt-ai/utils/oauth/types";
+import type * as piCodingAgent from "@oh-my-gpt/gpt-coding-agent";
+import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@oh-my-gpt/gpt-tui";
 import type { KeybindingsManager } from "../../config/keybindings";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../edit";
@@ -832,7 +832,7 @@ export interface ExtensionAPI {
 	// =========================================================================
 
 	/** File logger for error/warning/debug messages */
-	logger: typeof import("@oh-my-pi/pi-utils").logger;
+	logger: typeof import("@oh-my-gpt/gpt-utils").logger;
 
 	/** Injected zod-backed typebox shim for legacy `Type.Object(...)` parameter authoring. */
 	typebox: typeof import("../typebox");
@@ -840,7 +840,7 @@ export interface ExtensionAPI {
 	/** Injected zod module for Zod-authored extension tools (canonical going forward). */
 	zod: typeof import("zod/v4");
 
-	/** Injected pi-coding-agent exports for accessing SDK utilities */
+	/** Injected gpt-coding-agent exports for accessing SDK utilities */
 	pi: typeof piCodingAgent;
 
 	// =========================================================================

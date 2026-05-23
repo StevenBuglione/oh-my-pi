@@ -15,7 +15,7 @@ import type { OAuthController } from "./types";
 
 const AUTH_URL =
 	"https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained";
-const API_BASE_URL = "https://router.huggingface.co/v1";
+const AOMG_BASE_URL = "https://router.huggingface.co/v1";
 const VALIDATION_MODEL = "openai/gpt-oss-120b";
 
 /**
@@ -53,7 +53,7 @@ export async function loginHuggingface(options: OAuthController): Promise<string
 	await validateOpenAICompatibleApiKey({
 		provider: "Hugging Face",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

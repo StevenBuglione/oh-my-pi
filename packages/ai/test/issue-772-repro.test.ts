@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 
 import { xiaomiModelManagerOptions } from "../src/provider-models/openai-compat";
 import { loginXiaomi } from "../src/utils/oauth/xiaomi";

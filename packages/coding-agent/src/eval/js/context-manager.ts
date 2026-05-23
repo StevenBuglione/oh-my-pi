@@ -1,4 +1,4 @@
-import { isCompiledBinary, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { isCompiledBinary, logger, Snowflake } from "@oh-my-gpt/gpt-utils";
 import type { ToolSession } from "../../tools";
 import { ToolAbortError, ToolError } from "../../tools/tool-errors";
 import { callSessionTool, type JsStatusEvent } from "./tool-bridge";

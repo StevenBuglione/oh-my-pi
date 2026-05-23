@@ -61,7 +61,7 @@ Current runtime behavior:
 
 - `name` defaults to the skill directory name
 - `description` is required for:
-  - native `.omp` provider skill discovery (`requireDescription: true`)
+  - native `.omg` provider skill discovery (`requireDescription: true`)
   - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
 - non-native providers can load skills without description
 
@@ -80,7 +80,7 @@ Provider ordering is priority-first (higher wins), then registration order for t
 
 Current registered skill providers:
 
-1. `native` (priority 100) — `.omp` user/project skills via `src/discovery/builtin.ts`
+1. `native` (priority 100) — `.omg` user/project skills via `src/discovery/builtin.ts`
 2. `claude` (priority 80)
 3. priority 70 group (in registration order):
    - `claude-plugins`

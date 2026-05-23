@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CompactionCancelledError, type CompactionOutcome } from "@oh-my-pi/pi-agent-core/compaction";
+import { CompactionCancelledError, type CompactionOutcome } from "@oh-my-gpt/gpt-agent-core/compaction";
 import {
 	getEnvApiKey,
 	getProviderDetails,
@@ -9,9 +9,9 @@ import {
 	type ToolCall,
 	type UsageLimit,
 	type UsageReport,
-} from "@oh-my-pi/pi-ai";
-import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatDuration, Snowflake, setProjectDir } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai";
+import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@oh-my-gpt/gpt-tui";
+import { formatDuration, Snowflake, setProjectDir } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import { reset as resetCapabilities } from "../../capability";
 import { clearClaudePluginRootsCache } from "../../discovery/helpers";

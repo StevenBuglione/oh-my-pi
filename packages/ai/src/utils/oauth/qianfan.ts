@@ -12,7 +12,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://console.bce.baidu.com/qianfan/ais/console/apiKey";
-const API_BASE_URL = "https://qianfan.baidubce.com/v2";
+const AOMG_BASE_URL = "https://qianfan.baidubce.com/v2";
 const VALIDATION_MODEL = "deepseek-v3.2";
 
 /**
@@ -49,7 +49,7 @@ export async function loginQianfan(options: OAuthController): Promise<string> {
 	await validateOpenAICompatibleApiKey({
 		provider: "qianfan",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

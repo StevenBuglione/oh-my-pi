@@ -1,11 +1,11 @@
 /**
- * `omp auth-gateway` command handlers.
+ * `omg auth-gateway` command handlers.
  *
  * Boots a forward-proxy server that lets less-trusted clients (the macOS
  * usage widget, robomp containers, …) make provider API calls without ever
  * seeing the access token. The gateway is itself a broker client and
  * resolves credentials through the configured broker (via the same
- * `OMP_AUTH_BROKER_URL` / `auth.broker.url` precedence used elsewhere).
+ * `OMG_AUTH_BROKER_URL` / `auth.broker.url` precedence used elsewhere).
  *
  * Sub-verbs:
  *   - `serve [--bind=…]` — boots the gateway against the configured broker.
@@ -27,8 +27,8 @@ import {
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthGateway,
-} from "@oh-my-pi/pi-ai";
-import { getConfigRootDir, isEnoent, VERSION } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai";
+import { getConfigRootDir, isEnoent, VERSION } from "@oh-my-gpt/gpt-utils";
 import chalk from "chalk";
 import { type AuthBrokerClientConfig, resolveAuthBrokerConfig } from "../session/auth-broker-config";
 
@@ -132,7 +132,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"`omp auth-gateway serve` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
+			"`omg auth-gateway serve` requires OMG_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
 		);
 	}
 	const bind = flags.bind ?? DEFAULT_AUTH_GATEWAY_BIND;
@@ -152,9 +152,9 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	});
 	await storage.reload();
 
-	// Build the model resolver + catalog from pi-ai's bundled metadata, scoped
+	// Build the model resolver + catalog from gpt-ai's bundled metadata, scoped
 	// to providers we hold credentials for. Format handlers ask `resolveModel`
-	// to translate a client-requested `model` field into a pi-ai `Model<Api>`
+	// to translate a client-requested `model` field into a gpt-ai `Model<Api>`
 	// before dispatch; `listModels` powers `/v1/models`.
 	const snapshot = storage.exportSnapshot();
 	const providersWithCreds = new Set<string>();
@@ -258,7 +258,7 @@ async function runStatus(flags: AuthGatewayCommandArgs["flags"]): Promise<void> 
 		if (flags.json) {
 			process.stdout.write(`${JSON.stringify(status)}\n`);
 		} else {
-			process.stdout.write(`${chalk.yellow("No broker configured.")} Set OMP_AUTH_BROKER_URL.\n`);
+			process.stdout.write(`${chalk.yellow("No broker configured.")} Set OMG_AUTH_BROKER_URL.\n`);
 			process.stdout.write(
 				`token: ${status.tokenPresent ? chalk.green("present") : chalk.red("missing")} at ${status.tokenFile}\n`,
 			);
@@ -292,7 +292,7 @@ async function runStatus(flags: AuthGatewayCommandArgs["flags"]): Promise<void> 
 			);
 			if (!tokenPresent) {
 				process.stdout.write(
-					"Run `omp auth-gateway token` or `omp auth-gateway serve` to create a bearer token.\n",
+					"Run `omg auth-gateway token` or `omg auth-gateway serve` to create a bearer token.\n",
 				);
 			}
 		}

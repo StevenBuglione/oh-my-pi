@@ -5,16 +5,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { discoverAndLoadExtensions } from "@oh-my-gpt/gpt-coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	testSetExtensionHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/extensibility/extensions/runner";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@oh-my-gpt/gpt-utils";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;

@@ -7,7 +7,7 @@
  * stay in their respective files.
  */
 
-import { type Component, Container, Loader, Spacer, Text, type TUI } from "@oh-my-pi/pi-tui";
+import { type Component, Container, Loader, Spacer, Text, type TUI } from "@oh-my-gpt/gpt-tui";
 import { getSymbolTheme, theme } from "../../modes/theme/theme";
 import { formatTruncationMetaNotice, type TruncationMeta } from "../../tools/output-meta";
 import { DynamicBorder } from "./dynamic-border";

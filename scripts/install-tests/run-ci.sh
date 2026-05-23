@@ -51,8 +51,8 @@ bun --cwd=packages/coding-agent run build
 
 BINARY_DIR="$WORK_DIR/binary-bin"
 mkdir -p "$BINARY_DIR"
-cp packages/coding-agent/dist/omp "$BINARY_DIR/omp"
-smoke_cli "$BINARY_DIR/omp"
+cp packages/coding-agent/dist/omg "$BINARY_DIR/omg"
+smoke_cli "$BINARY_DIR/omg"
 
 section "Source install smoke"
 SOURCE_BUN_HOME="$WORK_DIR/bun-source"
@@ -60,7 +60,7 @@ SOURCE_BUN_HOME="$WORK_DIR/bun-source"
 	export BUN_INSTALL="$SOURCE_BUN_HOME"
 	export PATH="$BUN_INSTALL/bin:$PATH"
 	bun --cwd="$ROOT_DIR/packages/coding-agent" link
-	smoke_cli "$BUN_INSTALL/bin/omp"
+	smoke_cli "$BUN_INSTALL/bin/omg"
 )
 
 section "Tarball install smoke"
@@ -73,13 +73,13 @@ for pkg in utils natives ai agent tui stats coding-agent; do
 	)
 done
 
-utils_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-utils-*.tgz)"
-natives_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-natives-*.tgz)"
-ai_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-ai-*.tgz)"
-agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-agent-core-*.tgz)"
-tui_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-tui-*.tgz)"
-stats_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-omp-stats-*.tgz)"
-coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-pi-pi-coding-agent-*.tgz)"
+utils_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-utils-*.tgz)"
+natives_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-natives-*.tgz)"
+ai_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-ai-*.tgz)"
+agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-agent-core-*.tgz)"
+tui_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-tui-*.tgz)"
+stats_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-omg-stats-*.tgz)"
+coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/oh-my-gpt-gpt-coding-agent-*.tgz)"
 
 TARBALL_APP_DIR="$WORK_DIR/tarball-install"
 mkdir -p "$TARBALL_APP_DIR"
@@ -92,19 +92,19 @@ mkdir -p "$TARBALL_APP_DIR"
 	node -e "
 		const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
 		pkg.overrides = {
-			'@oh-my-pi/pi-utils': '$utils_tgz',
-			'@oh-my-pi/pi-natives': '$natives_tgz',
-			'@oh-my-pi/pi-ai': '$ai_tgz',
-			'@oh-my-pi/pi-agent-core': '$agent_tgz',
-			'@oh-my-pi/pi-tui': '$tui_tgz',
-			'@oh-my-pi/omp-stats': '$stats_tgz',
-			'@oh-my-pi/pi-coding-agent': '$coding_agent_tgz'
+			'@oh-my-gpt/gpt-utils': '$utils_tgz',
+			'@oh-my-gpt/gpt-natives': '$natives_tgz',
+			'@oh-my-gpt/gpt-ai': '$ai_tgz',
+			'@oh-my-gpt/gpt-agent-core': '$agent_tgz',
+			'@oh-my-gpt/gpt-tui': '$tui_tgz',
+			'@oh-my-gpt/omg-stats': '$stats_tgz',
+			'@oh-my-gpt/gpt-coding-agent': '$coding_agent_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
 
 	bun add "$utils_tgz" "$natives_tgz" "$ai_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz"
-	smoke_cli ./node_modules/.bin/omp
+	smoke_cli ./node_modules/.bin/omg
 )
 
 echo ""

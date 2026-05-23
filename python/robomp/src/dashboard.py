@@ -18,7 +18,7 @@ _TAIL_MAX_BYTES = 2 * 1024 * 1024
 
 # Sentinel literally embedded in the built `index.html`; replaced per-request
 # with a JSON config blob so the SPA can pick up the replay token.
-_CONFIG_SENTINEL = "__ROBOMP_CONFIG__"
+_CONFIG_SENTINEL = "__ROBOMG_CONFIG__"
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 _INDEX_PATH = _STATIC_DIR / "index.html"

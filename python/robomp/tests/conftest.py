@@ -11,7 +11,7 @@ from robomp.dashboard import reset_index_cache, static_dir
 from robomp.db import Database, close_database
 
 # Minimum HTML the dashboard handler needs to render: `<title>` plus a script
-# block carrying the `__ROBOMP_CONFIG__` sentinel. The real Vite-built bundle
+# block carrying the `__ROBOMG_CONFIG__` sentinel. The real Vite-built bundle
 # adds JS/CSS asset links; tests only care about the rendering contract.
 _PLACEHOLDER_INDEX_HTML = (
     "<!doctype html>\n"
@@ -19,7 +19,7 @@ _PLACEHOLDER_INDEX_HTML = (
     '  <head><meta charset="utf-8"><title>robomp</title></head>\n'
     "  <body>\n"
     '    <div id="app"></div>\n'
-    '    <script id="robomp-config" type="application/json">__ROBOMP_CONFIG__</script>\n'
+    '    <script id="robomp-config" type="application/json">__ROBOMG_CONFIG__</script>\n'
     "  </body>\n"
     "</html>\n"
 )
@@ -78,25 +78,25 @@ def _open_tmp_path_for_slot_traversal(tmp_path: Path) -> None:
 def _baseline_env(tmp_path: Path) -> dict[str, str]:
     return {
         # Orchestrator-mode: no PAT in this container; talk to gh-proxy instead.
-        "ROBOMP_GH_PROXY_URL": "http://gh-proxy.invalid:8081",
-        "ROBOMP_GH_PROXY_HMAC_KEY": "test-hmac-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ROBOMG_GH_PROXY_URL": "http://gh-proxy.invalid:8081",
+        "ROBOMG_GH_PROXY_HMAC_KEY": "test-hmac-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "GITHUB_WEBHOOK_SECRET": "test-webhook-secret",
-        "ROBOMP_BOT_LOGIN": "robomp-bot",
-        "ROBOMP_GIT_AUTHOR_NAME": "robomp-bot",
-        "ROBOMP_GIT_AUTHOR_EMAIL": "robomp-bot@example.invalid",
-        "ROBOMP_REPO_ALLOWLIST": "octo/widget",
-        "ROBOMP_MODEL": "anthropic/claude-sonnet-4-5",
-        "ROBOMP_THINKING": "high",
-        "ROBOMP_WORKSPACE_ROOT": str(tmp_path / "workspaces"),
-        "ROBOMP_SQLITE_PATH": str(tmp_path / "robomp.sqlite"),
-        "ROBOMP_LOG_DIR": str(tmp_path / "logs"),
-        # Production default is `/data/cache/pi-natives` (provisioned by the
+        "ROBOMG_BOT_LOGIN": "robomp-bot",
+        "ROBOMG_GIT_AUTHOR_NAME": "robomp-bot",
+        "ROBOMG_GIT_AUTHOR_EMAIL": "robomp-bot@example.invalid",
+        "ROBOMG_REPO_ALLOWLIST": "octo/widget",
+        "ROBOMG_MODEL": "anthropic/claude-sonnet-4-5",
+        "ROBOMG_THINKING": "high",
+        "ROBOMG_WORKSPACE_ROOT": str(tmp_path / "workspaces"),
+        "ROBOMG_SQLITE_PATH": str(tmp_path / "robomp.sqlite"),
+        "ROBOMG_LOG_DIR": str(tmp_path / "logs"),
+        # Production default is `/data/cache/gpt-natives` (provisioned by the
         # container entrypoint). Tests need a writable, isolated path; we also
         # default-disable the cache so its background GC loop doesn't add
         # noise to event-dispatcher timing assertions. Tests that want the
-        # cache flip `ROBOMP_NATIVES_CACHE_ENABLED=true` explicitly.
-        "ROBOMP_NATIVES_CACHE_ROOT": str(tmp_path / "natives-cache"),
-        "ROBOMP_NATIVES_CACHE_ENABLED": "false",
+        # cache flip `ROBOMG_NATIVES_CACHE_ENABLED=true` explicitly.
+        "ROBOMG_NATIVES_CACHE_ROOT": str(tmp_path / "natives-cache"),
+        "ROBOMG_NATIVES_CACHE_ENABLED": "false",
     }
 
 
@@ -110,8 +110,8 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, str]:
     # file; setenv("") is what actually shadows the file value, and the
     # `_blank_token_disables` validator treats empty strings as unset.
     monkeypatch.setenv("GITHUB_TOKEN", "")
-    monkeypatch.delenv("ROBOMP_PROVIDER", raising=False)
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "")
+    monkeypatch.delenv("ROBOMG_PROVIDER", raising=False)
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "")
     reset_settings_cache()
     yield env
     reset_settings_cache()
@@ -122,17 +122,17 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, str]:
 def proxy_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, str]:
     """Baseline env for the gh-proxy container: holds the PAT, no proxy vars."""
     baseline = _baseline_env(tmp_path)
-    baseline.pop("ROBOMP_GH_PROXY_URL", None)
-    baseline.pop("ROBOMP_GH_PROXY_HMAC_KEY", None)
+    baseline.pop("ROBOMG_GH_PROXY_URL", None)
+    baseline.pop("ROBOMG_GH_PROXY_HMAC_KEY", None)
     baseline["GITHUB_TOKEN"] = "ghp_test_token_value_xxxxxxxxxxxxxxxx"
     for key, value in baseline.items():
         monkeypatch.setenv(key, value)
     # Same defense-in-depth as `env`: setenv("") rather than delenv so
     # pydantic_settings doesn't fall back to the on-disk `.env` file.
-    monkeypatch.setenv("ROBOMP_GH_PROXY_URL", "")
-    monkeypatch.setenv("ROBOMP_GH_PROXY_HMAC_KEY", "")
-    monkeypatch.delenv("ROBOMP_PROVIDER", raising=False)
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_URL", "")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_HMAC_KEY", "")
+    monkeypatch.delenv("ROBOMG_PROVIDER", raising=False)
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "")
     reset_settings_cache()
     yield baseline
     reset_settings_cache()

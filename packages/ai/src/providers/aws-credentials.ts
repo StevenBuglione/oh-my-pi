@@ -22,7 +22,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { $env, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import type { AwsCredentials } from "./aws-sigv4";
 
 export interface ResolvedCredentials extends AwsCredentials {

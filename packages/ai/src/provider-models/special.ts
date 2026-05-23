@@ -1,4 +1,4 @@
-import { once } from "@oh-my-pi/pi-utils";
+import { once } from "@oh-my-gpt/gpt-utils";
 import type { ModelManagerOptions } from "../model-manager";
 import { fetchCodexModels } from "../utils/discovery/codex";
 

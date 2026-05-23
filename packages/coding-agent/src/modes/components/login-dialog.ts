@@ -1,5 +1,5 @@
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/utils/oauth";
-import { Container, getKeybindings, Input, Spacer, Text, type TUI } from "@oh-my-pi/pi-tui";
+import { getOAuthProviders } from "@oh-my-gpt/gpt-ai/utils/oauth";
+import { Container, getKeybindings, Input, Spacer, Text, type TUI } from "@oh-my-gpt/gpt-tui";
 import { theme } from "../../modes/theme/theme";
 import { openPath } from "../../utils/open";
 import { DynamicBorder } from "./dynamic-border";

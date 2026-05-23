@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Fixed clipboard image paste (Ctrl+V) silently failing on WSL2 by routing image reads through a `powershell.exe` bridge when WSL interop is detected, since `arboard` returns `ContentNotAvailable` under WSLg ([#1280](https://github.com/can1357/oh-my-pi/issues/1280))
+- Fixed clipboard image paste (Ctrl+V) silently failing on WSL2 by routing image reads through a `powershell.exe` bridge when WSL interop is detected, since `arboard` returns `ContentNotAvailable` under WSLg ([#1280](https://github.com/can1357/oh-my-gpt/issues/1280))
 
 ## [15.2.4] - 2026-05-22
 ### Breaking Changes
@@ -30,13 +30,13 @@
 ## [15.2.3] - 2026-05-22
 ### Breaking Changes
 
-- Changed PR and task-isolation worktree directory layout to hash-based `~/.omp/wt/<identifier>-<path-hash>` style paths, replacing the previous nested encoded-repo layout
+- Changed PR and task-isolation worktree directory layout to hash-based `~/.omg/wt/<identifier>-<path-hash>` style paths, replacing the previous nested encoded-repo layout
 
 ### Added
 
-- Added `omp worktree` command (alias `wt`) to list and manage agent-managed worktrees under `~/.omp/wt`
-- Added `omp worktree clear` to remove orphaned worktree directories, with `--all` to include live PR-checkouts, `--dry-run` for preview, and `--json` reporting
-- Added machine-readable JSON output to `omp worktree list` for scripted inspection
+- Added `omg worktree` command (alias `wt`) to list and manage agent-managed worktrees under `~/.omg/wt`
+- Added `omg worktree clear` to remove orphaned worktree directories, with `--all` to include live PR-checkouts, `--dry-run` for preview, and `--json` reporting
+- Added machine-readable JSON output to `omg worktree list` for scripted inspection
 - Added `display.shimmer` appearance setting with `classic`, `kitt` (Knight Rider K.I.T.T. scanner), and `disabled` modes
 
 ### Changed
@@ -58,7 +58,7 @@
 
 ### Fixed
 
-- Fixed `RULES.md` not being injected. The documented sticky-rules file at `~/.omp/agent/RULES.md` and `<repo>/.omp/RULES.md` was never read by any discovery provider; only `.omp/rules/*.md` was scanned. The native provider now loads both as always-apply rules so they re-attach every turn as documented ([#1266](https://github.com/can1357/oh-my-pi/issues/1266)).
+- Fixed `RULES.md` not being injected. The documented sticky-rules file at `~/.omg/agent/RULES.md` and `<repo>/.omg/RULES.md` was never read by any discovery provider; only `.omg/rules/*.md` was scanned. The native provider now loads both as always-apply rules so they re-attach every turn as documented ([#1266](https://github.com/can1357/oh-my-gpt/issues/1266)).
 
 ## [15.2.1] - 2026-05-21
 
@@ -68,7 +68,7 @@
 
 ### Fixed
 
-- Fixed context overflow not being detected when the session's model (e.g. `hf:zai-org/GLM-5.1` via `synthetic` provider) returns a 400 with the upstream "400 status code (no body)" message wrapped inside a JSON envelope. The `isContextOverflow` check now matches the no-body status phrase anywhere in the error string rather than requiring it at the very start, so auto-compaction fires correctly instead of leaving the session silently stuck ([#1251](https://github.com/can1357/oh-my-pi/issues/1251)).
+- Fixed context overflow not being detected when the session's model (e.g. `hf:zai-org/GLM-5.1` via `synthetic` provider) returns a 400 with the upstream "400 status code (no body)" message wrapped inside a JSON envelope. The `isContextOverflow` check now matches the no-body status phrase anywhere in the error string rather than requiring it at the very start, so auto-compaction fires correctly instead of leaving the session silently stuck ([#1251](https://github.com/can1357/oh-my-gpt/issues/1251)).
 - Fixed `formatCapturedHttpError` not extracting the error text from `{"error":"string"}` response bodies (only object-valued `error` fields were previously handled), resulting in raw JSON in error messages instead of the human-readable string.
 
 ## [15.2.0] - 2026-05-21
@@ -83,48 +83,48 @@
 
 ### Fixed
 
-- Fixed goal state machine: `get` now returns paused goals (was returning null for `enabled=false`), `complete` now works on paused goals after interrupts, `create` is allowed after a previous goal reaches `complete` status, and the goal tool is re-added to the active tool set on session reload when a paused goal is persisted. Added `resume` and `drop` ops to the goal tool so the agent can re-engage or discard a paused goal without requiring user slash commands. ([#1249](https://github.com/can1357/oh-my-pi/issues/1249))
+- Fixed goal state machine: `get` now returns paused goals (was returning null for `enabled=false`), `complete` now works on paused goals after interrupts, `create` is allowed after a previous goal reaches `complete` status, and the goal tool is re-added to the active tool set on session reload when a paused goal is persisted. Added `resume` and `drop` ops to the goal tool so the agent can re-engage or discard a paused goal without requiring user slash commands. ([#1249](https://github.com/can1357/oh-my-gpt/issues/1249))
 
 ## [15.1.9] - 2026-05-21
 
 ### Fixed
 
-- Fixed `disabledProviders` still probing local discovery endpoints for Ollama, llama.cpp, and LM Studio during background model refresh. Disabled providers are now excluded before implicit and built-in discovery managers are created. ([#1232](https://github.com/can1357/oh-my-pi/issues/1232))
+- Fixed `disabledProviders` still probing local discovery endpoints for Ollama, llama.cpp, and LM Studio during background model refresh. Disabled providers are now excluded before implicit and built-in discovery managers are created. ([#1232](https://github.com/can1357/oh-my-gpt/issues/1232))
 
 ### Fixed
 
-- Fixed `omp acp` auto-discovering host `.mcp.json` servers in parallel with the ACP client's `session/new.mcpServers`, which shadowed client-supplied MCP tools in `search_tool_bm25` and the session tool registry. The ACP session factory now forces `enableMCP: false`, so MCP ownership stays with `AcpAgent#configureMcpServers`. Non-ACP modes keep on-disk discovery. ([#1234](https://github.com/can1357/oh-my-pi/issues/1234))
+- Fixed `omg acp` auto-discovering host `.mcp.json` servers in parallel with the ACP client's `session/new.mcpServers`, which shadowed client-supplied MCP tools in `search_tool_bm25` and the session tool registry. The ACP session factory now forces `enableMCP: false`, so MCP ownership stays with `AcpAgent#configureMcpServers`. Non-ACP modes keep on-disk discovery. ([#1234](https://github.com/can1357/oh-my-gpt/issues/1234))
 
 ### Fixed
 
-- Fixed binary `omp update` rollbacks so a downloaded replacement that fails post-install version verification no longer remains installed over the previous working binary. ([#1240](https://github.com/can1357/oh-my-pi/issues/1240))
+- Fixed binary `omg update` rollbacks so a downloaded replacement that fails post-install version verification no longer remains installed over the previous working binary. ([#1240](https://github.com/can1357/oh-my-gpt/issues/1240))
 
 ### Fixed
 
-- Fixed `/force <tool>` rejecting Ollama/local models before the requested tool could run; Ollama now receives a named forced choice that the provider transport narrows to the selected tool. ([#1236](https://github.com/can1357/oh-my-pi/issues/1236))
+- Fixed `/force <tool>` rejecting Ollama/local models before the requested tool could run; Ollama now receives a named forced choice that the provider transport narrows to the selected tool. ([#1236](https://github.com/can1357/oh-my-gpt/issues/1236))
 
 ### Fixed
 
-- Fixed `web_search` freezing the session when an upstream provider stalled. Bun's WinHTTP backend on Windows can silently drop `AbortSignal` once a TCP/TLS connection hangs (oven-sh/bun#15275, oven-sh/bun#18536), so Esc never reached the in-flight fetch and the only recovery was Ctrl+C + `omp --resume`. Every web-search provider's outbound `fetch` (anthropic, brave, codex, exa, gemini, jina, kagi, kimi, parallel, perplexity, searxng, synthetic, tavily, z.ai) now composes the caller signal with a 60s hard timeout via a shared `withHardTimeout` helper, guaranteeing the request settles within a minute even when Bun's abort fails to propagate. Independently, `executeSearch`'s provider-fallback loop was masking real cancellations as ordinary provider errors and returning "All web search providers failed"; it now re-throws as `ToolAbortError` the moment the caller's signal aborts, so the session sees a clean cancel on every platform. ([#1221](https://github.com/can1357/oh-my-pi/issues/1221))
+- Fixed `web_search` freezing the session when an upstream provider stalled. Bun's WinHTTP backend on Windows can silently drop `AbortSignal` once a TCP/TLS connection hangs (oven-sh/bun#15275, oven-sh/bun#18536), so Esc never reached the in-flight fetch and the only recovery was Ctrl+C + `omg --resume`. Every web-search provider's outbound `fetch` (anthropic, brave, codex, exa, gemini, jina, kagi, kimi, parallel, perplexity, searxng, synthetic, tavily, z.ai) now composes the caller signal with a 60s hard timeout via a shared `withHardTimeout` helper, guaranteeing the request settles within a minute even when Bun's abort fails to propagate. Independently, `executeSearch`'s provider-fallback loop was masking real cancellations as ordinary provider errors and returning "All web search providers failed"; it now re-throws as `ToolAbortError` the moment the caller's signal aborts, so the session sees a clean cancel on every platform. ([#1221](https://github.com/can1357/oh-my-gpt/issues/1221))
 
 ### Added
 
-- Added OSC 8 terminal hyperlink support for file paths in tool output. When the terminal supports hyperlinks (kitty, Ghostty, WezTerm, iTerm2, Alacritty, VS Code) and the new `tui.hyperlinks` setting is `auto` (default) or `always`, OMP wraps file paths emitted by `read`, `find`, `search`, `edit`, `ast_grep`, and `ast_edit` renderers in `file:///abs/path` hyperlinks. `local://` and other fs-backed internal URLs resolve to their backing path. Set `tui.hyperlinks: off` to disable. ([#1244](https://github.com/can1357/oh-my-pi/issues/1244))
+- Added OSC 8 terminal hyperlink support for file paths in tool output. When the terminal supports hyperlinks (kitty, Ghostty, WezTerm, iTerm2, Alacritty, VS Code) and the new `tui.hyperlinks` setting is `auto` (default) or `always`, OMG wraps file paths emitted by `read`, `find`, `search`, `edit`, `ast_grep`, and `ast_edit` renderers in `file:///abs/path` hyperlinks. `local://` and other fs-backed internal URLs resolve to their backing path. Set `tui.hyperlinks: off` to disable. ([#1244](https://github.com/can1357/oh-my-gpt/issues/1244))
 
 ## [15.1.8] - 2026-05-20
 
 ### Fixed
 
 - Fixed streaming edit previews for `apply_patch` and `hashline` jittering as the model typed `+added` lines. Two root causes addressed: (1) the trailing partial line of the streaming text input is now trimmed at each tick so a half-typed `+added` line no longer flickers; (2) the preview is rendered in the model's input order during streaming instead of re-deriving a unified diff via `Diff.structuredPatch`, whose coalescing previously reshuffled existing `+added` lines downward each time a new `-removed` line arrived. Existing additions now stay put and the preview only grows at the bottom while streaming. A residual trailing `-removed`/hunk-header block whose matching `+added` companion has not yet arrived is also suppressed until the additions land.
-- Fixed Perplexity web search appearing "logged out" roughly an hour after `omp auth login perplexity`. The search provider's `findOAuthToken` was honoring the bogus `expires = login_time + 1h` written by older logins (Perplexity JWTs typically omit `exp` because sessions are server-side) and silently dropping the credential. The loader now decodes the JWT's `exp` claim directly and only skips when the JWT itself is expired; tokens without an `exp` claim are treated as non-expiring.
+- Fixed Perplexity web search appearing "logged out" roughly an hour after `omg auth login perplexity`. The search provider's `findOAuthToken` was honoring the bogus `expires = login_time + 1h` written by older logins (Perplexity JWTs typically omit `exp` because sessions are server-side) and silently dropping the credential. The loader now decodes the JWT's `exp` claim directly and only skips when the JWT itself is expired; tokens without an `exp` claim are treated as non-expiring.
 
 ## [15.1.7] - 2026-05-19
 
 ### Fixed
 
-- Fixed `debug` launch/attach failures so `configurationDone` no longer masks the underlying DAP launch error, early stop-outcome watchers cannot emit unhandled rejections, and directory-valued launch programs are rejected before adapter selection. ([#1187](https://github.com/can1357/oh-my-pi/issues/1187))
-- Fixed hashline edit payloads that use a readability space after `~` by warning on separator-padding-shaped payload blocks and tightening the model prompt. ([#1166](https://github.com/can1357/oh-my-pi/issues/1166))
-- Fixed ACP bash permission requests to include execute tool metadata and command content so clients can render command approval prompts consistently. ([#1189](https://github.com/can1357/oh-my-pi/issues/1189))
+- Fixed `debug` launch/attach failures so `configurationDone` no longer masks the underlying DAP launch error, early stop-outcome watchers cannot emit unhandled rejections, and directory-valued launch programs are rejected before adapter selection. ([#1187](https://github.com/can1357/oh-my-gpt/issues/1187))
+- Fixed hashline edit payloads that use a readability space after `~` by warning on separator-padding-shaped payload blocks and tightening the model prompt. ([#1166](https://github.com/can1357/oh-my-gpt/issues/1166))
+- Fixed ACP bash permission requests to include execute tool metadata and command content so clients can render command approval prompts consistently. ([#1189](https://github.com/can1357/oh-my-gpt/issues/1189))
 - Fixed the status-line fast-mode indicator (`⚡`) rendering for scoped service tiers (`openai-only`, `claude-only`) even when the active model's provider didn't realize them — e.g. `serviceTier: "openai-only"` would still show the indicator next to a Claude model the wire request couldn't apply fast mode to. The indicator now consults a new `AgentSession.isFastModeActive()` predicate that runs the configured tier through `resolveServiceTier(tier, model.provider)` and only lights up when the result is `"priority"` for the current model. `isFastModeEnabled()` keeps its scope-aware semantics so `/fast on|off|toggle` and `/fast status` continue to reflect the user's configured intent.
 
 ### Added
@@ -139,7 +139,7 @@
 
 ### Fixed
 
-- Fixed plan-mode `resolve` looping when grammar-constrained models (e.g. Qwen3.6-35B-MTP via llama.cpp) emit `extra: { title: {} }` instead of a string — the open `Record<string, unknown>` schema for `extra` lets such models drop in an empty object, and the apply guard then hard-threw on every retry. Plan approval now derives the title from `extra.title` when usable, falling back to the plan's first `# Heading`, then the plan filename stem (`local://PLAN.md` → `PLAN`), then the literal `"plan"`. Prompt language relaxed from "MUST" to "SHOULD" for `extra.title`. ([#1179](https://github.com/can1357/oh-my-pi/issues/1179))
+- Fixed plan-mode `resolve` looping when grammar-constrained models (e.g. Qwen3.6-35B-MTP via llama.cpp) emit `extra: { title: {} }` instead of a string — the open `Record<string, unknown>` schema for `extra` lets such models drop in an empty object, and the apply guard then hard-threw on every retry. Plan approval now derives the title from `extra.title` when usable, falling back to the plan's first `# Heading`, then the plan filename stem (`local://PLAN.md` → `PLAN`), then the literal `"plan"`. Prompt language relaxed from "MUST" to "SHOULD" for `extra.title`. ([#1179](https://github.com/can1357/oh-my-gpt/issues/1179))
 
 ## [15.1.5] - 2026-05-19
 
@@ -151,42 +151,42 @@
 
 ### Fixed
 
-- Fixed `normalizePlanTitle` rejecting plan titles that contain spaces or common punctuation (e.g. "My Feature Plan") — spaces are now converted to hyphens and other invalid characters are dropped, so models that produce natural-language plan titles no longer loop forever trying to call `resolve`. ([#1176](https://github.com/can1357/oh-my-pi/issues/1176))
-- Fixed `ask` tool prompt example showing the legacy `question`/`options` top-level format instead of the current `questions: [{id, question, options}]` array format; models that closely followed the example generated calls that always failed schema validation. ([#1176](https://github.com/can1357/oh-my-pi/issues/1176))
+- Fixed `normalizePlanTitle` rejecting plan titles that contain spaces or common punctuation (e.g. "My Feature Plan") — spaces are now converted to hyphens and other invalid characters are dropped, so models that produce natural-language plan titles no longer loop forever trying to call `resolve`. ([#1176](https://github.com/can1357/oh-my-gpt/issues/1176))
+- Fixed `ask` tool prompt example showing the legacy `question`/`options` top-level format instead of the current `questions: [{id, question, options}]` array format; models that closely followed the example generated calls that always failed schema validation. ([#1176](https://github.com/can1357/oh-my-gpt/issues/1176))
 
 - Fixed ACP command and custom tool-call notifications to carry the original tool arguments in replayed and final updates, so command text is preserved and raw input is no longer wrapped
 - Fixed ACP async-job draining to be scoped by session owner so `getAsyncJobSnapshot` and `drainAsyncJobDeliveriesForAcp` no longer consume or expose jobs from other sessions
 - Fixed async job status reporting to include in-flight completions so queued/delivering indicators remain accurate while callbacks are still running
 - Fixed `deferAgentInitiatedTurns` handling during ACP async-job draining so background completion follow-up turns are delivered even when agent-initiated turns are deferred
-- Fixed ACP ordinary file-editing calls (`edit`, `write`, `ast_edit`) incorrectly requesting `session/request_permission` before every call, while keeping permission prompts for edit operations that delete or move files; permission requests now report the gated tool call as `pending` so clients can render the approval UI instead of returning `Permission request cancelled` without a visible prompt. ([#1134](https://github.com/can1357/oh-my-pi/pull/1134) by [@jiwangyihao](https://github.com/jiwangyihao))
-- Fixed the session tree selector to preserve a readable message column when deeply nested branch gutters would otherwise consume the viewport. ([#1144](https://github.com/can1357/oh-my-pi/issues/1144))
+- Fixed ACP ordinary file-editing calls (`edit`, `write`, `ast_edit`) incorrectly requesting `session/request_permission` before every call, while keeping permission prompts for edit operations that delete or move files; permission requests now report the gated tool call as `pending` so clients can render the approval UI instead of returning `Permission request cancelled` without a visible prompt. ([#1134](https://github.com/can1357/oh-my-gpt/pull/1134) by [@jiwangyihao](https://github.com/jiwangyihao))
+- Fixed the session tree selector to preserve a readable message column when deeply nested branch gutters would otherwise consume the viewport. ([#1144](https://github.com/can1357/oh-my-gpt/issues/1144))
 
 ## [15.1.3] - 2026-05-17
 ### Breaking Changes
 
-- Renamed the embedded-documentation internal URL scheme from `pi://` to `omp://`. `OmpProtocolHandler` replaces `PiProtocolHandler`; update any external references accordingly.
-- Removed the `StringEnum` re-export from `@oh-my-pi/pi-coding-agent`. Custom tools and extensions should use `z.enum([...])` directly via the injected `pi.zod`.
+- Renamed the embedded-documentation internal URL scheme from `pi://` to `omg://`. `OmpProtocolHandler` replaces `PiProtocolHandler`; update any external references accordingly.
+- Removed the `StringEnum` re-export from `@oh-my-gpt/gpt-coding-agent`. Custom tools and extensions should use `z.enum([...])` directly via the injected `pi.zod`.
 - Replaced the `eval` tool's LARK-grammar `input` string with a structured `cells` array. Each cell is `{ language: "py" | "js", code, title?, timeout?, reset? }`. Removed the implicit/sniffed language path, the `*** Cell` / `*** End` / `*** Abort` markers, and the per-cell `t:<duration>` unit suffixes — `timeout` is now seconds (1-600).
 
 ### Added
 
-- Added `providers.<name>.transport: "pi-native"` to `models.yml`. When set, every model under that provider routes its streaming dispatch through the auth-gateway's `POST /v1/pi/stream` endpoint instead of the per-provider SDK. The provider's `baseUrl` must point at a compatible `omp auth-gateway` and `apiKey` must carry the gateway bearer. The slot's `models.json` still resolves locally for pricing/capabilities/thinking config; only the wire dispatch is redirected. Use case: containerized omp installs (robomp slots, swarm extension) where the slot must stay credential-free and a sidecar gateway holds the real provider tokens. Also surfaced as `transport` on `ProviderConfigInput` for extension-registered providers.
-- Added optional backend push for the auto-QA grievance database (`dev.autoqaPush.enabled`, `dev.autoqaPush.endpoint`, `dev.autoqaPush.token`; env overrides `PI_AUTO_QA_PUSH`, `PI_AUTO_QA_PUSH_URL`, `PI_AUTO_QA_PUSH_TOKEN`). When enabled, every `report_tool_issue` call schedules a background flush that `POST`s pending rows to the configured endpoint and deletes them on HTTP 2xx. Each push carries a stable per-install UUID (`installId`) generated on first use and persisted at `~/.omp/install-id` via `getInstallId()` (new export from `@oh-my-pi/pi-utils`), so the receiver can dedup retries across host renames and `autoqa.db` wipes. Single-flight, 5s request timeout, 30s in-memory cooldown after failure, and a row-id watermark so rows inserted during an in-flight push survive and ship next time. Tool execution remains non-blocking and never throws.
+- Added `providers.<name>.transport: "pi-native"` to `models.yml`. When set, every model under that provider routes its streaming dispatch through the auth-gateway's `POST /v1/pi/stream` endpoint instead of the per-provider SDK. The provider's `baseUrl` must point at a compatible `omg auth-gateway` and `apiKey` must carry the gateway bearer. The slot's `models.json` still resolves locally for pricing/capabilities/thinking config; only the wire dispatch is redirected. Use case: containerized omg installs (robomp slots, swarm extension) where the slot must stay credential-free and a sidecar gateway holds the real provider tokens. Also surfaced as `transport` on `ProviderConfigInput` for extension-registered providers.
+- Added optional backend push for the auto-QA grievance database (`dev.autoqaPush.enabled`, `dev.autoqaPush.endpoint`, `dev.autoqaPush.token`; env overrides `PI_AUTO_QA_PUSH`, `PI_AUTO_QA_PUSH_URL`, `PI_AUTO_QA_PUSH_TOKEN`). When enabled, every `report_tool_issue` call schedules a background flush that `POST`s pending rows to the configured endpoint and deletes them on HTTP 2xx. Each push carries a stable per-install UUID (`installId`) generated on first use and persisted at `~/.omg/install-id` via `getInstallId()` (new export from `@oh-my-gpt/gpt-utils`), so the receiver can dedup retries across host renames and `autoqa.db` wipes. Single-flight, 5s request timeout, 30s in-memory cooldown after failure, and a row-id watermark so rows inserted during an in-flight push survive and ship next time. Tool execution remains non-blocking and never throws.
 - `ModelRegistry` now promotes `models.yml` `providers.<name>.apiKey` entries to `AuthStorage`'s new config-override tier (above OAuth, below `--api-key`). Pinning a bearer in `models.yml` was previously a no-op when the broker had an OAuth credential for the same provider — the OAuth access token won and got sent unmodified to whatever `baseUrl` you redirected to, which an auth-gateway in front of that endpoint rightly rejected with 401. The override is now honored, and is cleared/repopulated atomically on `models.yml` reload (`#reloadStaticModels` calls `clearConfigApiKeys` before re-parsing). Use case: route `anthropic` / `openai-codex` to `http://llm-gateway.internal:4000` with the gateway's own bearer.
-- Added `omp auth-broker` subcommand for running and consuming a hosted credential vault.
+- Added `omg auth-broker` subcommand for running and consuming a hosted credential vault.
 - `serve [--bind=host:port]` — boots a local broker against the SQLite store at `$AGENT_DB_PATH`.
-- `token [--regenerate]` — prints (and rotates) the bearer token stored at `~/.omp/auth-broker.token`.
+- `token [--regenerate]` — prints (and rotates) the bearer token stored at `~/.omg/auth-broker.token`.
 - `login <provider> [--via=user@host] [--dry-run]` — drives the OAuth flow locally or via SSH `-L` tunnel into a remote broker (callback ports pinned per provider).
 - `logout <provider>` — disables every credential for the given provider in the local SQLite store.
-- `import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]` — imports CLIProxyAPI-style JSON credential dumps (`~/.cliproxy/auth/*.json`). When `OMP_AUTH_BROKER_URL` is configured, credentials are uploaded to the remote broker via `POST /v1/credential`; otherwise they go into the local SQLite store. JSON `type` is mapped to omp providers (`claude` → `anthropic`, `codex` → `openai-codex`, `gemini[-cli]` → `google-gemini-cli`, `antigravity` → `google-antigravity`); `--provider` overrides the mapping for unrecognized types.
-- `status` — pings the configured remote broker (`OMP_AUTH_BROKER_URL`).
-- Added remote credential vault support to `discoverAuthStorage`. Configure via env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) or by setting `auth.broker.url` and `auth.broker.token` in `~/.omp/agent/config.yml` (hidden from the settings UI; supports `!command` resolution). Falls back to `~/.omp/auth-broker.token` when no token is provided inline. Otherwise behavior is unchanged.
-- Added `omp auth-broker migrate --from-local [--include-env] [--include-oauth] [--dry-run]` — uploads local SQLite credentials (and optionally env-var API keys) to the configured broker. Skips anything already on the broker via identity-key matching. OAuth is skipped by default (handled via `cliproxy` import). Idempotent on re-runs.
-- Added `omp auth-gateway` subcommand for running a forward-proxy that hides access tokens from less-trusted clients:
+- `import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]` — imports CLIProxyAPI-style JSON credential dumps (`~/.cliproxy/auth/*.json`). When `OMG_AUTH_BROKER_URL` is configured, credentials are uploaded to the remote broker via `POST /v1/credential`; otherwise they go into the local SQLite store. JSON `type` is mapped to omg providers (`claude` → `anthropic`, `codex` → `openai-codex`, `gemini[-cli]` → `google-gemini-cli`, `antigravity` → `google-antigravity`); `--provider` overrides the mapping for unrecognized types.
+- `status` — pings the configured remote broker (`OMG_AUTH_BROKER_URL`).
+- Added remote credential vault support to `discoverAuthStorage`. Configure via env (`OMG_AUTH_BROKER_URL` / `OMG_AUTH_BROKER_TOKEN`) or by setting `auth.broker.url` and `auth.broker.token` in `~/.omg/agent/config.yml` (hidden from the settings UI; supports `!command` resolution). Falls back to `~/.omg/auth-broker.token` when no token is provided inline. Otherwise behavior is unchanged.
+- Added `omg auth-broker migrate --from-local [--include-env] [--include-oauth] [--dry-run]` — uploads local SQLite credentials (and optionally env-var API keys) to the configured broker. Skips anything already on the broker via identity-key matching. OAuth is skipped by default (handled via `cliproxy` import). Idempotent on re-runs.
+- Added `omg auth-gateway` subcommand for running a forward-proxy that hides access tokens from less-trusted clients:
 - `serve [--bind=…]` — boots the gateway against the configured broker. Listens on `127.0.0.1:4000` by default.
-- `token [--regenerate]` — manages the gateway bearer token at `~/.omp/auth-gateway.token` (separate from the broker bearer).
+- `token [--regenerate]` — manages the gateway bearer token at `~/.omg/auth-gateway.token` (separate from the broker bearer).
 - `status` — verifies gateway config and authenticated broker readiness.
-- One wire surface: `POST /v1/chat/completions` (OpenAI chat-completions), `POST /v1/messages` (Anthropic messages), `POST /v1/responses` (OpenAI Responses), `GET /v1/usage` (aggregated, 5-min per-credential cache), `GET /v1/models` (catalog). Model id in the request body selects which omp provider/model services it; the gateway translates wire format ↔ omp canonical `Context` and dispatches through `pi-ai` `streamSimple()`. Container deployments (robomp, etc.) get inference auth without ever holding access tokens or the broker bearer.
+- One wire surface: `POST /v1/chat/completions` (OpenAI chat-completions), `POST /v1/messages` (Anthropic messages), `POST /v1/responses` (OpenAI Responses), `GET /v1/usage` (aggregated, 5-min per-credential cache), `GET /v1/models` (catalog). Model id in the request body selects which omg provider/model services it; the gateway translates wire format ↔ omg canonical `Context` and dispatches through `gpt-ai` `streamSimple()`. Container deployments (robomp, etc.) get inference auth without ever holding access tokens or the broker bearer.
 
 ### Changed
 
@@ -196,9 +196,9 @@
 
 - Fixed streaming API requests to recover from provider auth errors by invalidating stale credentials and retrying with a fresh key
 - Fixed `auth-broker` migration, `auth-gateway` startup, and `discoverAuthStorage` to fail fast with a clear error when the broker snapshot endpoint returns a non-200 response
-- Fixed `omp auth-broker migrate` to skip local placeholder `<authenticated>` API credentials (not real keys) when exporting to a remote broker
+- Fixed `omg auth-broker migrate` to skip local placeholder `<authenticated>` API credentials (not real keys) when exporting to a remote broker
 - Fixed `auth-gateway` token initialization to avoid clobbering an existing token when multiple processes initialize it concurrently
-- Fixed `omp auth-gateway` request handling to reject unsupported OpenAI/Anthropic protocol controls with 400 instead of accepting and ignoring them, propagate upstream error/abort terminal states as failures, preserve Responses reasoning and completed text items, accept string/system Responses messages, and keep Anthropic tool-result ordering valid.
+- Fixed `omg auth-gateway` request handling to reject unsupported OpenAI/Anthropic protocol controls with 400 instead of accepting and ignoring them, propagate upstream error/abort terminal states as failures, preserve Responses reasoning and completed text items, accept string/system Responses messages, and keep Anthropic tool-result ordering valid.
 - Fixed gateway usage reporting to include cached-token totals for OpenAI Chat/Responses and to serve the last good cached report during transient upstream usage fetch failures.
 - Fixed auth-gateway request cancellation for requests that are already aborted before dispatch.
 - Fixed `/login` and `/logout` provider selector overflowing tall provider lists off-screen on small terminals. The selector now scrolls a 10-item window centered on the highlighted entry, shows a `(n/total)` indicator when windowed, and accepts PageUp/PageDown for faster navigation.
@@ -213,7 +213,7 @@
 - Fixed SSH host additions/removals made inside a running session not refreshing the live `ssh` tool. `/ssh add` and `/ssh remove` now update the model-visible host list immediately, while `/reload-plugins` and `/move` refresh SSH discovery for external or project-scope config changes without restart.
 - Fixed loose object output schemas in `YieldTool` so non-strict schemas (for example `additionalProperties: true`) are preserved and accepted instead of being forced into strict mode
 - Fixed unconstrained output schema modes (`outputSchema: true` or absent/non-strict schemas) to run in loose mode for successful results
-- Fixed bash tool calls with `pty: true` hanging indefinitely on Windows by falling back to the non-PTY executor instead of entering the ConPTY-backed interactive path. ([#1103](https://github.com/can1357/oh-my-pi/issues/1103))
+- Fixed bash tool calls with `pty: true` hanging indefinitely on Windows by falling back to the non-PTY executor instead of entering the ConPTY-backed interactive path. ([#1103](https://github.com/can1357/oh-my-gpt/issues/1103))
 
 ### Changed
 
@@ -222,7 +222,7 @@
 ## [15.1.0] - 2026-05-15
 ### Breaking Changes
 
-- Changed the extension and hook runtime API by moving schema typing from direct TypeBox imports to `TSchema` from `@oh-my-pi/pi-ai`, requiring callers who use TypeScript imports of `Type` to migrate via provided injected modules
+- Changed the extension and hook runtime API by moving schema typing from direct TypeBox imports to `TSchema` from `@oh-my-gpt/gpt-ai`, requiring callers who use TypeScript imports of `Type` to migrate via provided injected modules
 
 ### Added
 
@@ -263,7 +263,7 @@
 - Fixed Python execution cancellation and timeouts by escalating to kernel shutdown if `SIGINT` did not terminate a running cell within 2 seconds, preventing indefinite hangs in queued or stuck sessions
 - Fixed cleanup blocking during long-running executions by forcing a kernel shutdown path when interrupt-based cancellation is ignored
 - Fixed bash output emitting a spurious `[… 0 lines elided (NB) …]` marker (and reordering the artifact link before the command output) when the shell minimizer rewrote a small command's output. After `OutputSink.replace()` swapped the minimized text into the buffer, the subsequent `sink.push("[raw output: artifact://N]\n")` chunk was funneled back into the (now empty) head-retention window while the pre-replace `#totalBytes` still tracked the original raw stream — so `dump()` composed `<head=artifact-link> + <middle-elision marker against stale totals> + <tail=minimized text>` instead of `<minimized text> + <artifact link>`. `replace()` now realigns `#totalBytes`/`#totalLines`/`#sawData`/`#truncated` to the authoritative buffer and disables head retention for the lifetime of the sink, so further pushes append to the tail buffer in order. The bash executor also drops the leading `\n` on the artifact-link push when the minimized text already ends with one so the separator stays single-newline.
-- Fixed legacy plugin extensions failing to load on Windows when they import a bare-specifier dependency from their own `node_modules` (e.g. `import YAML from "yaml"` in `supipowers`). The legacy-pi mirror resolved the dependency to its absolute path and then ran the path through `isUrlLikeSpecifier`, whose `^[A-Za-z][A-Za-z\d+.-]*:` regex matched the Windows drive letter (`C:`) and short-circuited the `pathToFileURL` conversion. The raw path was emitted into the mirrored TS source as `import x from "C:\\Users\\...\\dep\\dist\\index.js"`, where `\n`, `\U`, `\y` and other backslash sequences were eaten by the TS string-literal parser, producing nonsense package specifiers like `C:Usersjames.ompagentextensionssupipowers\node_modulesyamldistindex.js` that Bun's resolver rejected with `Cannot find package …`. `isUrlLikeSpecifier` now rejects `^[A-Za-z]:[\\/]` first, so Windows absolute paths flow through `pathToFileURL` like every other absolute path and reach the mirror as proper `file:///C:/...` URLs.
+- Fixed legacy plugin extensions failing to load on Windows when they import a bare-specifier dependency from their own `node_modules` (e.g. `import YAML from "yaml"` in `supipowers`). The legacy-pi mirror resolved the dependency to its absolute path and then ran the path through `isUrlLikeSpecifier`, whose `^[A-Za-z][A-Za-z\d+.-]*:` regex matched the Windows drive letter (`C:`) and short-circuited the `pathToFileURL` conversion. The raw path was emitted into the mirrored TS source as `import x from "C:\\Users\\...\\dep\\dist\\index.js"`, where `\n`, `\U`, `\y` and other backslash sequences were eaten by the TS string-literal parser, producing nonsense package specifiers like `C:Usersjames.omgagentextensionssupipowers\node_modulesyamldistindex.js` that Bun's resolver rejected with `Cannot find package …`. `isUrlLikeSpecifier` now rejects `^[A-Za-z]:[\\/]` first, so Windows absolute paths flow through `pathToFileURL` like every other absolute path and reach the mirror as proper `file:///C:/...` URLs.
 - Fixed Python session queued executions silently resurrecting kernels after `disposeAllKernelSessions` or `disposeKernelSessionsByOwner` removed the session: queued work now checks the session is still registered before replacing or executing on a kernel and rejects with cancellation otherwise
 - Fixed Python session disposal treating an unconfirmed `PythonKernel.shutdown()` result as success: sessions whose kernel shutdown returns `{ confirmed: false }` (or rejects) are now retained in the registry and a `warn` is logged so a later dispose can retry instead of orphaning the subprocess
 - Fixed `task.maxRuntimeMs` losing wall-clock aborts that fired during pre-prompt session setup by re-checking the abort signal immediately before issuing the model prompt, so a stalled subagent now exits with the runtime-limit reason instead of hanging through setup races
@@ -290,26 +290,26 @@
 
 - Changed bash command preprocessing to strip trailing `| head` and `| tail` pipelines (including `|&`) from each top-level segment in command chains separated by `;`, `&&`, `||`, or `&`
 - Changed bash fixup notices to state that stderr is already merged into stdout and to reflect that fixes were applied for multiple stripped segments when several transforms fire
-- Changed shell-minimizer per-line truncation marker from a bare `…` to `…[+N]`, where `N` is the count of dropped Unicode scalars. The bracketed tally disambiguates minimizer-driven cuts from genuine `…` characters in the source (paths, JSON, stack traces, etc.) and gives the agent an exact count so it can decide whether the missing tail is recoverable inline or warrants reading the `[raw output: artifact://<id>]` footer the bash wrapper already emits when the minimizer rewrites output. Affects pipeline Stage 5 (`truncate_lines_at` in `defs/*.toml`) and the internal callers in `filters/git.rs`, `filters/listing.rs`, and `filters/lint.rs`. ([#1046](https://github.com/can1357/oh-my-pi/issues/1046))
-- Changed bash command preprocessing to use the real `brush-parser` AST via `pi-natives` `applyBashFixups` instead of a hand-rolled top-level mask scanner. The previous regex/character-walking implementation reimplemented quote/heredoc/`$(...)` tracking with conservative bail-outs (notably refusing to fixup commands containing here-strings); the AST-driven version inherits the full shell parser, so semantics-preserving rewrites like stripping `| head -5` off `cat <<<'content' | head -5` now succeed instead of being skipped. No public API change — `applyBashFixups(command)` returns the same `{ command, stripped }` shape.
+- Changed shell-minimizer per-line truncation marker from a bare `…` to `…[+N]`, where `N` is the count of dropped Unicode scalars. The bracketed tally disambiguates minimizer-driven cuts from genuine `…` characters in the source (paths, JSON, stack traces, etc.) and gives the agent an exact count so it can decide whether the missing tail is recoverable inline or warrants reading the `[raw output: artifact://<id>]` footer the bash wrapper already emits when the minimizer rewrites output. Affects pipeline Stage 5 (`truncate_lines_at` in `defs/*.toml`) and the internal callers in `filters/git.rs`, `filters/listing.rs`, and `filters/lint.rs`. ([#1046](https://github.com/can1357/oh-my-gpt/issues/1046))
+- Changed bash command preprocessing to use the real `brush-parser` AST via `gpt-natives` `applyBashFixups` instead of a hand-rolled top-level mask scanner. The previous regex/character-walking implementation reimplemented quote/heredoc/`$(...)` tracking with conservative bail-outs (notably refusing to fixup commands containing here-strings); the AST-driven version inherits the full shell parser, so semantics-preserving rewrites like stripping `| head -5` off `cat <<<'content' | head -5` now succeed instead of being skipped. No public API change — `applyBashFixups(command)` returns the same `{ command, stripped }` shape.
 
 ### Fixed
 
-- Fixed hashline pure inserts to drop a single echoed anchor line when `edit.hashlineAutoDropPureInsertDuplicates` is enabled and `+ ANCHOR` payloads start with the anchor line or `< ANCHOR` payloads end with it, while preserving intentional single-line duplicates by default. ([#1090](https://github.com/can1357/oh-my-pi/issues/1090))
+- Fixed hashline pure inserts to drop a single echoed anchor line when `edit.hashlineAutoDropPureInsertDuplicates` is enabled and `+ ANCHOR` payloads start with the anchor line or `< ANCHOR` payloads end with it, while preserving intentional single-line duplicates by default. ([#1090](https://github.com/can1357/oh-my-gpt/issues/1090))
 - Fixed bash command fixups to remove a redundant standalone trailing `2>&1` redirect when no other pipe or redirection remains
 - Fixed command-fixup notices to list all stripped segments instead of reporting only one
-- Fixed summarized `read` output stalling agents on elided regions by appending an explicit footer like `[NN lines across MM elided regions; read <path>:raw or a line range like <path>:1-9999 for verbatim content]`. The footer fires whenever the structural summarizer elided at least one span, so the model gets a concrete recovery selector instead of having to guess from a bare `...` / `{ .. }` marker. Surfaces `elidedLines` on `ReadToolDetails.summary` alongside the existing `elidedSpans`. ([#1046](https://github.com/can1357/oh-my-pi/issues/1046))
+- Fixed summarized `read` output stalling agents on elided regions by appending an explicit footer like `[NN lines across MM elided regions; read <path>:raw or a line range like <path>:1-9999 for verbatim content]`. The footer fires whenever the structural summarizer elided at least one span, so the model gets a concrete recovery selector instead of having to guess from a bare `...` / `{ .. }` marker. Surfaces `elidedLines` on `ReadToolDetails.summary` alongside the existing `elidedSpans`. ([#1046](https://github.com/can1357/oh-my-gpt/issues/1046))
 - Updated the `read` tool prompt to describe the new elision footer and instruct the model to follow `:raw` (or an explicit line range) when the elided body is actually needed, rather than guessing.
-- Fixed plugin extensions failing to load when their `peerDependencies` reference internal `pi-*` packages under any scope other than `@mariozechner` (e.g. `Cannot find module '@earendil-works/pi-tui'` from `@juicesharp/rpiv-ask-user-question`, or `Cannot find module '@oh-my-pi/pi-utils'` from `@oh-my-pi/swarm-extension`). The legacy-pi specifier shim now treats `@mariozechner`, `@earendil-works`, **and** the canonical `@oh-my-pi` itself as aliases for the same set of bundled in-process packages (`pi-agent-core`, `pi-ai`, `pi-coding-agent`, `pi-natives`, `pi-tui`, `pi-utils`), and additionally rewrites the upstream-only `pi-ai/oauth` subpath onto our `pi-ai/utils/oauth` layout. Restored the `Key` runtime helper export on `@oh-my-pi/pi-tui` to match upstream — plugins using `Key.enter` / `Key.ctrl("c")` (e.g. `@plannotator/pi-extension`, `@juicesharp/rpiv-ask-user-question`) no longer fail with `Export named 'Key' not found`. End-to-end verified against `@juicesharp/rpiv-ask-user-question`, `@oh-my-pi/swarm-extension`, and `@plannotator/pi-extension` — each now loads cleanly with all of its tools/commands/handlers registered. Plugins importing any of those scopes are remapped to the omp binary's own copy at load time, so peer deps are no longer dragged in from npm and there is exactly one module instance per package regardless of which scope name the plugin's manifest happened to declare.
-- Fixed `omp commit` hanging after a successful commit instead of returning to the shell. The command now mirrors the `runPrintMode` exit pattern and calls `postmortem.quit(0)` once the pipeline resolves so lingering HTTP/2 keep-alive sockets, the Settings autosave timer, and other AgentSession background handles don't keep the event loop pinned. ([#1041](https://github.com/can1357/oh-my-pi/issues/1041))
+- Fixed plugin extensions failing to load when their `peerDependencies` reference internal `pi-*` packages under any scope other than `@mariozechner` (e.g. `Cannot find module '@earendil-works/gpt-tui'` from `@juicesharp/rpiv-ask-user-question`, or `Cannot find module '@oh-my-gpt/gpt-utils'` from `@oh-my-gpt/swarm-extension`). The legacy-pi specifier shim now treats `@mariozechner`, `@earendil-works`, **and** the canonical `@oh-my-gpt` itself as aliases for the same set of bundled in-process packages (`gpt-agent-core`, `gpt-ai`, `gpt-coding-agent`, `gpt-natives`, `gpt-tui`, `gpt-utils`), and additionally rewrites the upstream-only `gpt-ai/oauth` subpath onto our `gpt-ai/utils/oauth` layout. Restored the `Key` runtime helper export on `@oh-my-gpt/gpt-tui` to match upstream — plugins using `Key.enter` / `Key.ctrl("c")` (e.g. `@plannotator/pi-extension`, `@juicesharp/rpiv-ask-user-question`) no longer fail with `Export named 'Key' not found`. End-to-end verified against `@juicesharp/rpiv-ask-user-question`, `@oh-my-gpt/swarm-extension`, and `@plannotator/pi-extension` — each now loads cleanly with all of its tools/commands/handlers registered. Plugins importing any of those scopes are remapped to the omg binary's own copy at load time, so peer deps are no longer dragged in from npm and there is exactly one module instance per package regardless of which scope name the plugin's manifest happened to declare.
+- Fixed `omg commit` hanging after a successful commit instead of returning to the shell. The command now mirrors the `runPrintMode` exit pattern and calls `postmortem.quit(0)` once the pipeline resolves so lingering HTTP/2 keep-alive sockets, the Settings autosave timer, and other AgentSession background handles don't keep the event loop pinned. ([#1041](https://github.com/can1357/oh-my-gpt/issues/1041))
 - Fixed hashline payload parsing to silently treat truly-blank lines as empty `~`-prefixed payload lines when more payload follows in the same run. The previous behavior broke at the blank ("payload line has no preceding +, <, or = operation.") even though the intent is obvious — the only ambiguity is between in-payload blanks and end-of-section blanks, and a one-line lookahead resolves it: blanks that precede a non-payload op still end the run cleanly as section separators. Recovers the common case of forgetting the leading separator on a blank inserted line without changing how trailing blanks between ops behave.
 - Rewrote the hashline edit prompt examples to use an ASCII-only `TITLE = "Mr"` → `"Mrs"` / `"Dr"` motif instead of the previous `" • "` and `"·"` separators. Some agents had been copying the middle-dot literal characters into real edits as if they were format scaffolding (e.g. emitting payload lines like `~	·`), since the demo inserts were near-twins of the existing string. The new example keeps every original op shape (single-line replace, multiline replace, insert AFTER/BEFORE, append, delete, blank, plus both anti-patterns) but uses content that is obviously domain-specific and clearly distinct from any payload separator. Pure prompt change; no parser, schema, or runtime behavior is affected.
-- Fixed startup fallback-chain validation to recognize cached runtime-discovered standard provider models, including Ollama Cloud models listed by `--list-models`, so `retry.fallbackChains` no longer warns that valid `ollama-cloud/<model>` selectors are unknown. ([#1052](https://github.com/can1357/oh-my-pi/issues/1052))
-- Fixed `discoverAgents()` ignoring `disabledProviders` for the `claude-plugins` provider. Plugin roots from `~/.claude/plugins/` were scanned unconditionally, so agents from Claude Code marketplace plugins continued to appear in `/agents` and the Agent Control Center even when `disabledProviders: [claude-plugins]` was set. The discovery path now checks `isProviderEnabled("claude-plugins")` before calling `listClaudePluginRoots()`, matching how every other capability respects the disabled-providers set. ([#1075](https://github.com/can1357/oh-my-pi/issues/1075))
+- Fixed startup fallback-chain validation to recognize cached runtime-discovered standard provider models, including Ollama Cloud models listed by `--list-models`, so `retry.fallbackChains` no longer warns that valid `ollama-cloud/<model>` selectors are unknown. ([#1052](https://github.com/can1357/oh-my-gpt/issues/1052))
+- Fixed `discoverAgents()` ignoring `disabledProviders` for the `claude-plugins` provider. Plugin roots from `~/.claude/plugins/` were scanned unconditionally, so agents from Claude Code marketplace plugins continued to appear in `/agents` and the Agent Control Center even when `disabledProviders: [claude-plugins]` was set. The discovery path now checks `isProviderEnabled("claude-plugins")` before calling `listClaudePluginRoots()`, matching how every other capability respects the disabled-providers set. ([#1075](https://github.com/can1357/oh-my-gpt/issues/1075))
 
 ### Fixed
 
-- Fixed `$env:VAR` PowerShell variables being mangled on Windows when commands invoked PowerShell as a subprocess (e.g. `powershell -Command "Write-Host $env:SystemRoot"`). Brush-core applied POSIX parameter expansion to `$env` before spawning the child, leaving a dangling `:NAME`. The fix lives in `pi-shell` at env-var application time: every brush session now defines `env=$env` as an internal shell variable so `$env:NAME` expands to the literal `$env:NAME` token that PowerShell expects. The fallback is not exported, only influences brush's own expansion, and is shadowed by any user assignment to `env` (e.g. `env=prod; echo "$env:8080"` still prints `prod:8080`), so the POSIX bash contract is preserved. ([#1079](https://github.com/can1357/oh-my-pi/issues/1079))
+- Fixed `$env:VAR` PowerShell variables being mangled on Windows when commands invoked PowerShell as a subprocess (e.g. `powershell -Command "Write-Host $env:SystemRoot"`). Brush-core applied POSIX parameter expansion to `$env` before spawning the child, leaving a dangling `:NAME`. The fix lives in `pi-shell` at env-var application time: every brush session now defines `env=$env` as an internal shell variable so `$env:NAME` expands to the literal `$env:NAME` token that PowerShell expects. The fallback is not exported, only influences brush's own expansion, and is shadowed by any user assignment to `env` (e.g. `env=prod; echo "$env:8080"` still prints `prod:8080`), so the POSIX bash contract is preserved. ([#1079](https://github.com/can1357/oh-my-gpt/issues/1079))
 
 
 ## [15.0.1] - 2026-05-14
@@ -321,9 +321,9 @@
 
 - Added optional `extra` metadata object to the `resolve` tool so callers can pass context-specific payloads, including plan approval titles
 - Added `hide: true` frontmatter option for skill `SKILL.md` files. Hidden skills are still loaded and remain reachable via `skill://<name>` URLs and (when enabled) `/skill:<name>` slash commands, but are omitted from the rendered system prompt's `<skills>` listing so the model won't auto-discover them. Use for skills the user opts into explicitly rather than ones the model should pick up from descriptions.
-- Added middle elision for streaming tool outputs (bash, ssh, python, js eval) and post-execution tool result spill. When `tools.artifactHeadBytes` is set (default 20 KB), large outputs now keep both the first N KB and the last N KB with an inline `[… N lines elided (M KB) …]` marker between them, instead of dropping everything before the trailing tail. Setting `tools.artifactHeadBytes = 0` reverts to the previous tail-only behavior. The full output is still mirrored to the session artifact (`artifact://<id>`) regardless of elision mode. Exposes `truncateMiddle` and `formatMiddleElisionMarker` from `@oh-my-pi/pi-coding-agent/session/streaming-output`, extends `OutputSinkOptions` with `headBytes`, and adds `direction: "middle"` plus `headRange` / `tailRange` / `elidedLines` / `elidedBytes` to `TruncationMeta`.
+- Added middle elision for streaming tool outputs (bash, ssh, python, js eval) and post-execution tool result spill. When `tools.artifactHeadBytes` is set (default 20 KB), large outputs now keep both the first N KB and the last N KB with an inline `[… N lines elided (M KB) …]` marker between them, instead of dropping everything before the trailing tail. Setting `tools.artifactHeadBytes = 0` reverts to the previous tail-only behavior. The full output is still mirrored to the session artifact (`artifact://<id>`) regardless of elision mode. Exposes `truncateMiddle` and `formatMiddleElisionMarker` from `@oh-my-gpt/gpt-coding-agent/session/streaming-output`, extends `OutputSinkOptions` with `headBytes`, and adds `direction: "middle"` plus `headRange` / `tailRange` / `elidedLines` / `elidedBytes` to `TruncationMeta`.
 - Added per-line column cap shared across streaming tool outputs (`bash`, `ssh`, `python`, `js eval`) and the `read` tool. Lines wider than `tools.outputMaxColumns` bytes (default **768**) are ellipsis-truncated at write time and remaining bytes up to the next `\n` are dropped — bounded memory even on multi-MB single-line outputs (e.g. `cat /dev/urandom`). The cap lives on `OutputSink` as the new `maxColumns` option, persists state across chunk boundaries so split-mid-line writes still respect the budget, and exposes `columnDroppedBytes` / `columnTruncatedLines` on `OutputSummary`. Middle-elision byte math subtracts column drops so the "elided from middle" count stays honest. `read` reuses the same setting but trims its already-collected lines via `truncateLine`. Skipped when the read selector is `:raw`. The artifact file (`artifact://<id>`) keeps the full uncapped stream. Set `tools.outputMaxColumns = 0` to disable.
-- Added Bun HTTP/2 fetch opt-in. Dev scripts (`bun run dev`, `bun run stats`) now pass `bun --experimental-http2-fetch` so every `fetch()` advertises `h2` in the TLS ALPN list and falls back to HTTP/1.1 when the server doesn't select it. Multiplexing collapses parallel requests to the same origin onto one TLS connection. For the installed `omp` binary, export `BUN_FEATURE_FLAG_EXPERIMENTAL_HTTP2_CLIENT=1` in your shell to enable the same behavior (the flag has to be set before Bun starts; `process.env` from inside JS is too late). Requires Bun **1.3.14**.
+- Added Bun HTTP/2 fetch opt-in. Dev scripts (`bun run dev`, `bun run stats`) now pass `bun --experimental-http2-fetch` so every `fetch()` advertises `h2` in the TLS ALPN list and falls back to HTTP/1.1 when the server doesn't select it. Multiplexing collapses parallel requests to the same origin onto one TLS connection. For the installed `omg` binary, export `BUN_FEATURE_FLAG_EXPERIMENTAL_HTTP2_CLIENT=1` in your shell to enable the same behavior (the flag has to be set before Bun starts; `process.env` from inside JS is too late). Requires Bun **1.3.14**.
 - Added per-subagent cost display (`$X.XX` in the task progress tree and the session-observer stats line). Cost is accumulated incrementally from `message_end` events and shown only when non-zero, using the `statusLineCost` theme color. Providers that do not report per-turn cost data (e.g. subscription/OAuth usage) continue to show nothing.
 - Added ACP elicitation bridge so skills/extensions calling `select`, `confirm`, or `input` on the extension UI context now produce real `unstable_createElicitation` form requests to the ACP client (rather than always resolving to `undefined` / `false`). The `acpExtensionUiContext` constant is promoted to `createAcpExtensionUiContext(connection, getSessionId, clientCapabilities)` — invoked once per session inside `#configureExtensions`, with `getSessionId: () => string` so the live `record.session.sessionId` is read on every elicitation (the underlying id mutates when an extension command calls `ctx.newSession` / `ctx.switchSession`). Each method maps to a single-property `value` schema: `select` → `{type: "string", enum}`, `confirm` → `{type: "boolean"}` (joined `title` + `message` when the trimmed message is non-empty; otherwise just `title`), `input` → `{type: "string", description: placeholder?}` (ACP has no `placeholder` field on `StringPropertySchema`; empty / whitespace-only placeholders are treated as absent). `accept` responses narrow the returned `ElicitationContentValue` back to the method's declared type with a runtime `typeof` guard; `decline` / `cancel` / transport failures fall back to the prior stub return values. `dialogOptions.signal` is honored: an already-aborted signal short-circuits before any SDK round-trip, and an abort mid-flight races against the elicitation so the caller's promise resolves to the stub fallback (the ACP request itself keeps running on the client side — the SDK exposes no form-mode cancel surface; `unstable_completeElicitation` is URL-mode only — matching the in-flight pattern used by `requestRpcEditor`). `dialogOptions.timeout` is honored on parity with `RpcExtensionUIContext`: when the timer fires before the client responds, `onTimeout` is invoked and the caller resolves to the stub fallback. A throwing `onTimeout` is caught and logged (`logger.warn`) so the elicitation promise still settles. Late SDK rejections that arrive after abort/timeout are dropped silently to keep operator logs clean; transport failures still emit `logger.warn` with `{ sessionId, method, error }`. Calls are skipped when the client did not advertise `clientCapabilities.elicitation.form` during `initialize`, so non-elicitation clients are unaffected. `createAcpExtensionUiContext` is exported for tests.
 
@@ -352,24 +352,24 @@
 - Fixed headless `browser.open` tab startup on slow Chromium target enumeration by making worker-side stealth user-agent target setup selective, bounded, and best-effort for non-active targets. Worker startup errors are now surfaced directly instead of degrading into the generic tab worker initialization timeout.
 - Fixed token display for sessions and subagents inflating far beyond the context window. `token_total` status-line segment and the subagent overlay token counter now show `input + output + cacheWrite` instead of `input + output + cacheRead + cacheWrite`. With prompt caching, `cacheRead` per turn equals the full cached context — summing it across all turns produces a cumulative total that is N×context_size (e.g. a 5-turn session with a 1 M-token context reported ~5 M tokens). Cache activity is still visible via the dedicated `cache_read`/`cache_write` status-line segments; billing cost is unaffected.
 - Fixed ACP clients missing `config_option_update` notifications when the thinking level changed via any path other than the client's own `session/set_session_config_option` call (slash commands, model auto-adjust, extension UI). `AgentSession` now emits a `thinking_level_changed` event from `setThinkingLevel`, and `AcpAgent` subscribes to each managed session for the session's lifetime and pushes a fresh `config_option_update` whenever the effective level changes — independent of any active prompt turn. The subscription is installed inside `#scheduleBootstrapUpdates`'s 50 ms timer so it shares the same race guard that prevents Zed's `Received session notification for unknown session` drop when notifications fire before `session/new` (or fork) returns; the pre-bootstrap thinking level is reported in the response's `configOptions`. The `session/set_session_config_option` handler keeps its own push only when the subscription has not yet been installed, so client-driven thinking changes still notify pre-bootstrap, post-bootstrap they flow through the subscription exactly once. Subscriptions are released in `#disposeSessionRecord`.
-- Fixed MCP OAuth refresh failing with `HTTP 401 invalid_client` for servers that require Dynamic Client Registration (RFC 7591) and have no `oauth.clientId` configured (e.g. `mcp.linear.app`). `MCPOAuthFlow` registered a fresh public PKCE client on each authorize and discarded the issued `client_id` once the flow object went out of scope; refresh then called the provider's `/token` endpoint without a `client_id`. The flow now exposes `resolvedClientId` / `registeredClientSecret` getters, `MCPCommandController#handleOAuthFlow` returns them alongside `credentialId`, and both the initial-connect and `/mcp reauth` paths persist them into `auth.{clientId,clientSecret}` (used at refresh) and `oauth.{clientId,clientSecret}` (used by subsequent `/mcp reauth` to skip re-registration). The `MCPAddWizard` `onOAuth` callback type is now `Promise<MCPAddWizardOAuthResult>` and `#launchOAuthFlow` folds the registered credentials into wizard state. Servers with a statically-configured `oauth.clientId` (Notion, Slack, Datadog) are unaffected — `#tryRegisterClient` short-circuits and the write-back is a no-op. ([#1061](https://github.com/can1357/oh-my-pi/pull/1061) by [@ldx](https://github.com/ldx)).
+- Fixed MCP OAuth refresh failing with `HTTP 401 invalid_client` for servers that require Dynamic Client Registration (RFC 7591) and have no `oauth.clientId` configured (e.g. `mcp.linear.app`). `MCPOAuthFlow` registered a fresh public PKCE client on each authorize and discarded the issued `client_id` once the flow object went out of scope; refresh then called the provider's `/token` endpoint without a `client_id`. The flow now exposes `resolvedClientId` / `registeredClientSecret` getters, `MCPCommandController#handleOAuthFlow` returns them alongside `credentialId`, and both the initial-connect and `/mcp reauth` paths persist them into `auth.{clientId,clientSecret}` (used at refresh) and `oauth.{clientId,clientSecret}` (used by subsequent `/mcp reauth` to skip re-registration). The `MCPAddWizard` `onOAuth` callback type is now `Promise<MCPAddWizardOAuthResult>` and `#launchOAuthFlow` folds the registered credentials into wizard state. Servers with a statically-configured `oauth.clientId` (Notion, Slack, Datadog) are unaffected — `#tryRegisterClient` short-circuits and the write-back is a no-op. ([#1061](https://github.com/can1357/oh-my-gpt/pull/1061) by [@ldx](https://github.com/ldx)).
 
 ## [15.0.0] - 2026-05-13
 ### Breaking Changes
 
 - Removed `op: issue_view` and `op: pr_view` from the `github` tool. Read single issues/PRs via the `read` tool against `issue://<N>` / `pr://<N>` (or the long form `issue://<owner>/<repo>/<N>` / `pr://<owner>/<repo>/<N>`); append `?comments=0` to drop the comments section. The `issue` and `comments` parameters were removed from the tool schema since no remaining op consumes them. Mutating ops (`pr_create`, `pr_checkout`, `pr_push`), `repo_view`, `search_*`, and `run_watch` are unchanged.
 - Removed `op: pr_diff` (along with the `nameOnly` and `exclude` schema fields) from the `github` tool. Read PR diffs through the new `pr://` URL family: `pr://<N>/diff` for the changed-file listing, `pr://<N>/diff/<i>` for a single file slice (1-indexed), and `pr://<N>/diff/all` for the verbatim unified diff. Long-form `pr://<owner>/<repo>/<N>/diff[/…]` works the same way. All three variants share one `gh pr diff` invocation through a new `pr-diff` cache row, so the listing and per-file slices reconstruct from cached bytes without re-shelling. Diff content is served as `text/plain` so the `read` tool's line selectors (e.g. `pr://<N>/diff/all:200-400`) page the cached output without falsely advertising hashline anchors.
-- Renamed ACP custom extension methods from `omp/*` to `_omp/*` to comply with the ACP spec's `_`-prefix requirement for non-spec methods; existing callers must update method names
+- Renamed ACP custom extension methods from `omg/*` to `_omp/*` to comply with the ACP spec's `_`-prefix requirement for non-spec methods; existing callers must update method names
 
 ### Added
 
 - Added markdown rendering for `read` results when content type is `text/markdown`, so GitHub internal-URL outputs are shown as formatted markdown instead of plain code blocks
 - Added `pr://<N>/diff`, `pr://<N>/diff/<i>`, and `pr://<N>/diff/all` internal-URL shapes covering changed-file listings, per-file slices, and the full unified diff. They share one `pr-diff` SQLite cache row with the same TTL knobs as `pr://<N>` views (`github.cache.softTtlSec` / `github.cache.hardTtlSec` / `github.cache.enabled`). Single PR views now advertise the diff entry point via a `Diff: pr://<owner>/<repo>/<N>/diff` note. Cache schema bumped to `user_version = 3`; older rows are dropped on first open to add credential-scoped keys and relax the `kind` CHECK constraint.
-- Added `issue://` / `pr://` internal-URL schemes that share a SQLite-backed cache with the rest of the `github` tool. Single-item reads (`issue://<N>`, `issue://<owner>/<repo>/<N>`) return rendered markdown and within `github.cache.softTtlSec` (default 5 minutes) skip the `gh` round-trip entirely; within `github.cache.hardTtlSec` (default 7 days) the cached row is returned and a background refresh is scheduled. Root and repo-scoped reads (`issue://`, `pr://owner/repo`) issue a live `gh issue list` / `gh pr list` for browsing, supporting `?state=open|closed|all` for issues, `?state=open|closed|merged|all` for PRs, and `?limit=`, `?author=`, `?label=` query params. Rendered output lands in `~/.omp/cache/github-cache.db` (override via `OMP_GITHUB_CACHE_DB`); disable the cache entirely with `github.cache.enabled = false`. Cwd→default-repo lookups (`gh repo view`) are memoized per-process.
+- Added `issue://` / `pr://` internal-URL schemes that share a SQLite-backed cache with the rest of the `github` tool. Single-item reads (`issue://<N>`, `issue://<owner>/<repo>/<N>`) return rendered markdown and within `github.cache.softTtlSec` (default 5 minutes) skip the `gh` round-trip entirely; within `github.cache.hardTtlSec` (default 7 days) the cached row is returned and a background refresh is scheduled. Root and repo-scoped reads (`issue://`, `pr://owner/repo`) issue a live `gh issue list` / `gh pr list` for browsing, supporting `?state=open|closed|all` for issues, `?state=open|closed|merged|all` for PRs, and `?limit=`, `?author=`, `?label=` query params. Rendered output lands in `~/.omg/cache/github-cache.db` (override via `OMG_GITHUB_CACHE_DB`); disable the cache entirely with `github.cache.enabled = false`. Cwd→default-repo lookups (`gh repo view`) are memoized per-process.
 - Added new `Approve and compact context` choice to the ExitPlanMode approval selector. Sits between `Approve and execute` (purge session) and `Approve and keep context` (full transcript) — runs `/compact` on the plan-mode transcript with a planning-specific summarization hint, then dispatches the plan-approved execution turn so it lands on a fresh cache anchor with the summarized rationale carried over. Cancelling the compaction (Esc or any other abort source) defers the execution dispatch and surfaces a warning so the operator can resubmit manually; non-abort failures proceed best-effort.
-- Added `CompactionCancelledError` typed sentinel and `CompactionOutcome` (`"ok" | "cancelled" | "failed"`) return type to `@oh-my-pi/pi-agent-core/compaction`. `CommandController.executeCompaction` and `handleCompactCommand` now return the outcome instead of `void` so callers can discriminate user-driven aborts from generic failures without inspecting error messages.
+- Added `CompactionCancelledError` typed sentinel and `CompactionOutcome` (`"ok" | "cancelled" | "failed"`) return type to `@oh-my-gpt/gpt-agent-core/compaction`. `CommandController.executeCompaction` and `handleCompactCommand` now return the outcome instead of `void` so callers can discriminate user-driven aborts from generic failures without inspecting error messages.
 - Added a `credential_disabled` extension event so extensions can subscribe via `pi.on("credential_disabled", handler)` and react when `AuthStorage` automatically soft-disables a credential (e.g. OAuth `invalid_grant`). Replaces the current `agent_end` errorMessage regex pattern downstream extensions have to match against. Handler payload is `{ type, provider, disabledCause }`. `createAgentSession()` subscribes the per-session extension runner to the shared `AuthStorage` via `authStorage.onCredentialDisabled(...)` at the very top of session creation — before any startup model probes run — so events fire on every disable regardless of whether the embedder also has a constructor `onCredentialDisabled` handler attached. The SDK forwards through `ExtensionRunner.emitCredentialDisabled(event)`, which buffers events until `runner.initialize(...)` runs in the mode controller and then flushes them through `emit()` so extension handlers see populated UI/runtime context (rather than the constructor's no-op default with `hasUI=false`, an unset model, and no-op runtime actions). On `session.dispose()` the subscription is unsubscribed; the embedder's constructor-attached listener keeps firing through its own permanent subscription. The outer `createAgentSession()` catch also releases the subscription if startup throws before the dispose-wrap is wired, so repeated retries don't accumulate dead listeners.
-- Added `omp acp` subcommand for launching as an ACP (Agent Client Protocol) server over stdio
+- Added `omg acp` subcommand for launching as an ACP (Agent Client Protocol) server over stdio
 - Added explicit `type` discriminators to ACP `initialize` auth methods, including a `terminal` setup method gated on `clientCapabilities.auth.terminal`
 - Added ACP equivalents for the remaining TUI slash commands (`/jobs`, `/changelog`, `/dump`, `/copy`, `/hotkeys`, `/extensions`, `/agents`, `/model`, `/plan`, `/loop`, `/btw`, `/login`, `/logout`, `/resume`, `/tree`, `/branch`, `/new`, `/drop`, `/handoff`, `/fork`, `/session delete`, `/export`, `/share`, `/todo`, `/memory`, `/move`, `/mcp`, `/ssh`, `/marketplace`, `/plugins`) so ACP clients reach feature parity with the TUI for non-interactive flows
 - Added ACP `plan` mode: when `plan.enabled` setting is on, ACP `session/new`/`load`/`resume`/`fork` advertise a `plan` mode alongside `default`; `session/set_mode` toggles plan-mode state so the next agent turn injects the plan-mode system prompt
@@ -429,7 +429,7 @@
 - Fixed `github` view cache evicting valid rows on open whenever a longer-than-default `github.cache.hardTtlSec` was configured. `openDb()` no longer sweeps with the 7-day default before settings load; the per-lookup `sweepIfDue()` enforces the configured retention exclusively.
 - Fixed extension `ctx.shutdown()` being a no-op in the primary interactive path. The handler in `initHooksAndCustomTools` now sets `shutdownRequested` (mirroring the backgrounded-reinit path), and the main REPL loop drains the flag at the post-stream idle boundary so queued steering messages still flush before teardown.
 - Fixed plan-mode "Approve and compact context" dispatching queued user input against the stale plan-mode reference path. `setPlanReferencePath(finalPlanFilePath)` now runs before `handleCompactCommand` flushes the compaction queue, so any message typed during compaction is delivered with the approved plan context attached.
-- Fixed `.omp/commands/fix-issues.md` and `.omp/commands/review-prs.md` still instructing agents to call the removed `github issue_view` / `pr_view` / `pr_diff` ops; they now reference `read issue://<N>` and `read pr://<N>[/diff[/all|<i>]]`.
+- Fixed `.omg/commands/fix-issues.md` and `.omg/commands/review-prs.md` still instructing agents to call the removed `github issue_view` / `pr_view` / `pr_diff` ops; they now reference `read issue://<N>` and `read pr://<N>[/diff[/all|<i>]]`.
 - Fixed `ExtensionRunner.initialize()` flushing buffered `credential_disabled` events before mode controllers had a chance to register their `onError` listener. Mode controllers call `runner.initialize(...)` immediately followed by `runner.onError(...)` synchronously; the flush now runs in a microtask after splicing the buffer, so a synchronously throwing `credential_disabled` handler is routed through the registered error listener instead of being silently dropped.
 
 ### Security
@@ -442,7 +442,7 @@
 
 - Added new `task.isolation.mode` values `auto`, `apfs`, `btrfs`, `zfs`, `reflink`, `overlayfs`, `projfs`, `block-clone`, and `rcopy` for native PAL-backed task isolation backends
 - Added automatic PAL-backed isolation backend selection so `task.isolation.mode` uses the host's best-available backend
-- Added input-token and output-token totals to `omp stats --summary`.
+- Added input-token and output-token totals to `omg stats --summary`.
 
 ### Changed
 
@@ -494,7 +494,7 @@
 ### Breaking Changes
 
 - Changed the `timeoutMs` execution option to no longer be enforced during worker-based JS runs, so callers must rely on external cancellation signals for time limits
-- Replaced the Jupyter kernel gateway + WebSocket protocol behind the Python `eval` backend with a subprocess-backed runner that speaks NDJSON over stdin/stdout; removed the `jupyter_kernel_gateway`/`ipykernel` pip dependencies, the `python.sharedGateway` setting, the `omp jupyter` CLI command, and the `PI_PYTHON_GATEWAY_URL` / `PI_PYTHON_GATEWAY_TOKEN` environment variables
+- Replaced the Jupyter kernel gateway + WebSocket protocol behind the Python `eval` backend with a subprocess-backed runner that speaks NDJSON over stdin/stdout; removed the `jupyter_kernel_gateway`/`ipykernel` pip dependencies, the `python.sharedGateway` setting, the `omg jupyter` CLI command, and the `PI_PYTHON_GATEWAY_URL` / `PI_PYTHON_GATEWAY_TOKEN` environment variables
 
 ### Added
 
@@ -556,23 +556,23 @@
 
 ### Fixed
 
-- Added `ModelRegistry.hasConfiguredAuth(model)` to mirror the upstream `@mariozechner/pi-coding-agent` API surface; external plugins and downstream wrappers that pre-flight auth before launching a subagent no longer crash with `this._modelRegistry.hasConfiguredAuth is not a function` on the direct agent-launch path. ([#993](https://github.com/can1357/oh-my-pi/issues/993))
+- Added `ModelRegistry.hasConfiguredAuth(model)` to mirror the upstream `@mariozechner/gpt-coding-agent` API surface; external plugins and downstream wrappers that pre-flight auth before launching a subagent no longer crash with `this._modelRegistry.hasConfiguredAuth is not a function` on the direct agent-launch path. ([#993](https://github.com/can1357/oh-my-gpt/issues/993))
 - Fixed an ESM circular-import TDZ that crashed test suites when modules from the `task/` and `tools/` graphs were evaluated together (e.g. `executor-warnings.test.ts` + `task-simple-mode.test.ts`) by deferring `BUILTIN_TOOLS.task`'s `TaskTool.create` dereference to factory-call time and sourcing `truncateTail` from `session/streaming-output` instead of the `tools/` barrel
-- Treat keyless-by-design providers (llama.cpp, ollama, lm-studio) as authenticated in subagent model resolution; fixes silent fallback to parent remote model when a local model is configured. ([#1008](https://github.com/can1357/oh-my-pi/issues/1008))
+- Treat keyless-by-design providers (llama.cpp, ollama, lm-studio) as authenticated in subagent model resolution; fixes silent fallback to parent remote model when a local model is configured. ([#1008](https://github.com/can1357/oh-my-gpt/issues/1008))
 - Fixed subagent disposal and session transitions that previously canceled all running async jobs, preventing inadvertent termination of a parent agent’s background work
 - Fixed multi-entry edits silently rendering a fake success when every entry failed (e.g. all hit the auto-generated guard), by surfacing `isError: true` from the single-path edit orchestrator so the renderer takes the error branch instead of falling through to the streaming-preview fallback that displays the *proposed* diff
 - Fixed the auto-generated streaming guard being gated behind `edit.streamingAbort` (default false), so it now pre-empts streaming edit tool calls targeting auto-generated files regardless of that setting
 - Fixed subagents launched in the same parallel batch not seeing each other in their initial `# IRC Peers` system-prompt block by pre-registering the agent in the global `AgentRegistry` before `rebuildSystemPrompt` runs and attaching the live session afterwards
 - Fixed plugin manifest extensions whose entry points at a directory (e.g. `pi-goal`'s `"pi": { "extensions": [".pi/extensions/pi-goal"] }`) failing to load with `Failed to load extension: Directories cannot be read like files`. The plugin path resolver now resolves directory entries to their `index.{ts,js,mjs,cjs}` file, matching the behavior of native auto-discovery via `resolveExtensionEntries`.
-- Fixed the SSH tool on native Windows by avoiding OpenSSH ControlMaster multiplexing, which Win32-OpenSSH does not support and reports as `getsockname failed` ([#154](https://github.com/can1357/oh-my-pi/issues/154)).
-- Fixed `/export` and `/tree` not showing developer-role messages (including the plan content injected after `/plan` approval) so the HTML export and TUI session tree now render developer messages dimmed with their actual content instead of hiding them entirely ([#753](https://github.com/can1357/oh-my-pi/issues/753))
-- Fixed `Timed out initializing browser tab worker` on prebuilt binaries by rewriting `spawnTabWorker` to import the worker entry with `with { type: "file" }` so Bun's `--compile` bundler statically discovers and embeds `tab-worker-entry.ts` in the single-file binary ([#1011](https://github.com/can1357/oh-my-pi/issues/1011))
+- Fixed the SSH tool on native Windows by avoiding OpenSSH ControlMaster multiplexing, which Win32-OpenSSH does not support and reports as `getsockname failed` ([#154](https://github.com/can1357/oh-my-gpt/issues/154)).
+- Fixed `/export` and `/tree` not showing developer-role messages (including the plan content injected after `/plan` approval) so the HTML export and TUI session tree now render developer messages dimmed with their actual content instead of hiding them entirely ([#753](https://github.com/can1357/oh-my-gpt/issues/753))
+- Fixed `Timed out initializing browser tab worker` on prebuilt binaries by rewriting `spawnTabWorker` to import the worker entry with `with { type: "file" }` so Bun's `--compile` bundler statically discovers and embeds `tab-worker-entry.ts` in the single-file binary ([#1011](https://github.com/can1357/oh-my-gpt/issues/1011))
 
 ## [14.9.3] - 2026-05-10
 ### Breaking Changes
 
 - Changed the `eval` tool input format to canonical `*** Begin <LANG>` ... `*** End <LANG>` cells with `*** Title`, `*** Timeout`, and `*** Reset` directives, so legacy `===== ... =====` eval inputs are no longer accepted for execution
-- Removed the `sectionSeparator` re-export from `config/prompt-templates`, so existing imports from `@oh-my-pi/pi-coding-agent/config/prompt-templates` now need to resolve `sectionSeparator` from its utility package
+- Removed the `sectionSeparator` re-export from `config/prompt-templates`, so existing imports from `@oh-my-gpt/gpt-coding-agent/config/prompt-templates` now need to resolve `sectionSeparator` from its utility package
 
 ### Added
 
@@ -625,13 +625,13 @@
 ### Fixed
 
 - Fixed AGENTS.md context discovery to include AGENTS.md files that are explicitly gitignored while still excluding AGENTS.md files under ignored directories
-- Fixed task tool renderer spamming `Tool renderer failed: undefined is not an object (evaluating 'args.tasks.length')` warnings while a `task` call was streaming in (the `tasks` array is undefined until the partial JSON parser closes it); the renderer now tolerates an absent `tasks` field and shows `0 agents` until the array arrives ([#985](https://github.com/can1357/oh-my-pi/issues/985)).
+- Fixed task tool renderer spamming `Tool renderer failed: undefined is not an object (evaluating 'args.tasks.length')` warnings while a `task` call was streaming in (the `tasks` array is undefined until the partial JSON parser closes it); the renderer now tolerates an absent `tasks` field and shows `0 agents` until the array arrives ([#985](https://github.com/can1357/oh-my-gpt/issues/985)).
 - Fixed MCP HTTP streamable transport spamming `HTTP SSE stream error: ReadableStream already has a controller` after every JSON-RPC request whose response was returned as `text/event-stream`. The transport used to break out of the SSE iterator once the matching response was captured and then re-open `response.body` for a background drain, but the body had already been piped through a `TransformStream` and could not be re-read. The drain now runs from a single iterator that resolves the response promise inline and continues to dispatch piggybacked notifications on the same stream.
 
 ## [14.9.0] - 2026-05-10
 ### Breaking Changes
 
-- Moved hashline APIs to the dedicated `@oh-my-pi/pi-coding-agent/hashline` module, moved hash helpers to `@oh-my-pi/pi-coding-agent/hashline/hash`, and removed the legacy `edit/modes/hashline` and `edit/line-hash` source subpaths.
+- Moved hashline APIs to the dedicated `@oh-my-gpt/gpt-coding-agent/hashline` module, moved hash helpers to `@oh-my-gpt/gpt-coding-agent/hashline/hash`, and removed the legacy `edit/modes/hashline` and `edit/line-hash` source subpaths.
 
 ### Removed
 
@@ -639,17 +639,17 @@
 
 ### Fixed
 
-- Fixed compaction crashing with `auth_unavailable` when the current model's provider has no credentials configured; compaction now falls back to an available model role (or fails fast with a clear error) instead of attempting a doomed provider call ([#986](https://github.com/can1357/oh-my-pi/issues/986)).
+- Fixed compaction crashing with `auth_unavailable` when the current model's provider has no credentials configured; compaction now falls back to an available model role (or fails fast with a clear error) instead of attempting a doomed provider call ([#986](https://github.com/can1357/oh-my-gpt/issues/986)).
 - Fixed top-level static import rewriting in JS evaluation to use parser-based detection so only real import declarations are rewritten and `import` text inside strings, comments, or template literals is preserved
 - Fixed `import ... with` attribute handling in rewritten ESM imports so static imports with module attributes now become dynamic imports with matching `with` options
-- Fixed model resolution silently falling back to a different provider (e.g. Amazon Bedrock) when `modelRoles` specified a fully-qualified `<provider>/<id>` whose exact pair was not in the bundled catalog. Explicit provider prefixes are now honored or surface a clear error ([#980](https://github.com/can1357/oh-my-pi/issues/980)).
+- Fixed model resolution silently falling back to a different provider (e.g. Amazon Bedrock) when `modelRoles` specified a fully-qualified `<provider>/<id>` whose exact pair was not in the bundled catalog. Explicit provider prefixes are now honored or surface a clear error ([#980](https://github.com/can1357/oh-my-gpt/issues/980)).
 - Fixed session count inflation on Anthropic backend caused by a fresh random `metadata.user_id` being generated on every API request; all requests within one conversation now share a stable `metadata.user_id` derived from the session ID, matching the expected one-session-per-conversation counting
 - Fixed plan mode review resubmits to append each refreshed `local://PLAN.md` preview to the chat history, preserving the full refined plan in terminal scrollback.
 - Fixed compaction requests (manual and auto) not carrying `metadata.user_id`, leaving them unattributed on the backend
 - Fixed direct session-bound LLM calls (`/btw` ephemeral turns via `runEphemeralTurn`, branch summarization, session title generation) bypassing the agent and emitting a fresh random `metadata.user_id` per request on Anthropic OAuth: the session-level `prepareSimpleStreamOptions` helper now stamps the agent's session metadata onto direct calls, and `generateBranchSummary` plus `generateSessionTitle` accept and forward an explicit `metadata` option from the call site
 - Fixed `metadata.user_id` lacking the authenticated `account_uuid` on Anthropic OAuth requests; sessions now install a dynamic resolver via `Agent#setMetadataResolver` that builds `{ session_id, account_uuid? }` per request, looking the live OAuth account UUID up from `AuthStorage` so it stays in sync with token refreshes and login/logout transitions instead of stranding a stale value
-- Fixed multi-file legacy Pi extensions failing to load when sibling `.ts` files import each other via relative paths ([#983](https://github.com/can1357/oh-my-pi/issues/983)).
-- Fixed sub-agent dispatch silently routing to a model whose provider has no working credentials (e.g. an unqualified `modelRoles.task` id like `qwen3.6-plus-free` resolving to a provider the user is not authenticated against). Task dispatch now falls back to the parent session's active model — which by definition has working auth — when the resolved subagent model has none ([#985](https://github.com/can1357/oh-my-pi/issues/985)).
+- Fixed multi-file legacy Pi extensions failing to load when sibling `.ts` files import each other via relative paths ([#983](https://github.com/can1357/oh-my-gpt/issues/983)).
+- Fixed sub-agent dispatch silently routing to a model whose provider has no working credentials (e.g. an unqualified `modelRoles.task` id like `qwen3.6-plus-free` resolving to a provider the user is not authenticated against). Task dispatch now falls back to the parent session's active model — which by definition has working auth — when the resolved subagent model has none ([#985](https://github.com/can1357/oh-my-gpt/issues/985)).
 
 ### Added
 
@@ -657,7 +657,7 @@
 
 ### Fixed
 
-- Fixed legacy Pi plugin extensions failing to load on Windows when their entry path contains a drive letter ([#990](https://github.com/can1357/oh-my-pi/pull/990) by [@jiwangyihao](https://github.com/jiwangyihao)).
+- Fixed legacy Pi plugin extensions failing to load on Windows when their entry path contains a drive letter ([#990](https://github.com/can1357/oh-my-gpt/pull/990) by [@jiwangyihao](https://github.com/jiwangyihao)).
 
 ### Added
 
@@ -673,7 +673,7 @@
 
 ### Fixed
 
-- Fixed legacy pi extensions failing to import their own bare-specifier dependencies (e.g. `import x from "pkg"`): files loaded via the `omp-legacy-pi-file:` namespace now pre-resolve bare imports against the extension's directory so the extension's own `node_modules` is honored.
+- Fixed legacy pi extensions failing to import their own bare-specifier dependencies (e.g. `import x from "pkg"`): files loaded via the `omg-legacy-pi-file:` namespace now pre-resolve bare imports against the extension's directory so the extension's own `node_modules` is honored.
 
 ### Changed
 
@@ -683,7 +683,7 @@
 
 ### Fixed
 
-- Fixed indefinite startup hang on large repos introduced in 14.7.6 ([#975](https://github.com/can1357/oh-my-pi/issues/975)) on two fronts: (1) `createAgentSession` was awaiting `buildAgentsMdSearch` and `buildWorkspaceTree` directly in its blocking `Promise.all`, bypassing the existing 5s preparation deadline that previously protected startup — both scans are now raced against a 5s deadline and fall back to the system-prompt fallback path on timeout; (2) `buildWorkspaceTree` now derives its listing from `git ls-files --cached --others --exclude-standard` when the workspace is a git worktree, which is O(index size) and avoids the per-call full-tree gitignore-aware native scan that the previous implementation triggered. Repos without git, or where the call fails / times out, transparently fall back to the previous native-glob path.
+- Fixed indefinite startup hang on large repos introduced in 14.7.6 ([#975](https://github.com/can1357/oh-my-gpt/issues/975)) on two fronts: (1) `createAgentSession` was awaiting `buildAgentsMdSearch` and `buildWorkspaceTree` directly in its blocking `Promise.all`, bypassing the existing 5s preparation deadline that previously protected startup — both scans are now raced against a 5s deadline and fall back to the system-prompt fallback path on timeout; (2) `buildWorkspaceTree` now derives its listing from `git ls-files --cached --others --exclude-standard` when the workspace is a git worktree, which is O(index size) and avoids the per-call full-tree gitignore-aware native scan that the previous implementation triggered. Repos without git, or where the call fails / times out, transparently fall back to the previous native-glob path.
 
 ## [14.7.6] - 2026-05-07
 ### Changed
@@ -881,11 +881,11 @@
 
 ### Added
 
-- Added `statusLine.sessionAccent` to disable session-name accent coloring for the editor border and status line gap ([#918](https://github.com/can1357/oh-my-pi/issues/918))
+- Added `statusLine.sessionAccent` to disable session-name accent coloring for the editor border and status line gap ([#918](https://github.com/can1357/oh-my-gpt/issues/918))
 
 ### Fixed
 
-- Disabled repeated OSC 11 background-color polling under WSL to avoid Windows terminal tab crashes while keeping initial and event-driven appearance detection ([#914](https://github.com/can1357/oh-my-pi/issues/914))
+- Disabled repeated OSC 11 background-color polling under WSL to avoid Windows terminal tab crashes while keeping initial and event-driven appearance detection ([#914](https://github.com/can1357/oh-my-gpt/issues/914))
 
 - Fixed SSH ControlMaster socket paths to use OpenSSH's connection hash (`%C`) so connections to the same host with different users, ports, or jump hosts do not share a master session.
 
@@ -904,7 +904,7 @@
 
 ### Breaking Changes
 
-- Reworked autoresearch storage and protocol. State now lives in `~/.omp/autoresearch/<project>.db` (SQLite) and per-run logs in `~/.omp/autoresearch/<project>/runs/<id>/benchmark.log`. The repo-side artifacts `autoresearch.md`, `autoresearch.sh`, `autoresearch.checks.sh`, `autoresearch.program.md`, `autoresearch.ideas.md`, `autoresearch.jsonl`, `.autoresearch/`, and `autoresearch.config.json` are no longer read or written; they are deleted by `/autoresearch clear`. Any existing data is not migrated.
+- Reworked autoresearch storage and protocol. State now lives in `~/.omg/autoresearch/<project>.db` (SQLite) and per-run logs in `~/.omg/autoresearch/<project>/runs/<id>/benchmark.log`. The repo-side artifacts `autoresearch.md`, `autoresearch.sh`, `autoresearch.checks.sh`, `autoresearch.program.md`, `autoresearch.ideas.md`, `autoresearch.jsonl`, `.autoresearch/`, and `autoresearch.config.json` are no longer read or written; they are deleted by `/autoresearch clear`. Any existing data is not migrated.
 - Removed the autoresearch edit guard. `write`/`edit`/`ast_edit` are no longer blocked based on scope. Scope/off-limits are now post-hoc accountability fields on `log_experiment`.
 - Replaced rigid `init_experiment` contract validation with a simpler schema: `name`, `goal`, `primary_metric`, `metric_unit`, `direction`, `secondary_metrics`, `scope_paths`, `off_limits`, `constraints`, `max_iterations`, `new_segment`. Removed `from_autoresearch_md`, `abandon_unlogged_runs`, `force`, and `preferred_command` flags — the harness `./autoresearch.sh` is the canonical workload, edit it and bump segment when you need to change it.
 - `run_experiment` no longer accepts a `command` parameter. The tool always runs `bash autoresearch.sh`. To change the workload, edit the harness and call `init_experiment new_segment: true`. Removed `force`, `checks_timeout_seconds`, and the legacy `autoresearch.checks.sh` auto-execution; run validation through the regular `bash` tool.
@@ -914,7 +914,7 @@
 - Split `/autoresearch` into a two-phase protocol. Phase 1 (no session) prompts the agent to build the benchmark harness as `./autoresearch.sh` (must exit 0 and print `METRIC <name>=<value>`). Calling `init_experiment` ends Phase 1: it requires `./autoresearch.sh` to exist, auto-commits any pending harness changes on an `autoresearch/*` branch, then records that commit as the baseline. Phase 2 is the existing iteration loop.
 - Autoresearch sessions are now scoped to the git branch they were created on. Switching off the `autoresearch/*` branch hides the dashboard widget, detaches the experiment tools, and skips the autoresearch system prompt; switching back resumes seamlessly. `/autoresearch` on a fresh branch starts a fresh session instead of resurrecting a session bound to a different branch.
 - `log_experiment discard` no longer rewinds prior `keep` commits. On an `autoresearch/*` branch it now resets the worktree to `HEAD` (and `git clean`s untracked) instead of `git reset --hard $baseline_commit`. Discard reverts only the current iteration's uncommitted edits; previously kept improvements stay on the branch. `/autoresearch clear` continues to reset to the recorded baseline commit when explicitly requested.
-- Autoresearch SQLite storage is now created lazily on first `init_experiment`. Running `omp` in a project that never invokes `/autoresearch` no longer creates a per-folder DB.
+- Autoresearch SQLite storage is now created lazily on first `init_experiment`. Running `omg` in a project that never invokes `/autoresearch` no longer creates a per-folder DB.
 
 - Changed `search`, `find`, `ast_grep`, and `ast_edit` to accept `paths: string[]` instead of comma- or whitespace-delimited path strings.
 
@@ -1034,7 +1034,7 @@
 
 ### Breaking Changes
 
-- Removed the `worktree` parameter from `github` `pr_checkout`. Worktrees are now always written to `~/.omp/wt/<encoded-primary-repo>/pr-<number>/`, derived from the primary repository path
+- Removed the `worktree` parameter from `github` `pr_checkout`. Worktrees are now always written to `~/.omg/wt/<encoded-primary-repo>/pr-<number>/`, derived from the primary repository path
 - Stopped reading the `branch` parameter for `github` `pr_checkout`. The local branch is now always `pr-<number>`; the `branch` schema field is still accepted by `pr_push`, `repo_view`, and `run_watch`
 
 ### Added
@@ -1265,9 +1265,9 @@
 
 ### Removed
 
-- Removed the `chunk` edit mode, chunk-aware `read` selectors, chunk-aware `grep` rendering, and the `omp read` chunk CLI subcommand
+- Removed the `chunk` edit mode, chunk-aware `read` selectors, chunk-aware `grep` rendering, and the `omg read` chunk CLI subcommand
 - Removed the `read.prosechunks`, `read.explorechunks`, and `read.anchorstyle` settings
-- Removed the underlying `chunk` native module and AST-based chunk schema generation from `pi-natives`
+- Removed the underlying `chunk` native module and AST-based chunk schema generation from `gpt-natives`
 
 ### Fixed
 
@@ -1408,8 +1408,8 @@
 
 ### Fixed
 
-- Fixed startup crashes on Linux systems where Bun's `os.cpus()` fails on non-contiguous CPU numbering ([#779](https://github.com/can1357/oh-my-pi/issues/779))
-- Fixed `gh_pr_push` so branches without `gh_pr_checkout` metadata fail instead of falling back to the tracked merge branch, and updated the GitHub tool setting copy to stop calling the tool group read-only ([#778](https://github.com/can1357/oh-my-pi/issues/778))
+- Fixed startup crashes on Linux systems where Bun's `os.cpus()` fails on non-contiguous CPU numbering ([#779](https://github.com/can1357/oh-my-gpt/issues/779))
+- Fixed `gh_pr_push` so branches without `gh_pr_checkout` metadata fail instead of falling back to the tracked merge branch, and updated the GitHub tool setting copy to stop calling the tool group read-only ([#778](https://github.com/can1357/oh-my-gpt/issues/778))
 - Fixed session list metadata extraction to better populate session titles and first-user summaries from partial session data when full JSONL parsing is unavailable
 - Fixed shell execution output to replace raw streamed bash output with the minimizer’s rewritten text before final output while still preserving the full original output as artifact metadata
 - Fixed bash command minimization to save the full unminimized output as a `bash-original` artifact during AgentSession shell execution, enabling `artifact://` access to complete command output
@@ -1427,7 +1427,7 @@
 - Fixed Markdown root writes to preserve fenced-code indentation verbatim.
 - Fixed Rust enum-variant replacement matching so trailing commas are included consistently with whole-variant writes.
 - Fixed streaming edit call headers to keep showing the target file path while the edit arguments are still arriving
-- Fixed Mermaid fenced markdown rendering in assistant messages on terminals without image protocol support ([#650](https://github.com/can1357/oh-my-pi/issues/650))
+- Fixed Mermaid fenced markdown rendering in assistant messages on terminals without image protocol support ([#650](https://github.com/can1357/oh-my-gpt/issues/650))
 - Fixed chunk edit path parsing so plan-mode edits to section-addressed `local://PLAN.md:<selector>` paths are classified as writes to the plan file
 - Fixed SQLite `read` helper queries to reject `where=` clauses with SQL control syntax that could override the structured selector's pagination; raw SQL remains available through `q=SELECT ...`
 - Fixed `models` provider transport overrides so `headers`-only entries apply without requiring `baseUrl`, including runtime `registerProvider()` overrides that now persist across `refresh()` / `refreshProvider()`, preserve existing `baseUrl` on subsequent headers-only updates, clear stale transport overrides when a provider is re-registered under a different extension source, and keep runtime transport headers authoritative when `modelOverrides` set overlapping header keys
@@ -1448,10 +1448,10 @@
 
 - Fixed `apply_patch` streaming previews to avoid showing the missing `*** End Patch` parse error while the patch body is still arriving.
 - Fixed diagnostics rendering to replace tabs before TUI output, preventing compiler messages from breaking tree alignment.
-- Fixed compiled `omp` binaries to ignore project-local `bunfig.toml` and `.env` autoloading at startup, preventing unrelated project config from crashing or preloading code into the CLI
+- Fixed compiled `omg` binaries to ignore project-local `bunfig.toml` and `.env` autoloading at startup, preventing unrelated project config from crashing or preloading code into the CLI
 - Fixed edit tool diff and replace operations to report missing-file failures as `File not found: <path>` errors instead of raw filesystem ENOENT errors
 - Fixed `local://` URL path leak on Linux where `//` collapsing to `/` produced `local:/path` forms that bypassed the internal protocol handler and leaked as filesystem paths, breaking plan mode file resolution
-- Fixed Darwin compiled binaries failing to start under Bun 1.3.12 by ad-hoc signing local and release binary builds after applying Bun's no-codesign workaround ([#754](https://github.com/can1357/oh-my-pi/issues/754))
+- Fixed Darwin compiled binaries failing to start under Bun 1.3.12 by ad-hoc signing local and release binary builds after applying Bun's no-codesign workaround ([#754](https://github.com/can1357/oh-my-gpt/issues/754))
 - Fixed Tavily web search silently returning off-topic news articles when `--recency` was set. The provider was unconditionally coupling `topic: "news"` to recency, which scoped Tavily's index to news publications and excluded documentation, release notes, GitHub, and all non-news technical content. Technical queries with `--recency` now return the correct corpus.
 - Fixed status-line sanitization to strip OSC, DCS, PM, APC, and 8-bit CSI escape sequences instead of leaving payload fragments in the UI
 - Fixed inline read tool previews to avoid rendering duplicate summary rows above the same code cell
@@ -1509,7 +1509,7 @@
 - Added support for multi-file `edit` calls across replace, patch, hashline, and chunk modes by grouping `edits` entries by file path and returning combined per-file results
 - Added per-edit `path` support in chunk entries so each operation can target explicit files when submitting mixed edits in a single request
 - Added support for `computeHashlineDiff` to accept hashline edits with `loc` and `content` payloads without requiring pre-resolved `op` fields
-- Added `/rename <title>` slash command to set an explicit session name, updating the session header and terminal tab title ([#658](https://github.com/can1357/oh-my-pi/issues/658))
+- Added `/rename <title>` slash command to set an explicit session name, updating the session header and terminal tab title ([#658](https://github.com/can1357/oh-my-gpt/issues/658))
 - Added `session_name` status line segment: displays the session name in the status bar right side with a stable hash-derived accent color unique to each name; shown in all presets when a name is set
 
 ### Changed
@@ -1626,7 +1626,7 @@
 - Refactored diagnostic target resolution to use new `resolveDiagnosticTargets` function, consolidating glob pattern detection and file matching logic
 - Updated chunk selector syntax from `@region` format to `~` (body) and `^` (head) suffixes for more concise region targeting
 - Simplified chunk edit documentation to use new `~` and `^` region syntax instead of `@head`, `@body`, `@tail`, `@decl` keywords
-- Replaced internal `raceAbort` function with imported `raceWithAbort` utility from pi-utils
+- Replaced internal `raceAbort` function with imported `raceWithAbort` utility from gpt-utils
 - Refactored cleanup timer to use async iterator pattern with `timers.setInterval` instead of `setInterval`
 - Made `#cleanupIdleSessions` synchronous and moved async cleanup loop logic to new `#runCleanupLoop` method
 - Replaced regex-based `htmlToBasicMarkdown` with a Turndown + GFM plugin pipeline (tables, strikethrough, task lists, nested lists now convert correctly). Added direct `turndown` and `turndown-plugin-gfm` dependencies
@@ -1640,7 +1640,7 @@
 
 ### Fixed
 
-- Fixed MCP config docs and schema to use `~/.omp/agent/mcp.json` for user-scoped OMP-native MCP config while keeping project config at `<cwd>/.omp/mcp.json`
+- Fixed MCP config docs and schema to use `~/.omg/agent/mcp.json` for user-scoped OMG-native MCP config while keeping project config at `<cwd>/.omg/mcp.json`
 
 ## [14.0.4] - 2026-04-10
 
@@ -1653,7 +1653,7 @@
 ### Changed
 
 - Updated chunk edit tool to apply `normalizeIndent` setting during edit operations, enabling literal whitespace preservation when `PI_CHUNK_AUTOINDENT=0`
-- Refactored environment variable parsing to use `$flag()` and `$envpos()` utilities from pi-utils for consistent boolean and integer handling across codebase
+- Refactored environment variable parsing to use `$flag()` and `$envpos()` utilities from gpt-utils for consistent boolean and integer handling across codebase
 - Updated system prompt communication guidelines to emphasize conciseness and information density, and added guidance on avoiding repetition of user requests
 - Enhanced system prompt with explicit rules for design integrity, verification before yielding, and handling of missing context via tool-based retrieval
 - Added `PI_CHUNK_AUTOINDENT` to control whether chunk read/edit tools normalize indentation, and updated chunk prompts to switch guidance automatically based on that setting
@@ -1729,15 +1729,15 @@
 - Improved message cloning resilience by falling back to shallow array clone when structured cloning fails due to non-cloneable objects
 - Made `assertEditableFileContent` synchronous instead of async for improved performance in streaming edit checks
 - Enhanced streaming edit abort detection to check for auto-generated files as soon as the file path is available, rather than waiting for the full diff
-- Improved file prefix reading in session storage to use `peekFile` utility from @oh-my-pi/pi-utils for better efficiency
-- Moved image metadata detection to @oh-my-pi/pi-utils package for shared use across projects
+- Improved file prefix reading in session storage to use `peekFile` utility from @oh-my-gpt/gpt-utils for better efficiency
+- Moved image metadata detection to @oh-my-gpt/gpt-utils package for shared use across projects
 - Simplified image loading API by removing redundant metadata parameters and consolidating image utilities
-- Updated imports to use readImageMetadata and parseImageMetadata from @oh-my-pi/pi-utils instead of local implementations
+- Updated imports to use readImageMetadata and parseImageMetadata from @oh-my-gpt/gpt-utils instead of local implementations
 
 ### Removed
 
 - Removed image-input.ts utility module; functionality consolidated into image-loading.ts
-- Removed mime.ts utility module; MIME detection moved to @oh-my-pi/pi-utils
+- Removed mime.ts utility module; MIME detection moved to @oh-my-gpt/gpt-utils
 - Removed ImageMetadata interface and ReadImageMetadataOptions from local codebase
 
 ### Fixed
@@ -1850,12 +1850,12 @@
 
 ### Removed
 
-- Deleted `src/utils/prompt-format.ts` module; prompt formatting logic moved to `pi-utils`
-- Deleted `src/utils/frontmatter.ts` module; frontmatter parsing logic moved to `pi-utils`
-- Removed `waitForChildProcess` utility (child process termination now handled by native `killTree` from pi-natives)
+- Deleted `src/utils/prompt-format.ts` module; prompt formatting logic moved to `gpt-utils`
+- Deleted `src/utils/frontmatter.ts` module; frontmatter parsing logic moved to `gpt-utils`
+- Removed `waitForChildProcess` utility (child process termination now handled by native `killTree` from gpt-natives)
 - `grep-chunk.md` (folded into unified grep template)
 - `startMacAppearanceObserver` export (use `MacAppearanceObserver.start()`)
-- `copyToClipboard` export from pi-natives
+- `copyToClipboard` export from gpt-natives
 - `PI_CHUNK_SPLICES` env and `chunkSplicesEnabled()`
 - Autoresearch `segmentFingerprint` and related config hashing
 
@@ -1870,13 +1870,13 @@
 - Reorganized package.json exports: moved `./edit` exports before `./plan-mode` for better logical grouping
 - Notebook conversion logic now checks for raw read mode or non-chunk mode before converting via markit, allowing chunk-mode reads of `.ipynb` files to use chunk parsing instead of conversion
 - Go receiver methods now render as top-level siblings instead of nested under their receiver type in chunk read output
-- Moved prompt formatting and rendering utilities from `coding-agent` to `pi-utils` package; `renderPromptTemplate()` and `formatPromptContent()` now accessed via `prompt.render()` and `prompt.format()` from `@oh-my-pi/pi-utils`
-- Moved `parseFrontmatter()` utility from `coding-agent` to `pi-utils` package; now imported from `@oh-my-pi/pi-utils` instead of local utils
-- Consolidated prompt template handling: `TemplateContext` type now available as `prompt.TemplateContext` from `@oh-my-pi/pi-utils`
+- Moved prompt formatting and rendering utilities from `coding-agent` to `gpt-utils` package; `renderPromptTemplate()` and `formatPromptContent()` now accessed via `prompt.render()` and `prompt.format()` from `@oh-my-gpt/gpt-utils`
+- Moved `parseFrontmatter()` utility from `coding-agent` to `gpt-utils` package; now imported from `@oh-my-gpt/gpt-utils` instead of local utils
+- Consolidated prompt template handling: `TemplateContext` type now available as `prompt.TemplateContext` from `@oh-my-gpt/gpt-utils`
 - DAP initialization now advertises support for `runInTerminal` and `startDebugging` reverse requests, and memory references
 - Debug tool schema expanded with new parameters for instruction/data breakpoints, memory operations, and custom requests
 - DAP session state now tracks instruction and data breakpoints separately from source breakpoints
-- Replaced `Bun.which()` with `$which()` from pi-utils for command resolution
+- Replaced `Bun.which()` with `$which()` from gpt-utils for command resolution
 - Chunk edit tool documentation restructured: replaced operation-specific examples with region-based guidance and canonical indentation rules
 - Chunk read documentation updated: selectors now support region syntax (e.g., `class_Foo.fn_bar#ABCD@body`) and canonical target listings show supported regions per chunk
 - Chunk edit schema simplified: `target` description now documents region format; `op` and `content` descriptions clarified for region-aware operations
@@ -1904,7 +1904,7 @@
 - Chunk UX: streaming and final edit previews show chunk edits next to hashline edits with op-specific labels; prompt docs shortened with rules table, `…` in examples, and helper-based path/anchor samples
 - `log_experiment` only reverts files modified by the run; prompts and errors document that pre-existing dirty files are preserved; richer pending-run error context; `init_experiment` no-ops when the contract matches unless `new_segment`; secondary metrics informational only (no `force` for drift)
 - Autoresearch: `log_experiment` reloads benchmark/scope/constraints from `autoresearch.md` after resolving a pending run; `/autoresearch` without `autoresearch.md` follows `/plan`-style toggle and message flow; setup moved into autoresearch system prompt (removed `command-initialize.md`)
-- Native/shell alignment: `GrepOutputMode` from pi-natives; shell and `getDiagnosticsForFile` callbacks use error-first `(err, chunk)`; `getDiagnosticsForFile` takes an options object
+- Native/shell alignment: `GrepOutputMode` from gpt-natives; shell and `getDiagnosticsForFile` callbacks use error-first `(err, chunk)`; `getDiagnosticsForFile` takes an options object
 - Clipboard: `copyToClipboard` / `readImageFromClipboard` live in `utils/clipboard.ts` (OSC 52 and Termux)
 - macOS: session-wide power assertion while the agent runs; `MacAppearanceObserver.start()` with error-first callback; `detectMacOSAppearance()` returns enum values
 - ACP session cleanup now properly cancels in-flight prompts and disposes resources when sessions are closed or connection aborts
@@ -2067,9 +2067,9 @@
 - Added `gh_search_prs` tool to search GitHub pull requests with repository scoping
 - Added `gh_run_watch` tool to watch GitHub Actions workflow runs, fast-fail on job failures, and stream tailed logs for failed jobs
 - Added bundled `/green` command to generate iterative CI fix prompts with optional tag instructions when HEAD is tagged
-- Project-scoped marketplace plugin installs: `omp plugin install --scope project name@marketplace` and `/marketplace install --scope project name@marketplace` install plugins into the nearest `.omp/` or `.git`-rooted project directory instead of the user directory ([#581](https://github.com/can1357/oh-my-pi/issues/581))
+- Project-scoped marketplace plugin installs: `omg plugin install --scope project name@marketplace` and `/marketplace install --scope project name@marketplace` install plugins into the nearest `.omg/` or `.git`-rooted project directory instead of the user directory ([#581](https://github.com/can1357/oh-my-gpt/issues/581))
 - `--scope user|project` flag added to `/marketplace uninstall`, `/marketplace upgrade`, `/plugins enable`, and `/plugins disable` to disambiguate when a plugin is installed in both scopes
-- `omp plugin upgrade --scope project` with no plugin ID warns that `--scope` is ignored for bulk upgrades
+- `omg plugin upgrade --scope project` with no plugin ID warns that `--scope` is ignored for bulk upgrades
 - Added opt-in `gh_*` GitHub CLI tools behind the `github.enabled` setting for repository, issue, pull request, diff, and search workflows
 - Added opt-in `gh_run_watch` to fast-fail GitHub Actions runs, stream job status snapshots, and return tailed logs for failed jobs
 - Added bundled `/green` command to generate the iterative “fix CI until green” prompt, with final tag instructions included only when `HEAD` already has a tag
@@ -2094,8 +2094,8 @@
 - Fixed `gh_run_watch` to hide repo and polling internals from the tool schema and save full failed-job logs as session artifacts alongside the inline tailed output
 - Fixed `gh_*` tool outputs to spill full large results to artifacts instead of pre-truncating the head with unusable `offset=` guidance
 - Fixed bundled `/green` to watch the workflow runs for the current `HEAD` commit instead of whichever branch run was newest
-- Fixed OpenAI Responses session rehydration to strip stale assistant replay payloads before resumed requests ([#594](https://github.com/can1357/oh-my-pi/pull/594) by [@daandden](https://github.com/daandden))
-- Fixed inline image rendering to cap image height and preserve multiplexer scrollback during terminal resizes ([#587](https://github.com/can1357/oh-my-pi/pull/587) by [@smileynet](https://github.com/smileynet))
+- Fixed OpenAI Responses session rehydration to strip stale assistant replay payloads before resumed requests ([#594](https://github.com/can1357/oh-my-gpt/pull/594) by [@daandden](https://github.com/daandden))
+- Fixed inline image rendering to cap image height and preserve multiplexer scrollback during terminal resizes ([#587](https://github.com/can1357/oh-my-gpt/pull/587) by [@smileynet](https://github.com/smileynet))
 
 ## [13.17.1] - 2026-04-01
 
@@ -2105,9 +2105,9 @@
 
 ### Fixed
 
-- Fixed edit tool diff rendering to wrap long diff lines with continuation gutters instead of truncating them at terminal width ([#578](https://github.com/can1357/oh-my-pi/issues/578))
-- Fixed `--list-models` and `/model` provider filtering to hide models from disabled providers ([#588](https://github.com/can1357/oh-my-pi/issues/588))
-- Fixed edit tool diffstats to use diff-specific add/remove theme colors instead of success/error status colors ([#589](https://github.com/can1357/oh-my-pi/issues/589))
+- Fixed edit tool diff rendering to wrap long diff lines with continuation gutters instead of truncating them at terminal width ([#578](https://github.com/can1357/oh-my-gpt/issues/578))
+- Fixed `--list-models` and `/model` provider filtering to hide models from disabled providers ([#588](https://github.com/can1357/oh-my-gpt/issues/588))
+- Fixed edit tool diffstats to use diff-specific add/remove theme colors instead of success/error status colors ([#589](https://github.com/can1357/oh-my-gpt/issues/589))
 
 ## [13.17.0] - 2026-03-30
 
@@ -2116,15 +2116,15 @@
 - Added `marketplace.autoUpdate` setting (`off`/`notify`/`auto`, default `notify`) for automatic plugin update checking on startup
 - Added background marketplace catalog refresh on startup when catalogs are stale (>24h)
 - Added `/marketplace upgrade [name@marketplace]` slash command to upgrade outdated plugins
-- Added `omp plugin upgrade [name@marketplace]` CLI command for plugin upgrades
+- Added `omg plugin upgrade [name@marketplace]` CLI command for plugin upgrades
 - Added `checkForUpdates()`, `upgradePlugin()`, `upgradeAllPlugins()`, and `refreshStaleMarketplaces()` to MarketplaceManager
 - Added marketplace plugin system: registry types, ID helpers, atomic read/write for `marketplaces.json` and `installed_plugins.json` (Claude Code-compatible format)
 - Added `MarketplaceManager` orchestrator for marketplace and plugin lifecycle (add/remove/update marketplaces, install/uninstall/enable plugins)
 - Added marketplace fetcher with source classification (GitHub, git, URL, local) and catalog validation
 - Added plugin source resolver with `pathIsWithin` containment checks and versioned cache manager
-- Added CLI commands: `omp plugin marketplace add|remove|update|list`, `omp plugin discover [marketplace]`
+- Added CLI commands: `omg plugin marketplace add|remove|update|list`, `omg plugin discover [marketplace]`
 - Added `classifyInstallTarget()` to distinguish `name@marketplace` from npm install targets
-- Extended `listClaudePluginRoots()` to read OMP's installed plugins registry alongside Claude Code's, with OMP as authoritative for duplicate plugin IDs
+- Extended `listClaudePluginRoots()` to read OMG's installed plugins registry alongside Claude Code's, with OMG as authoritative for duplicate plugin IDs
 - Added `--plugin-dir <path>` repeatable CLI flag for loading plugins from local directories
 - Added `/reload-plugins` slash command that invalidates fs content cache and plugin roots cache
 - Added `printPluginHelp()` entries for marketplace and discover commands
@@ -2158,7 +2158,7 @@
 
 ### Fixed
 
-- Fixed `--model provider/id` resolving to wrong provider when model ID exists in multiple catalogs ([#560](https://github.com/can1357/oh-my-pi/issues/560))
+- Fixed `--model provider/id` resolving to wrong provider when model ID exists in multiple catalogs ([#560](https://github.com/can1357/oh-my-gpt/issues/560))
 
 ## [13.16.4] - 2026-03-28
 
@@ -2275,7 +2275,7 @@
 - Added ACP (Agent Client Protocol) mode for headless agent operation via `--mode acp`
 - Added support for Agent Client Protocol SDK integration with session management, MCP server configuration, and streaming communication
 - Added `ensureOnDisk()` method to SessionManager to persist sessions immediately for ACP discovery
-- Added multiline custom input for `ask` custom answers, using the prompt-style editor without inactivity timeout while composing ([#506](https://github.com/can1357/oh-my-pi/issues/506))
+- Added multiline custom input for `ask` custom answers, using the prompt-style editor without inactivity timeout while composing ([#506](https://github.com/can1357/oh-my-gpt/issues/506))
 
 ### Changed
 
@@ -2336,7 +2336,7 @@
 
 ### Fixed
 
-- Fixed resumed and session-switched GitHub Copilot/OpenAI Responses conversations replaying stale assistant native history from older saved sessions by sanitizing persisted assistant replay metadata on rehydration and resetting provider session state across live session boundaries ([#505](https://github.com/can1357/oh-my-pi/issues/505))
+- Fixed resumed and session-switched GitHub Copilot/OpenAI Responses conversations replaying stale assistant native history from older saved sessions by sanitizing persisted assistant replay metadata on rehydration and resetting provider session state across live session boundaries ([#505](https://github.com/can1357/oh-my-gpt/issues/505))
 
 ### Added
 
@@ -2365,8 +2365,8 @@
 
 - Fixed reconnect retry loop continuing after configuration changes by checking epoch before each reconnection attempt
 - `roots/list` timeout on MCP server initialization: `connectToServer` now always installs a default handler for `ping` and `roots/list`
-- Fixed resumed GitHub Copilot conversations that could fail with `401 input item does not belong to this connection` on the first follow-up after process restart ([#488](https://github.com/can1357/oh-my-pi/issues/488))
-- Fixed STT Alt+H mic cursor rendering to measure the actual microphone glyph width, preventing one-column TUI overflow crashes when the active symbol preset uses a wide icon ([#484](https://github.com/can1357/oh-my-pi/issues/484))
+- Fixed resumed GitHub Copilot conversations that could fail with `401 input item does not belong to this connection` on the first follow-up after process restart ([#488](https://github.com/can1357/oh-my-gpt/issues/488))
+- Fixed STT Alt+H mic cursor rendering to measure the actual microphone glyph width, preventing one-column TUI overflow crashes when the active symbol preset uses a wide icon ([#484](https://github.com/can1357/oh-my-gpt/issues/484))
 
 ## [13.13.2] - 2026-03-18
 
@@ -2422,7 +2422,7 @@
 
 - Fixed OAuth redirect URI validation to preserve exact configured values without adding trailing slashes
 - Fixed session deletion error handling to display error messages in the session selector UI instead of silently failing
-- Added `oauth.redirectUri`, `oauth.clientSecret`, and `oauth.callbackPath` support for MCP server OAuth config so providers can use exact registered redirect URIs while preserving local callback listener settings ([#445](https://github.com/can1357/oh-my-pi/issues/445))
+- Added `oauth.redirectUri`, `oauth.clientSecret`, and `oauth.callbackPath` support for MCP server OAuth config so providers can use exact registered redirect URIs while preserving local callback listener settings ([#445](https://github.com/can1357/oh-my-gpt/issues/445))
 
 ## [13.12.8] - 2026-03-16
 
@@ -2449,7 +2449,7 @@
 
 ### Fixed
 
-- Fixed SDK-created default sessions to honor the configured `agentDir` for session storage, preventing tests from writing stray session directories into the real `~/.omp/agent/sessions` root
+- Fixed SDK-created default sessions to honor the configured `agentDir` for session storage, preventing tests from writing stray session directories into the real `~/.omg/agent/sessions` root
 - Fixed session directory resolution to correctly handle symlink-equivalent paths, ensuring aliased home and temp directories resolve to the same session storage location as their real targets
 
 ## [13.12.7] - 2026-03-16
@@ -2561,7 +2561,7 @@
 - Added support for `supportsUsageInStreaming`, `requiresToolResultName`, `requiresAssistantAfterToolResult`, `requiresThinkingAsText`, `thinkingFormat`, and `supportsStrictMode` OpenAI compatibility options
 - Added support for provider-configurable `OpenAICompat.extraBody` to inject request-body fields for custom gateway/proxy routing
 - Added `close()` method to SessionManager for properly closing persistent writers after flushing pending data
-- Added `omp config init-xdg` command to initialize XDG Base Directory structure on Linux
+- Added `omg config init-xdg` command to initialize XDG Base Directory structure on Linux
 - Added `getHistoryDbPath()`, `getModelDbPath()`, `getMemoriesDir()`, `getTerminalSessionsDir()` path helpers
 
 ### Changed
@@ -2689,7 +2689,7 @@
 
 ### Fixed
 
-- Respected `PI_CONFIG_DIR` when discovering native user config paths for slash commands and related config directories ([#349](https://github.com/can1357/oh-my-pi/issues/349))
+- Respected `OMG_CONFIG_DIR` when discovering native user config paths for slash commands and related config directories ([#349](https://github.com/can1357/oh-my-gpt/issues/349))
 
 ## [13.10.0] - 2026-03-10
 
@@ -2753,7 +2753,7 @@
 
 - Added Tavily as a supported web search provider with `TAVILY_API_KEY` credential discovery and provider fallback support
 - Added `#`-triggered prompt action suggestions in the editor, with keybinding hints for line navigation and prompt copy actions
-- Added Tavily as a supported web search provider with `TAVILY_API_KEY` credential discovery and provider fallback support ([#313](https://github.com/can1357/oh-my-pi/issues/313))
+- Added Tavily as a supported web search provider with `TAVILY_API_KEY` credential discovery and provider fallback support ([#313](https://github.com/can1357/oh-my-gpt/issues/313))
 
 ### Removed
 
@@ -2827,7 +2827,7 @@
 
 ### Breaking Changes
 
-- Changed `ThinkingLevel` type to be imported from `@oh-my-pi/pi-agent-core` instead of `@oh-my-pi/pi-ai`
+- Changed `ThinkingLevel` type to be imported from `@oh-my-gpt/gpt-agent-core` instead of `@oh-my-gpt/gpt-ai`
 - Changed thinking level representation from string literals to `Effort` enum values (e.g., `Effort.High` instead of `"high"`)
 - Changed `getThinkingLevel()` return type to `ThinkingLevel | undefined` to support models without thinking support
 - Changed model `reasoning` property to `thinking` property with `ThinkingConfig` for explicit effort level configuration
@@ -2840,7 +2840,7 @@
 - Added `enrichModelThinking()` function to apply thinking configuration to models during registry initialization
 - Added `clampThinkingLevelForModel()` function to constrain thinking levels to model-supported ranges
 - Added `getSupportedEfforts()` function to retrieve available thinking efforts for a model
-- Added `Effort` enum import from `@oh-my-pi/pi-ai` for type-safe thinking level representation
+- Added `Effort` enum import from `@oh-my-gpt/gpt-ai` for type-safe thinking level representation
 - Added `/fast` slash command to toggle OpenAI service tier priority mode for faster response processing
 - Added `serviceTier` setting to control OpenAI processing priority (none, auto, default, flex, scale, priority)
 - Added `compaction.remoteEnabled` setting to control use of remote compaction endpoints
@@ -2853,7 +2853,7 @@
 
 - Changed credential deletion to disable credentials with persisted cause instead of permanent deletion
 - Added `disabledCause` parameter to credential deletion methods to track reason for disabling
-- Changed thinking level parsing to use `parseEffort()` from local thinking module instead of `parseThinkingLevel()` from pi-ai
+- Changed thinking level parsing to use `parseEffort()` from local thinking module instead of `parseThinkingLevel()` from gpt-ai
 - Changed model list display to show supported thinking efforts (e.g., "low,medium,high") instead of yes/no reasoning indicator
 - Changed footer and status line to check `model.thinking` instead of `model.reasoning` for thinking level display
 - Changed thinking selector to work with `Effort` type instead of `ThinkingLevel` for available levels
@@ -2911,20 +2911,20 @@
 ### Changed
 
 - Updated read tool prompt to distinguish between default limit and maximum limit per call
-- Moved `ThinkingLevel` type from `@oh-my-pi/pi-agent-core` to `@oh-my-pi/pi-ai` for centralized thinking level definitions
-- Replaced local thinking level validation with `parseThinkingLevel()` and `ALL_THINKING_LEVELS` from `@oh-my-pi/pi-ai`
-- Updated thinking level option providers to use `THINKING_MODE_DESCRIPTIONS` from `@oh-my-pi/pi-ai` for consistent descriptions
+- Moved `ThinkingLevel` type from `@oh-my-gpt/gpt-agent-core` to `@oh-my-gpt/gpt-ai` for centralized thinking level definitions
+- Replaced local thinking level validation with `parseThinkingLevel()` and `ALL_THINKING_LEVELS` from `@oh-my-gpt/gpt-ai`
+- Updated thinking level option providers to use `THINKING_MODE_DESCRIPTIONS` from `@oh-my-gpt/gpt-ai` for consistent descriptions
 - Renamed `RoleThinkingMode` type to `ThinkingMode` and changed default value from `'default'` to `'inherit'` for clarity
-- Replaced `formatThinkingEffortLabel()` utility with `formatThinking()` from `@oh-my-pi/pi-ai`
+- Replaced `formatThinkingEffortLabel()` utility with `formatThinking()` from `@oh-my-gpt/gpt-ai`
 - Renamed `extractExplicitThinkingLevel()` to `extractExplicitThinkingSelector()` in model resolver
-- Updated thinking level clamping to use `getAvailableThinkingLevel()` from `@oh-my-pi/pi-ai`
+- Updated thinking level clamping to use `getAvailableThinkingLevel()` from `@oh-my-gpt/gpt-ai`
 
 ### Removed
 
-- Removed `thinking-effort-label.ts` utility file (functionality moved to `@oh-my-pi/pi-ai`)
+- Removed `thinking-effort-label.ts` utility file (functionality moved to `@oh-my-gpt/gpt-ai`)
 - Removed local `VALID_THINKING_LEVELS` constant definitions across multiple files
-- Removed `isValidThinkingLevel()` function (replaced by `parseThinkingLevel()` from `@oh-my-pi/pi-ai`)
-- Removed `parseThinkingLevel()` helper from discovery module (now uses centralized version from `@oh-my-pi/pi-ai`)
+- Removed `isValidThinkingLevel()` function (replaced by `parseThinkingLevel()` from `@oh-my-gpt/gpt-ai`)
+- Removed `parseThinkingLevel()` helper from discovery module (now uses centralized version from `@oh-my-gpt/gpt-ai`)
 
 ### Fixed
 
@@ -2935,12 +2935,12 @@
 ### Added
 
 - Added `buildCompactHashlineDiffPreview()` function to generate compact diff previews for model-visible tool responses, collapsing long unchanged runs and consecutive additions/removals to show edit shape without full file content
-- Added project-level discovery for `.agent/` and `.agents/` directories, walking up from cwd to repo root (matching behavior of other providers like `.omp`, `.claude`, `.codex`). Applies to skills, rules, prompts, commands, context files (AGENTS.md), and system prompts (SYSTEM.md)
+- Added project-level discovery for `.agent/` and `.agents/` directories, walking up from cwd to repo root (matching behavior of other providers like `.omg`, `.claude`, `.codex`). Applies to skills, rules, prompts, commands, context files (AGENTS.md), and system prompts (SYSTEM.md)
 
 ### Changed
 
 - Changed edit tool response to include diff summary with line counts (+added -removed) and a compact diff preview instead of warnings-only output
-- Limited auto context promotion to models with explicit `contextPromotionTarget`; models without a configured target now compact on overflow instead of switching to arbitrary larger models ([#282](https://github.com/can1357/oh-my-pi/issues/282))
+- Limited auto context promotion to models with explicit `contextPromotionTarget`; models without a configured target now compact on overflow instead of switching to arbitrary larger models ([#282](https://github.com/can1357/oh-my-gpt/issues/282))
 
 ### Fixed
 
@@ -3005,7 +3005,7 @@
 
 ### Fixed
 
-- Fixed `ask` timeout handling to auto-select the recommended option instead of aborting the turn, while preserving explicit user-cancel abort behavior ([#266](https://github.com/can1357/oh-my-pi/issues/266))
+- Fixed `ask` timeout handling to auto-select the recommended option instead of aborting the turn, while preserving explicit user-cancel abort behavior ([#266](https://github.com/can1357/oh-my-gpt/issues/266))
 
 ## [13.6.2] - 2026-03-03
 
@@ -3020,9 +3020,9 @@
 
 ### Fixed
 
-- Fixed `omp update` silently succeeding without actually updating the binary when the update channel (bun global vs compiled binary) doesn't match the installation method ([#247](https://github.com/can1357/oh-my-pi/issues/247))
-- Added post-update verification that checks the resolved `omp` binary reports the expected version, with actionable warnings on mismatch
-- `omp update` now detects when the `omp` in PATH is not managed by bun and falls back to binary replacement instead of updating the wrong location
+- Fixed `omg update` silently succeeding without actually updating the binary when the update channel (bun global vs compiled binary) doesn't match the installation method ([#247](https://github.com/can1357/oh-my-gpt/issues/247))
+- Added post-update verification that checks the resolved `omg` binary reports the expected version, with actionable warnings on mismatch
+- `omg update` now detects when the `omg` in PATH is not managed by bun and falls back to binary replacement instead of updating the wrong location
 
 ## [13.6.0] - 2026-03-03
 
@@ -3059,7 +3059,7 @@
 
 ### Changed
 
-- Updated OAuth client name from 'oh-my-pi MCP' to 'Codex' for dynamic client registration
+- Updated OAuth client name from 'oh-my-gpt MCP' to 'Codex' for dynamic client registration
 
 ### Fixed
 
@@ -3080,18 +3080,18 @@
 - Added support for `/.well-known/oauth-protected-resource` discovery endpoint to resolve authorization servers
 - Added recursive auth server discovery to follow `authorization_servers` references when discovering OAuth endpoints
 
-- Added `omp agents unpack` CLI subcommand to export bundled subagent definitions to `~/.omp/agent/agents` by default, with `--project` support for `./.omp/agents`
+- Added `omg agents unpack` CLI subcommand to export bundled subagent definitions to `~/.omg/agent/agents` by default, with `--project` support for `./.omg/agents`
 
 ### Changed
 
 - Enhanced `discoverOAuthEndpoints()` to accept optional `authServerUrl` parameter and query both auth server and resource server for OAuth metadata
 - Improved OAuth metadata extraction to handle additional field name variations (`clientId`, `default_client_id`, `public_client_id`)
 - Refactored OAuth endpoint discovery logic into reusable `findEndpoints()` helper for consistent metadata parsing across multiple sources
-- Task subagents now strip inherited `AGENTS.md` context files and the task tool prompt no longer warns against repeating AGENTS guidance, aligning subagent context with explicit task inputs ([#233](https://github.com/can1357/oh-my-pi/issues/233))
+- Task subagents now strip inherited `AGENTS.md` context files and the task tool prompt no longer warns against repeating AGENTS guidance, aligning subagent context with explicit task inputs ([#233](https://github.com/can1357/oh-my-gpt/issues/233))
 
 ### Fixed
 
-- Fixed MCP OAuth discovery to honor `Mcp-Auth-Server` metadata and resolve authorization endpoints from the declared auth server, restoring Figma MCP login URLs with `client_id` ([#235](https://github.com/can1357/oh-my-pi/issues/235))
+- Fixed MCP OAuth discovery to honor `Mcp-Auth-Server` metadata and resolve authorization endpoints from the declared auth server, restoring Figma MCP login URLs with `client_id` ([#235](https://github.com/can1357/oh-my-gpt/issues/235))
 
 ## [13.5.3] - 2026-03-01
 
@@ -3164,7 +3164,7 @@
 - AST edit now registers pending actions after preview, allowing explicit apply/discard workflow via `resolve` tool
 - Custom tools can register pending actions via `pushPendingAction(action)` in `CustomToolAPI`, enabling the `resolve` workflow for custom preview-apply flows
 - `deferrable?: boolean` field added to `AgentTool`, `CustomTool`, and `ToolDefinition` interfaces; tools that set it signal they may stage pending actions
-- `HIDDEN_TOOLS` and `ResolveTool` exported from `@oh-my-pi/pi-coding-agent` SDK for manual tool composition
+- `HIDDEN_TOOLS` and `ResolveTool` exported from `@oh-my-gpt/gpt-coding-agent` SDK for manual tool composition
 - `PendingActionStore` now uses a LIFO stack (`push`/`peek`/`pop`); multiple deferrable tools can stage actions that resolve in reverse order of registration
 - Added `gemini`, `codex`, and `synthetic` as supported values for the `providers.webSearch` setting
 - `ast_grep` tool now accepts a `patterns` array (replaces single `pattern`); multiple patterns run in one native pass and results are merged before offset/limit
@@ -3328,7 +3328,7 @@
 - Changed output schema validation to gracefully fall back to unconstrained object when schema is invalid, instead of rejecting submissions
 - Changed schema sanitization to remove strict-mode incompatible constraints (minLength, pattern, etc.) from tool parameters while preserving them for runtime validation
 - Simplified task execution to always pass available session skills to subagents instead of resolving per-task skill lists
-- Added `KILO_API_KEY` to CLI environment variable help text for Kilo Gateway provider setup ([#193](https://github.com/can1357/oh-my-pi/issues/193))
+- Added `KILO_API_KEY` to CLI environment variable help text for Kilo Gateway provider setup ([#193](https://github.com/can1357/oh-my-gpt/issues/193))
 
 ### Removed
 
@@ -3433,9 +3433,9 @@
 
 ### Changed
 
-- Reorganized imports from `@oh-my-pi/pi-utils/dirs` to consolidate with main `@oh-my-pi/pi-utils` exports for cleaner dependency management
+- Reorganized imports from `@oh-my-gpt/gpt-utils/dirs` to consolidate with main `@oh-my-gpt/gpt-utils` exports for cleaner dependency management
 - Renamed `loadSkillsFromDir` to `scanSkillsFromDir` with updated interface for improved clarity on skill discovery behavior
-- Moved `tryParseJson` utility from local scrapers module to `@oh-my-pi/pi-utils` for centralized JSON parsing
+- Moved `tryParseJson` utility from local scrapers module to `@oh-my-gpt/gpt-utils` for centralized JSON parsing
 - Simplified patch module exports by consolidating type re-exports with `export * from './types'`
 - Removed `emitCustomToolSessionEvent` method from AgentSession for streamlined session lifecycle management
 - Changed skill discovery from recursive to non-recursive (one level deep only) for improved performance and clarity
@@ -3443,7 +3443,7 @@
 
 ### Removed
 
-- Removed `parseJSON` helper function from discovery module (replaced by `tryParseJson` from pi-utils)
+- Removed `parseJSON` helper function from discovery module (replaced by `tryParseJson` from gpt-utils)
 - Removed backwards compatibility comment from `AskToolDetails.question` field
 - Removed unused SSH resource cleanup functions `closeAllConnections` and `unmountAll` from session imports
 
@@ -3618,13 +3618,13 @@
 
 - Changed custom UI hook cleanup to conditionally restore editor state only when not using overlay mode
 - Extracted environment variable configuration for non-interactive bash execution into reusable `NO_PAGER_ENV` constant
-- Replaced custom timing instrumentation with logger.time() and logger.time() from pi-utils for consistent startup profiling
+- Replaced custom timing instrumentation with logger.time() and logger.time() from gpt-utils for consistent startup profiling
 - Removed PI_DEBUG_STARTUP environment variable in favor of logger.debug() for conditional debug output
 - Consolidated timing calls throughout initialization pipeline to use unified logger-based timing system
 
 ### Removed
 
-- Deleted utils/timings.ts module - timing functionality now provided by pi-utils logger
+- Deleted utils/timings.ts module - timing functionality now provided by gpt-utils logger
 
 ### Fixed
 
@@ -3717,7 +3717,7 @@
 
 ### Fixed
 
-- Fixed `omp stats` failing on npm/bun installs by including required stats build files in published `@oh-my-pi/omp-stats` package ([#113](https://github.com/can1357/oh-my-pi/pull/113) by [@masonc15](https://github.com/masonc15))
+- Fixed `omg stats` failing on npm/bun installs by including required stats build files in published `@oh-my-gpt/omg-stats` package ([#113](https://github.com/can1357/oh-my-gpt/pull/113) by [@masonc15](https://github.com/masonc15))
 
 ## [12.14.0] - 2026-02-19
 
@@ -3735,7 +3735,7 @@
 
 ### Changed
 
-- System prompt now identifies agent as operating inside Oh My Pi harness and instructs reading docs:// URLs for omp/pi topics
+- System prompt now identifies agent as operating inside Oh My GPT harness and instructs reading docs:// URLs for omg/pi topics
 - Tool discovery now accepts executable script extensions (.ts, .js, .sh, .bash, .py) in addition to .json and .md files
 - Updated bash and read tool documentation to reference `docs://` URL support
 - Hashline format separator changed from pipe (`|`) to colon (`:`) for improved readability (e.g., `LINE#ID:content` instead of `LINE#ID|content`)
@@ -3766,10 +3766,10 @@
 
 - Added `ssh` command for managing SSH host configurations (add, list, remove)
 - Added `/ssh` slash command in interactive mode to manage SSH hosts with subcommands
-- Added support for SSH host configuration at project and user scopes (.omp/ssh.json and ~/.omp/agent/ssh.json)
+- Added support for SSH host configuration at project and user scopes (.omg/ssh.json and ~/.omg/agent/ssh.json)
 - Added `--host`, `--user`, `--port`, `--key`, `--desc`, `--compat`, and `--scope` flags for SSH host configuration
 - Added discovery of SSH hosts from project configuration files alongside manually configured hosts
-- Added NanoGPT as a login provider (`/login nanogpt`) with API key prompt flow linking to `https://nano-gpt.com/api` ([#111](https://github.com/can1357/oh-my-pi/issues/111))
+- Added NanoGPT as a login provider (`/login nanogpt`) with API key prompt flow linking to `https://nano-gpt.com/api` ([#111](https://github.com/can1357/oh-my-gpt/issues/111))
 
 ### Changed
 
@@ -3779,7 +3779,7 @@
 - Updated handlebars helpers: renamed `hashline` to `href` and added `hline` for formatted line output
 - Improved insert operation to support `before`, `after`, and `between` (both anchors) positioning modes
 - Made autocorrect heuristics (boundary echo stripping, indent restoration) conditional on `PI_HL_AUTOCORRECT` environment variable
-- Updated SSH host discovery to load from managed omp config paths (.omp/ssh.json and ~/.omp/agent/ssh.json) in addition to legacy root-level ssh.json and .ssh.json files
+- Updated SSH host discovery to load from managed omg config paths (.omg/ssh.json and ~/.omg/agent/ssh.json) in addition to legacy root-level ssh.json and .ssh.json files
 - Improved terminal output handling in interactive bash sessions to ensure all queued writes complete before returning results
 
 ### Fixed
@@ -3791,7 +3791,7 @@
 
 ### Added
 
-- Added Kimi (Moonshot) as a web search provider with OAuth and API key support ([#110](https://github.com/can1357/oh-my-pi/pull/110) by [@oglassdev](https://github.com/oglassdev))
+- Added Kimi (Moonshot) as a web search provider with OAuth and API key support ([#110](https://github.com/can1357/oh-my-gpt/pull/110) by [@oglassdev](https://github.com/oglassdev))
 
 ### Changed
 
@@ -3799,7 +3799,7 @@
 
 ### Fixed
 
-- Fixed Mermaid pre-render failures from repeatedly re-triggering background renders (freeze loop) and restored resilient rendering when diagram conversion/callbacks fail ([#109](https://github.com/can1357/oh-my-pi/issues/109)).
+- Fixed Mermaid pre-render failures from repeatedly re-triggering background renders (freeze loop) and restored resilient rendering when diagram conversion/callbacks fail ([#109](https://github.com/can1357/oh-my-gpt/issues/109)).
 
 ## [12.12.0] - 2026-02-19
 
@@ -3822,7 +3822,7 @@
 
 ### Fixed
 
-- Fixed interactive-mode editor height to stay bounded and resize-aware, preventing off-screen cursor drift during long prompt/history navigation ([#99](https://github.com/can1357/oh-my-pi/issues/99)).
+- Fixed interactive-mode editor height to stay bounded and resize-aware, preventing off-screen cursor drift during long prompt/history navigation ([#99](https://github.com/can1357/oh-my-gpt/issues/99)).
 
 ## [12.11.3] - 2026-02-19
 
@@ -3881,7 +3881,7 @@
 - Added `rules` option to CreateAgentSessionOptions for explicit rule configuration
 - Added `sessionDir` option to RpcClientOptions for specifying agent session directory
 - Added `Symbol.dispose` method to RpcClient for resource cleanup support
-- Added `autocompleteMaxVisible` setting to configure the number of items shown in the autocomplete dropdown (3-20, default 5) ([#98](https://github.com/can1357/oh-my-pi/pull/98) by [@masonc15](https://github.com/masonc15))
+- Added `autocompleteMaxVisible` setting to configure the number of items shown in the autocomplete dropdown (3-20, default 5) ([#98](https://github.com/can1357/oh-my-gpt/pull/98) by [@masonc15](https://github.com/masonc15))
 - Added `condition` and `scope` fields to rule frontmatter for advanced TTSR matching and stream filtering
 - Added `ttsr.interruptMode` setting to control when TTSR rules interrupt mid-stream vs inject warnings after completion
 - Added support for loading rules, prompts, commands, context files (AGENTS.md), and system prompts (SYSTEM.md) from ~/.agent/ directory (with fallback to ~/.agents/)
@@ -3940,7 +3940,7 @@
 
 ### Changed
 
-- Improved `/changelog` performance by displaying only the most recent 3 versions by default, with a `--full` flag for the complete history ([#85](https://github.com/can1357/oh-my-pi/pull/85) by [@tctev](https://github.com/tctev))
+- Improved `/changelog` performance by displaying only the most recent 3 versions by default, with a `--full` flag for the complete history ([#85](https://github.com/can1357/oh-my-gpt/pull/85) by [@tctev](https://github.com/tctev))
 - Centralized builtin slash command definitions and handlers into a shared registry, replacing the large input-controller if-chain dispatch
 
 ## [12.7.0] - 2026-02-16
@@ -3987,7 +3987,7 @@
 
 - Fixed LSP operations to properly respect abort signals and throw `ToolAbortError` when cancelled
 - Fixed workspace diagnostics process cleanup to remove abort event listeners in finally block
-- Fixed PTY-backed bash execution to enforce timeout completion when detached child processes keep the PTY stream open ([#88](https://github.com/can1357/oh-my-pi/issues/88))
+- Fixed PTY-backed bash execution to enforce timeout completion when detached child processes keep the PTY stream open ([#88](https://github.com/can1357/oh-my-gpt/issues/88))
 
 ## [12.5.1] - 2026-02-15
 
@@ -4006,8 +4006,8 @@
 - Added `previewTheme()` function for non-destructive theme preview during settings browsing
 - Added animated microphone icon with color cycling during voice recording
 - Added support for discovering skills via symbolic links in skill directories
-- Added `abort_and_prompt` RPC command for atomic abort-and-reprompt without race conditions ([#357](https://github.com/can1357/oh-my-pi/pull/357))
-- Added automatic dark/light theme switching via SIGWINCH with separate `theme.dark`/`theme.light` settings, replacing the single `theme` setting ([#65](https://github.com/can1357/oh-my-pi/issues/65))
+- Added `abort_and_prompt` RPC command for atomic abort-and-reprompt without race conditions ([#357](https://github.com/can1357/oh-my-gpt/pull/357))
+- Added automatic dark/light theme switching via SIGWINCH with separate `theme.dark`/`theme.light` settings, replacing the single `theme` setting ([#65](https://github.com/can1357/oh-my-gpt/issues/65))
 - Added speech-to-text (STT) feature with `Alt+H` keybinding and `/stt` slash command
 - Added cross-platform audio recording: SoX, FFmpeg, arecord (Linux), PowerShell mciSendString (Windows fallback)
 - Added recording tool fallback chain — automatically tries each available tool in order
@@ -4050,7 +4050,7 @@
 
 ### Changed
 
-- Moved `sanitizeText` function from `@oh-my-pi/pi-utils` to `@oh-my-pi/pi-natives` for better code organization
+- Moved `sanitizeText` function from `@oh-my-gpt/gpt-utils` to `@oh-my-gpt/gpt-natives` for better code organization
 - Replaced internal `#normalizeOutput` methods with `sanitizeText` utility function in bash and Python execution components
 - Added line length clamping (4000 characters) to bash and Python execution output to prevent display of excessively long lines
 - Modified memory storage to isolate memories by project working directory, preventing cross-project memory contamination
@@ -4115,15 +4115,15 @@
 - Filesystem scan cache invalidation helpers (`invalidateFsScanAfterWrite`, `invalidateFsScanAfterDelete`, `invalidateFsScanAfterRename`) to properly invalidate shared caches after file mutations
 - Named discovery profile for file mention candidates to standardize cache visibility and ignore semantics across callers
 - Comprehensive `models.yml` provider integration guide documenting custom model registration, provider overrides, API adapters, merge behavior, and practical integration patterns for Ollama, vLLM, LM Studio, and proxy endpoints
-- Claude Code marketplace plugin discovery: automatically loads skills, commands, hooks, tools, and agents from `~/.claude/plugins/cache/` based on `installed_plugins.json` registry ([#48](https://github.com/can1357/oh-my-pi/issues/48))
+- Claude Code marketplace plugin discovery: automatically loads skills, commands, hooks, tools, and agents from `~/.claude/plugins/cache/` based on `installed_plugins.json` registry ([#48](https://github.com/can1357/oh-my-gpt/issues/48))
 
 ### Changed
 
-- Moved directory path utilities from `src/config.ts` to `@oh-my-pi/pi-utils/dirs` for shared use across packages
-- Updated imports throughout codebase to use centralized directory path functions from `@oh-my-pi/pi-utils/dirs`
+- Moved directory path utilities from `src/config.ts` to `@oh-my-gpt/gpt-utils/dirs` for shared use across packages
+- Updated imports throughout codebase to use centralized directory path functions from `@oh-my-gpt/gpt-utils/dirs`
 - Updated interactive bash terminal UI label from 'InteractiveTerm' to 'Console' for clarity
 - Enhanced bash execution environment with comprehensive non-interactive defaults for pagers, editors, and package managers to prevent command blocking and interactive prompts
-- Updated custom models configuration to use `~/.omp/agent/models.yml` (YAML format) while maintaining backward compatibility with legacy `models.json`
+- Updated custom models configuration to use `~/.omg/agent/models.yml` (YAML format) while maintaining backward compatibility with legacy `models.json`
 
 ## [12.0.0] - 2026-02-12
 
@@ -4138,9 +4138,9 @@
 
 ### Fixed
 
-- Fixed `omp setup` crashing with uncaught exception when no component argument provided; now shows help ([#35](https://github.com/can1357/oh-my-pi/issues/35))
-- Fixed `/mcp list` showing "No MCP servers configured" when servers are loaded from discovery sources like `.claude.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ([#34](https://github.com/can1357/oh-my-pi/issues/34))
-- Fixed model selector sorting to show newest models first within each provider instead of alphabetical; `-latest` aliases now appear before dated versions ([#37](https://github.com/can1357/oh-my-pi/issues/37))
+- Fixed `omg setup` crashing with uncaught exception when no component argument provided; now shows help ([#35](https://github.com/can1357/oh-my-gpt/issues/35))
+- Fixed `/mcp list` showing "No MCP servers configured" when servers are loaded from discovery sources like `.claude.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ([#34](https://github.com/can1357/oh-my-gpt/issues/34))
+- Fixed model selector sorting to show newest models first within each provider instead of alphabetical; `-latest` aliases now appear before dated versions ([#37](https://github.com/can1357/oh-my-gpt/issues/37))
 
 ## [11.14.4] - 2026-02-12
 
@@ -4162,7 +4162,7 @@
 
 ### Changed
 
-- Improved Bun binary detection to check `Bun.env.PI_COMPILED` environment variable
+- Improved Bun binary detection to check `Bun.env.OMG_COMPILED` environment variable
 - Enhanced Bun package manager update to install specific version instead of latest
 - Added post-update verification for Bun installations to warn if expected version was not installed
 
@@ -4213,7 +4213,7 @@
 
 ### Breaking Changes
 
-- Removed support for `.pi` configuration directory alias; use `.omp` instead
+- Removed support for `.pi` configuration directory alias; use `.omg` instead
 
 ### Added
 
@@ -4342,10 +4342,10 @@
 
 ### Changed
 
-- Migrated CLI framework from oclif to lightweight pi-utils CLI runner
+- Migrated CLI framework from oclif to lightweight gpt-utils CLI runner
 - Replaced oclif command registration with explicit command entries in cli.ts
 - Changed default root command name from 'index' to 'launch'
-- Updated all command imports to use @oh-my-pi/pi-utils/cli instead of @oclif/core
+- Updated all command imports to use @oh-my-gpt/gpt-utils/cli instead of @oclif/core
 
 ### Removed
 
@@ -4456,7 +4456,7 @@
 - Improved error handling in worktree baseline application to use `isEnoent()` utility instead of file existence checks
 - Updated bash tool to use standard Node.js `fs.promises.stat()` with `isEnoent()` error handling
 - Replaced `tmpdir()` named import with `os` namespace import for consistency
-- Migrated logging from `chalk` and `console.error` to structured logger from `@oh-my-pi/pi-utils`
+- Migrated logging from `chalk` and `console.error` to structured logger from `@oh-my-gpt/gpt-utils`
 
 ### Fixed
 
@@ -4718,18 +4718,18 @@
 
 ### Added
 
-- Added `omp commit` command to generate commit messages and update changelogs with `--push`, `--dry-run`, `--no-changelog`, and model override flags
-- Added `omp config` command to manage configuration settings with actions: list, get, set, reset, path
-- Added `omp grep` command to test grep tool with pattern matching, glob filtering, context lines, and output modes
-- Added `omp jupyter` command to manage the shared Jupyter gateway with status and kill actions
-- Added `omp plugin` command to manage plugins with install, uninstall, list, link, doctor, features, config, enable, and disable actions
-- Added `omp setup` command to install dependencies for optional features like Python
-- Added `omp shell` command for interactive shell console with working directory and timeout configuration
-- Added `omp stats` command to view usage statistics with dashboard server, JSON output, and summary options
-- Added `omp update` command to check for and install updates with force and check-only modes
-- Added `omp web-search` command (alias `omp q`) to test web search providers with provider selection, recency filtering, and result limits
+- Added `omg commit` command to generate commit messages and update changelogs with `--push`, `--dry-run`, `--no-changelog`, and model override flags
+- Added `omg config` command to manage configuration settings with actions: list, get, set, reset, path
+- Added `omg grep` command to test grep tool with pattern matching, glob filtering, context lines, and output modes
+- Added `omg jupyter` command to manage the shared Jupyter gateway with status and kill actions
+- Added `omg plugin` command to manage plugins with install, uninstall, list, link, doctor, features, config, enable, and disable actions
+- Added `omg setup` command to install dependencies for optional features like Python
+- Added `omg shell` command for interactive shell console with working directory and timeout configuration
+- Added `omg stats` command to view usage statistics with dashboard server, JSON output, and summary options
+- Added `omg update` command to check for and install updates with force and check-only modes
+- Added `omg web-search` command (alias `omg q`) to test web search providers with provider selection, recency filtering, and result limits
 - Migrated CLI from custom argument parser to oclif framework for improved command structure and help system
-- Added `omp q` CLI subcommand for testing web search providers with query, provider, recency, and limit options
+- Added `omg q` CLI subcommand for testing web search providers with query, provider, recency, and limit options
 - Added web search provider information API with authentication requirements and provider metadata
 - Added support for `hour` recency filter option in Perplexity web search
 - Support for image file mentions—images are now automatically detected, resized, and attached when referenced with @filepath syntax
@@ -4866,7 +4866,7 @@
 - Updated thinking level cycling to no longer persist changes to settings, enabling quick iteration through thinking levels without modifying user preferences
 - Replaced nanoid with Snowflake for ID generation throughout codebase for improved performance and collision resistance
 - Updated session ID format in documentation from nanoid to snowflake hex string (e.g., "a1b2c3d4e5f60001")
-- Renamed environment variable prefix from `OMP_` to `PI_` throughout codebase (e.g., `OMP_DEBUG_STARTUP` → `PI_DEBUG_STARTUP`, `OMP_PYTHON_GATEWAY_URL` → `PI_PYTHON_GATEWAY_URL`)
+- Renamed environment variable prefix from `OMG_` to `PI_` throughout codebase (e.g., `OMG_DEBUG_STARTUP` → `PI_DEBUG_STARTUP`, `OMG_PYTHON_GATEWAY_URL` → `PI_PYTHON_GATEWAY_URL`)
 - Removed `env` setting from configuration schema; environment variables are no longer automatically applied from settings
 - Changed `venvPath` property in PythonRuntime from nullable to optional (returns `undefined` instead of `null`)
 - Simplified notification settings from protocol-specific options (bell, osc99, osc9) to simple on/off toggle for `completion.notify` and `ask.notify`
@@ -4908,7 +4908,7 @@
 
 ### Removed
 
-- Removed support for `omp/` model role prefix; use `pi/` prefix instead
+- Removed support for `omg/` model role prefix; use `pi/` prefix instead
 
 ## [10.6.0] - 2026-02-04
 
@@ -4951,7 +4951,7 @@
 - Added `/browser` command to toggle browser headless vs visible mode in interactive sessions
 - Added `browser.enabled` and `browser.headless` settings to control browser automation behavior
 - Added Python prelude caching to improve startup performance by storing compiled prelude helpers and module metadata
-- Added `OMP_DEBUG_STARTUP` environment variable for conditional startup performance debugging output
+- Added `OMG_DEBUG_STARTUP` environment variable for conditional startup performance debugging output
 - Added autonomous memory system with storage, memory tools, and context injection
 
 ### Changed
@@ -4982,7 +4982,7 @@
 ### Changed
 
 - Updated `renderResult` signature in custom tools and extensions to accept optional `args` parameter for context-aware rendering
-- Changed environment variable from `ENV_AGENT_DIR` constant to hardcoded `OMP_CODING_AGENT_DIR` string in config and CLI help text
+- Changed environment variable from `ENV_AGENT_DIR` constant to hardcoded `OMG_CODING_AGENT_DIR` string in config and CLI help text
 - Fixed method binding in extension and hook tool wrappers to preserve `this` context for `renderCall` and `renderResult` methods
 
 ## [10.3.1] - 2026-02-03
@@ -5093,7 +5093,7 @@
 - Migrated bash command execution from ptree-based persistent sessions to native shell bindings with streaming support
 - Simplified bash executor to use brush-core native API instead of managing long-lived shell processes
 - Routed clipboard copy and image paste through native arboard bindings instead of shell commands
-- Embedded native addon payload for compiled binaries and extract to `~/.omp/natives/<version>` on first run
+- Embedded native addon payload for compiled binaries and extract to `~/.omg/natives/<version>` on first run
 
 ### Removed
 
@@ -5164,7 +5164,7 @@
 
 ### Changed
 
-- Changed persistent shell from opt-out to opt-in (default: off) for improved reliability; enable via Settings > Bash > Persistent shell or `OMP_SHELL_PERSIST=1`
+- Changed persistent shell from opt-out to opt-in (default: off) for improved reliability; enable via Settings > Bash > Persistent shell or `OMG_SHELL_PERSIST=1`
 - Added new "Bash" settings tab grouping shell-related settings (force basic shell, persistent shell, interceptor, intercept ls)
 
 ## [9.5.0] - 2026-02-01
@@ -5209,9 +5209,9 @@
 
 ### Changed
 
-- Migrated environment variable handling to use centralized `getEnv()` and `getEnvApiKey()` utilities from pi-ai package for consistent API key resolution across web search providers and image tools
+- Migrated environment variable handling to use centralized `getEnv()` and `getEnvApiKey()` utilities from gpt-ai package for consistent API key resolution across web search providers and image tools
 - Simplified web search error messages to remove provider-specific configuration hints
-- Replaced manual space padding with `padding()` utility function from pi-tui across UI components for consistent whitespace handling
+- Replaced manual space padding with `padding()` utility function from gpt-tui across UI components for consistent whitespace handling
 - Improved rendering performance for Python cell output by implementing caching in the table and cell results renderers
 - Updated task tool documentation to clarify that subagents can access parent conversation context via a searchable file, reducing need to repeat information in context parameter
 - Updated plan mode prompt to guide model toward using `edit` tool for incremental plan updates instead of defaulting to `write`
@@ -5257,7 +5257,7 @@
 
 - Persistent shell session support for bash tool with environment variable preservation across commands
 - New `shellForceBasic` setting to force bash/sh even if user's default shell is different (default: true)
-- New `OMP_SHELL_PERSIST` environment variable to control persistent shell behavior (set to 0 to disable)
+- New `OMG_SHELL_PERSIST` environment variable to control persistent shell behavior (set to 0 to disable)
 
 ### Changed
 
@@ -5267,7 +5267,7 @@
 - Shell snapshot generation now sanitizes `BASH_ENV` and `ENV` variables to prevent shell exit issues
 - Shell snapshot caching now per-shell-binary instead of global to avoid cross-shell contamination
 - System prompt restructured with coordinator-specific guidance for parallel task delegation
-- Bash tool now reuses a persistent shell session by default on Unix. Set `OMP_SHELL_PERSIST=0` to disable or fall back to per-command execution on Windows/unsupported shells.
+- Bash tool now reuses a persistent shell session by default on Unix. Set `OMG_SHELL_PERSIST=0` to disable or fall back to per-command execution on Windows/unsupported shells.
 - Added a shellForceBasic setting to force bash/sh and keep environment changes across bash commands (default: true).
 
 ### Fixed
@@ -5283,7 +5283,7 @@
 
 ### Added
 
-- Added grep CLI subcommand (`omp grep`) for testing pattern matching
+- Added grep CLI subcommand (`omg grep`) for testing pattern matching
 - Added fuzzy matching for model resolution with scoring and ranking fallback
 - Added 'Open: artifact folder' menu option to debug selector for quick access to session artifacts
 - Added Kimi API format setting for selecting between OpenAI and Anthropic formats
@@ -5328,7 +5328,7 @@
 - Enhanced error reporting with debug stack trace when DEBUG env is set
 - Improved OAuth token refresh error handling to distinguish transient vs definitive failures
 - Added windowsHide option to child process spawn calls to prevent console windows on Windows
-- External edits to config.yml are now preserved when omp reloads or saves settings
+- External edits to config.yml are now preserved when omg reloads or saves settings
 - Exposed LSP server startup errors in session display and logs
 - Improved error handling and security in agent storage initialization with restrictive file permissions
 - Fixed LSP server display showing unknown when server warmup fails
@@ -5340,7 +5340,7 @@
 
 ### Fixed
 
-- External edits to `config.yml` are now preserved when omp reloads or saves unrelated settings. Previously, editing config.yml directly (e.g., removing a package from `packages` array) would be silently reverted on next omp startup when automatic setters like `setLastChangelogVersion()` triggered a save. ([#1046](https://github.com/badlogic/pi-mono/pull/1046) by [@nicobailonMD](https://github.com/nicobailonMD))
+- External edits to `config.yml` are now preserved when omg reloads or saves unrelated settings. Previously, editing config.yml directly (e.g., removing a package from `packages` array) would be silently reverted on next omg startup when automatic setters like `setLastChangelogVersion()` triggered a save. ([#1046](https://github.com/badlogic/pi-mono/pull/1046) by [@nicobailonMD](https://github.com/nicobailonMD))
 
 ## [8.13.0] - 2026-01-29
 
@@ -5392,7 +5392,7 @@
 ### Added
 
 - Added `plan` model role for specifying the model used by the plan agent
-- Added `--plan` CLI flag and `OMP_PLAN_MODEL` environment variable for ephemeral plan model override
+- Added `--plan` CLI flag and `OMG_PLAN_MODEL` environment variable for ephemeral plan model override
 - Added plan model selection in model selector UI with PLAN badge
 
 ### Changed
@@ -5507,7 +5507,7 @@
 
 ### Added
 
-- Added `omp commit` command to generate conventional commits with changelog updates
+- Added `omg commit` command to generate conventional commits with changelog updates
 - Added agentic commit mode with commit-specific tools and `--legacy` fallback
 - Added configurable settings for map-reduce analysis including concurrency, timeout, file thresholds, and token limits
 - Added support for excluding YAML lock files (`.lock.yml`, `.lock.yaml`, `-lock.yml`, `-lock.yaml`) from commit analysis
@@ -5518,7 +5518,7 @@
 - Added renderStatusLine component for standardized tool status headers with icons, descriptions, and metadata
 - Added renderOutputBlock component for bordered output containers with structured sections
 - Added renderOutputBlock to Bash tool for improved output formatting with status indicators
-- Added `--legacy` flag to `omp commit` for using the deterministic pipeline instead of agentic mode
+- Added `--legacy` flag to `omg commit` for using the deterministic pipeline instead of agentic mode
 - Added split commit support to automatically create multiple atomic commits for unrelated changes
 - Added git hunk inspection tools for fine-grained diff analysis in commit generation
 - Added commit message validation with filler word and meta phrase detection
@@ -5550,9 +5550,9 @@
 - Added automatic idle kernel session cleanup timer (5-minute timeout, 30-second interval)
 - Added types/assets/index.d.ts for global TypeScript module declarations supporting `.md`, `.py`, and `.wasm?raw` imports
 - Added bunfig.toml loader configuration for importing markdown, Python, and WASM files as text modules
-- Added color manipulation utilities (hexToHsv, hsvToHex, shiftHue) to pi-utils for accessible theme adjustments
+- Added color manipulation utilities (hexToHsv, hsvToHex, shiftHue) to gpt-utils for accessible theme adjustments
 - Added color-blind mode setting for improved accessibility
-- Added filesystem error type guards (isEnoent, isEacces, isPerm, isEnotempty, isFsError, hasFsCode) to pi-utils for safe error handling
+- Added filesystem error type guards (isEnoent, isEacces, isPerm, isEnotempty, isFsError, hasFsCode) to gpt-utils for safe error handling
 - Added tarball installation test Dockerfile to validate npm publish/install flow
 
 ### Changed
@@ -5574,7 +5574,7 @@
 - Changed tool result rendering to merge call and result displays, showing tool arguments (command, pattern, query, path) in result headers for Bash, Calculator, Fetch, Find, Grep, Ls, LSP, Notebook, Read, SSH, TodoWrite, Web Search, and Write tools
 - Changed Read tool title to display line range when offset or limit arguments are provided
 - Changed worker instantiation to use direct URL import instead of pre-bundled worker files
-- Changed `omp commit` to use agentic mode by default with tool-based git inspection
+- Changed `omg commit` to use agentic mode by default with tool-based git inspection
 - Changed agentic commit progress output to show real-time thinking previews and structured tool argument details
 - Changed agentic commit progress output to display full multi-line assistant messages and render tool arguments with tree-style formatting for improved readability
 - Changed agentic commit progress output to render assistant messages as formatted Markdown with proper word wrapping
@@ -5791,7 +5791,7 @@
 - Added extension system support for user Python execution events
 - Added Python mode border color theming across all themes
 - Added Python execution indicator to welcome screen help text
-- Added `omp stats` command for viewing AI usage statistics dashboard
+- Added `omg stats` command for viewing AI usage statistics dashboard
 - Added support for JSON output and console summary of usage statistics
 - Added configurable port option for stats dashboard server
 - Added multi-cell Python execution with sequential processing in persistent kernel
@@ -5828,7 +5828,7 @@
 - Removed worktree management system
 - Removed bundled wt custom command
 - Removed voice-related settings and configuration options
-- Removed @oh-my-pi/pi-git-tool dependency
+- Removed @oh-my-gpt/gpt-git-tool dependency
 
 ## [6.8.5] - 2026-01-21
 
@@ -5904,8 +5904,8 @@
 
 ### Changed
 
-- Replaced internal logger with @oh-my-pi/pi-utils logger across all modules
-- Updated process spawning to use cspawn and ptree utilities from pi-utils
+- Replaced internal logger with @oh-my-gpt/gpt-utils logger across all modules
+- Updated process spawning to use cspawn and ptree utilities from gpt-utils
 - Migrated file operations to use async fs/promises and Bun file APIs
 - Refactored promise handling to use Promise.withResolvers and utility functions
 - Updated timeout and abort handling to use standardized utility functions
@@ -5948,7 +5948,7 @@
 - Extended anchor syntax: ellipsis placeholders, `top of file`/`start of file`, `@@ line N`, nested `@@` anchors, space-separated hierarchical contexts
 - Relaxed fuzzy threshold fallback and unique substring acceptance for context matching
 - Added `--no-title` flag to disable automatic session title generation
-- Environment variables for edit tool configuration (OMP_EDIT_VARIANT, OMP_EDIT_FUZZY, OMP_EDIT_FUZZY_THRESHOLD)
+- Environment variables for edit tool configuration (OMG_EDIT_VARIANT, OMG_EDIT_FUZZY, OMG_EDIT_FUZZY_THRESHOLD)
 - Configurable fuzzy matching threshold setting (0.85 lenient to 0.98 strict)
 - Apply-patch mode for edit tool (`edit.patchMode` setting) with create, update, delete, and rename operations
 - Added MCP tool caching for faster startup with cached tool definitions
@@ -5976,7 +5976,7 @@
 - Ambiguous context matching resolves duplicates using adjacent @@ anchor positioning
 - Patch parser handles bare \*\*\* terminators, model hallucination markers, line hint ranges
 - Function context matching handles signatures with and without empty parentheses
-- Fixed session title generation to respect OMP_NO_TITLE environment variable
+- Fixed session title generation to respect OMG_NO_TITLE environment variable
 - Fixed Python module discovery to use import.meta.dir for ES module compatibility
 - Fixed LSP writethrough batching to flush when delete operations complete a batch
 - Fixed line number validation, BOM detection, and trailing newline preservation in patches
@@ -6052,7 +6052,7 @@
 ### Added
 
 - Added support for loading Python prelude extension modules from user and project directories
-- Added automatic discovery of Python modules from `.omp/modules` and `.pi/modules` directories
+- Added automatic discovery of Python modules from `.omg/modules` and `.pi/modules` directories
 - Added prioritized module loading with project-level modules overriding user-level modules
 
 ## [5.6.7] - 2026-01-18
@@ -6121,7 +6121,7 @@
 - Enhanced Python kernel availability checking with faster validation
 - Optimized Python environment warming to avoid blocking during tool initialization
 - Reorganized settings interface into behavior, tools, display, voice, status, lsp, and exa tabs
-- Migrated environment variables from PI* to OMP* prefix with automatic migration
+- Migrated environment variables from PI* to OMG* prefix with automatic migration
 - Updated model selector to use TabBar component for provider navigation
 - Changed role badges to inverted style with colored backgrounds
 - Added support for /models command alias in addition to /model
@@ -6248,7 +6248,7 @@
 
 ### Added
 
-- Add `omp config` subcommand for managing settings (`list`, `get`, `set`, `reset`, `path`)
+- Add `omg config` subcommand for managing settings (`list`, `get`, `set`, `reset`, `path`)
 - Add `todoCompletion` setting to warn agent when it stops with incomplete todos (up to 3 reminders)
 - Add multi-part questions support to `ask` tool via `questions` array parameter
 
@@ -6426,7 +6426,7 @@
 - Added automatic Nerd Fonts detection for terminals like iTerm, WezTerm, Kitty, Ghostty, and Alacritty to set appropriate symbol preset
 - Added `NERD_FONTS` environment variable override (`1` or `0`) to manually control Nerd Fonts symbol preset
 - Added Handlebars templating engine for prompt template rendering with `{{arg}}` helper for positional arguments
-- Added support for custom share scripts at ~/.omp/agent/share.ts to replace default GitHub Gist sharing
+- Added support for custom share scripts at ~/.omg/agent/share.ts to replace default GitHub Gist sharing
 
 ### Changed
 
@@ -6510,7 +6510,7 @@
 - `dequeue` keybinding (`Alt+Up`) to restore queued steering/follow-up messages back into the editor
 - Pluggable operations for built-in tools enabling remote execution via SSH or other transports (`ReadOperations`, `WriteOperations`, `EditOperations`, `BashOperations`, `LsOperations`, `GrepOperations`, `FindOperations`)
 - `/model <search>` pre-filters the model selector or auto-selects on exact match; use `provider/model` syntax to disambiguate
-- Managed binaries directory (`~/.omp/bin/`) for fd and rg tools
+- Managed binaries directory (`~/.omg/bin/`) for fd and rg tools
 - `FooterDataProvider` for custom footers with `getGitBranch()`, `getExtensionStatuses()`, and `onBranchChange()`
 - `ctx.ui.custom()` accepts `{ overlay: true }` option for floating modal components
 - `ctx.ui.getAllThemes()`, `ctx.ui.getTheme(name)`, `ctx.ui.setTheme(name | Theme)` for theme management
@@ -6748,7 +6748,7 @@
 
 ### Added
 
-- Added environment variable configuration for task limits: `OMP_TASK_MAX_PARALLEL`, `OMP_TASK_MAX_CONCURRENCY`, `OMP_TASK_MAX_OUTPUT_BYTES`, `OMP_TASK_MAX_OUTPUT_LINES`, and `OMP_TASK_MAX_AGENTS_IN_DESCRIPTION`
+- Added environment variable configuration for task limits: `OMG_TASK_MAX_PARALLEL`, `OMG_TASK_MAX_CONCURRENCY`, `OMG_TASK_MAX_OUTPUT_BYTES`, `OMG_TASK_MAX_OUTPUT_LINES`, and `OMG_TASK_MAX_AGENTS_IN_DESCRIPTION`
 - Added specialized web-fetch handlers for 50+ platforms including GitHub, GitLab, npm, PyPI, crates.io, Stack Overflow, Wikipedia, arXiv, PubMed, Hacker News, Reddit, Mastodon, Bluesky, and many more
 - Added automatic yt-dlp installation for YouTube transcript extraction
 - Added YouTube video support with automatic transcript extraction via yt-dlp
@@ -6792,7 +6792,7 @@
 
 ### Changed
 
-- Changed subagent execution from spawning separate `omp` processes to running in Bun Workers with direct event streaming
+- Changed subagent execution from spawning separate `omg` processes to running in Bun Workers with direct event streaming
 - Changed tool factories to accept `ToolSession` parameter instead of separate cwd and options arguments
 - Changed `createTools` to return tools as a Map and support conditional tool creation based on session context
 - Changed system prompt builder to dynamically generate tool descriptions from the tool registry
@@ -6806,7 +6806,7 @@
 
 - Removed `browser` embedded agent from task tool agent discovery
 - Removed `recursive` property from agent definitions
-- Removed environment variables `OMP_NO_SUBAGENTS`, `OMP_BLOCKED_AGENT`, and `OMP_SPAWNS` for subagent control
+- Removed environment variables `OMG_NO_SUBAGENTS`, `OMG_BLOCKED_AGENT`, and `OMG_SPAWNS` for subagent control
 - Removed pre-instantiated tool exports (`readTool`, `bashTool`, `editTool`, `writeTool`, `grepTool`, `findTool`, `lsTool`) in favor of factory functions
 - Removed `createCodingTools` and `createReadOnlyTools` helper functions
 - Removed `codingTools` and `readOnlyTools` convenience exports
@@ -6824,7 +6824,7 @@
 
 ### Changed
 
-- Switched from local `@oh-my-pi/pi-ai` to upstream `@oh-my-pi/pi-ai` package
+- Switched from local `@oh-my-gpt/gpt-ai` to upstream `@oh-my-gpt/gpt-ai` package
 
 ### Added
 
@@ -6886,8 +6886,8 @@
 
 ### Added
 
-- Added extensions API with auto-discovery (`.omp/extensions`) and `--extension`/`-e` loading for custom tools, commands, and lifecycle hooks
-- Added prompt templates loaded from global and project `.omp/prompts` directories with `/template` expansion in the input box
+- Added extensions API with auto-discovery (`.omg/extensions`) and `--extension`/`-e` loading for custom tools, commands, and lifecycle hooks
+- Added prompt templates loaded from global and project `.omg/prompts` directories with `/template` expansion in the input box
 - Built-in provider overrides in `models.json`: override just `baseUrl` to route a built-in provider through a proxy while keeping all its models, or define `models` to fully replace the provider
 - Shell commands without context contribution: use `!!command` to execute a bash command that is shown in the TUI and saved to session history but excluded from LLM context. Useful for running commands you don't want the AI to see
 - Added VoiceSupervisor class for realtime voice mode using OpenAI Realtime API with continuous mic streaming and semantic VAD turn detection
@@ -6906,7 +6906,7 @@
 - Added `/background` (or `/bg`) command to detach UI and continue agent execution in the background
 - Added completion notification system with configurable methods (bell, osc99, osc9, auto, off) when agent finishes
 - Added `completionNotification` setting to configure how the agent notifies on completion
-- Added `OMP_NOTIFICATIONS` environment variable to suppress notifications globally
+- Added `OMG_NOTIFICATIONS` environment variable to suppress notifications globally
 - Added `/wt` slash command for git worktree management with create, list, merge, remove, status, spawn, and parallel operations
 - Added worktree library with collapse strategies (simple, merge-base, rebase) for merging changes between worktrees
 - Added worktree session tracking for managing agent tasks across isolated worktrees
@@ -7111,7 +7111,7 @@
 ### Changed
 
 - Improved `/status` command output formatting to use consistent column alignment across all sections
-- Updated version update notification to suggest `omp update` instead of manual npm install command
+- Updated version update notification to suggest `omg update` instead of manual npm install command
 
 ## [3.1.1337] - 2026-01-03
 
@@ -7138,8 +7138,8 @@
 - Added support for GitHub Copilot instructions with applyTo glob patterns
 - Added support for Gemini extensions and system.md customization files
 - Added support for Codex AGENTS.md and config.toml settings
-- Added automatic migration of `PI_*` environment variables to `OMP_*` equivalents for backwards compatibility
-- Added multi-path config discovery supporting `.omp`, `.pi`, and `.claude` directories with priority ordering
+- Added automatic migration of `PI_*` environment variables to `OMG_*` equivalents for backwards compatibility
+- Added multi-path config discovery supporting `.omg`, `.pi`, and `.claude` directories with priority ordering
 - Added `getConfigDirPaths()`, `findConfigFile()`, and `readConfigFile()` functions for unified config resolution
 - Added documentation for config module usage patterns
 
@@ -7147,16 +7147,16 @@
 
 - Changed MCP tool name parsing to use last underscore separator for better server name handling
 - Changed /config output to show provider attribution for discovered items
-- Renamed CLI binary from `pi` to `omp` and updated all command references
-- Changed config directory from `.pi` to `.omp` with fallback support for legacy paths
-- Renamed environment variables from `PI_*` to `OMP_*` prefix (e.g., `OMP_SMOL_MODEL`, `OMP_SLOW_MODEL`)
-- Changed model role alias prefix from `pi/` to `omp/` (e.g., `omp/slow` instead of `pi/slow`)
+- Renamed CLI binary from `pi` to `omg` and updated all command references
+- Changed config directory from `.pi` to `.omg` with fallback support for legacy paths
+- Renamed environment variables from `PI_*` to `OMG_*` prefix (e.g., `OMG_SMOL_MODEL`, `OMG_SLOW_MODEL`)
+- Changed model role alias prefix from `pi/` to `omg/` (e.g., `omg/slow` instead of `pi/slow`)
 
 ## [2.1.1337] - 2026-01-03
 
 ### Added
 
-- Added `omp update` command to check for and install updates from GitHub releases or via bun
+- Added `omg update` command to check for and install updates from GitHub releases or via bun
 
 ### Changed
 
@@ -7170,7 +7170,7 @@
 ### Added
 
 - Added shell environment snapshot to preserve user aliases, functions, and shell options when executing bash commands
-- Added support for `OMP_BASH_NO_CI`, `OMP_BASH_NO_LOGIN`, and `OMP_SHELL_PREFIX` environment variables for shell customization
+- Added support for `OMG_BASH_NO_CI`, `OMG_BASH_NO_LOGIN`, and `OMG_SHELL_PREFIX` environment variables for shell customization
 - Added zsh support alongside bash for shell detection and configuration
 
 ### Changed
@@ -7185,7 +7185,7 @@
 - Added provider tabs to model selector with Tab/Arrow navigation for filtering models by provider
 - Added context menu to model selector for choosing model role (Default, Smol, Slow) instead of keyboard shortcuts
 - Added LSP diagnostics display in tool execution output showing errors and warnings after file edits
-- Added centralized file logger with daily rotation to `~/.omp/logs/` for debugging production issues
+- Added centralized file logger with daily rotation to `~/.omg/logs/` for debugging production issues
 - Added `logger` property to hook and custom tool APIs for error/warning/debug logging
 - Added `output` tool to read full agent/task outputs by ID when truncated previews are insufficient
 - Added `task` tool to reviewer agent, enabling parallel exploration of large codebases during reviews
@@ -7196,8 +7196,8 @@
 - Added `explicitTools` option to `createAgentSession` for enabling hidden tools by name
 - Added example review tools (`report_finding`, `submit_review`) with structured findings accumulation and verdict rendering
 - Added `/review` example command for interactive code review with branch comparison, uncommitted changes, and commit review modes
-- Custom TypeScript slash commands: Create programmable commands at `~/.omp/agent/commands/[name]/index.ts` or `.omp/commands/[name]/index.ts`. Commands export a factory returning `{ name, description, execute(args, ctx) }`. Return a string to send as LLM prompt, or void for fire-and-forget actions. Full access to `HookCommandContext` for UI dialogs, session control, and shell execution.
-- Claude command directories: Markdown slash commands now also load from `~/.claude/commands/` and `.claude/commands/` (parallel to existing `.omp/commands/` support)
+- Custom TypeScript slash commands: Create programmable commands at `~/.omg/agent/commands/[name]/index.ts` or `.omg/commands/[name]/index.ts`. Commands export a factory returning `{ name, description, execute(args, ctx) }`. Return a string to send as LLM prompt, or void for fire-and-forget actions. Full access to `HookCommandContext` for UI dialogs, session control, and shell execution.
+- Claude command directories: Markdown slash commands now also load from `~/.claude/commands/` and `.claude/commands/` (parallel to existing `.omg/commands/` support)
 - `commands.enableClaudeUser` and `commands.enableClaudeProject` settings to disable Claude command directory loading
 - `/export --copy` option to copy entire session as formatted text to clipboard
 
@@ -7255,7 +7255,7 @@
 - Smol model auto-discovery using priority chain: haiku > flash > mini
 - Slow model auto-discovery using priority chain: gpt-5.2-codex > codex > gpt > opus > pro
 - CLI args for model roles: `--smol <model>` and `--slow <model>` (ephemeral, not persisted)
-- Env var overrides: `OMP_SMOL_MODEL` and `OMP_SLOW_MODEL`
+- Env var overrides: `OMG_SMOL_MODEL` and `OMG_SLOW_MODEL`
 - Title generation now uses configured smol model from settings
 - LSP diagnostics on edit: Edit tool can now return LSP diagnostics after editing code files. Disabled by default to avoid noise during multi-edit sequences. Enable via `lsp.diagnosticsOnEdit` setting.
 - LSP workspace diagnostics: New `lsp action=workspace_diagnostics` command checks the entire project for errors. Auto-detects project type and uses appropriate checker (rust-analyzer/cargo for Rust, tsc for TypeScript, go build for Go, pyright for Python).
@@ -7267,7 +7267,7 @@
 - Edit fuzzy match setting: Added `edit.fuzzyMatch` setting (enabled by default) to control whether the edit tool accepts high-confidence fuzzy matches for whitespace/indentation differences. Toggle via `/settings`.
 - Multi-server LSP diagnostics: Diagnostics now query all applicable language servers for a file type. For TypeScript/JavaScript projects with Biome, this means both type errors (from tsserver) and lint errors (from Biome) are reported together.
 - Comprehensive LSP server configurations for 40+ languages including Rust, Go, Python, Java, Kotlin, Scala, Haskell, OCaml, Elixir, Ruby, PHP, C#, Lua, Nix, and many more. Each server includes sensible defaults for args, settings, and init options.
-- Extended LSP config file search paths: Now searches for `lsp.json`, `.lsp.json` in project root and `.omp/` subdirectory, plus user-level configs in `~/.omp/` and home directory.
+- Extended LSP config file search paths: Now searches for `lsp.json`, `.lsp.json` in project root and `.omg/` subdirectory, plus user-level configs in `~/.omg/` and home directory.
 
 ### Changed
 
@@ -7328,7 +7328,7 @@
 
 ### Changed
 
-- Renamed package scope to @oh-my-pi for consistent branding
+- Renamed package scope to @oh-my-gpt for consistent branding
 - Simplified toolset and enhanced navigation
 - Improved process cleanup with tree kill
 - Updated CI/CD workflows for GitHub Actions with provenance-signed npm publishing
@@ -7341,7 +7341,7 @@
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @oh-my-gpt scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [0.31.1] - 2026-01-02
 
@@ -7457,7 +7457,7 @@ See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](ex
 - `AppMessage` → `AgentMessage`
 - `sessionFile` returns `string | undefined` (was `string | null`)
 - `model` returns `Model | undefined` (was `Model | null`)
-- `Attachment` type removed. Use `ImageContent` from `@oh-my-pi/pi-ai` instead. Add images directly to message content arrays.
+- `Attachment` type removed. Use `ImageContent` from `@oh-my-gpt/gpt-ai` instead. Add images directly to message content arrays.
 
 **AgentSession API:**
 
@@ -7490,10 +7490,10 @@ See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](ex
 `ModelRegistry` is a new class that manages model discovery and API key resolution. It combines built-in models with custom models from `models.json` and resolves API keys via `AuthStorage`.
 
 ```typescript
-import { discoverAuthStorage, discoverModels } from "@oh-my-pi/pi-coding-agent";
+import { discoverAuthStorage, discoverModels } from "@oh-my-gpt/gpt-coding-agent";
 
-const authStorage = discoverAuthStorage(); // ~/.omp/agent/auth.json
-const modelRegistry = discoverModels(authStorage); // + ~/.omp/agent/models.json
+const authStorage = discoverAuthStorage(); // ~/.omg/agent/auth.json
+const modelRegistry = discoverModels(authStorage); // + ~/.omg/agent/models.json
 
 // Get all models (built-in + custom)
 const allModels = modelRegistry.getAll();
@@ -7628,25 +7628,25 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Fixed
 
-- **Sessions saved to wrong directory**: In v0.30.0, sessions were being saved to `~/.omp/agent/` instead of `~/.omp/agent/sessions/<encoded-cwd>/`, breaking `--resume` and `/resume`. Misplaced sessions are automatically migrated on startup. ([#320](https://github.com/badlogic/pi-mono/issues/320) by [@aliou](https://github.com/aliou))
+- **Sessions saved to wrong directory**: In v0.30.0, sessions were being saved to `~/.omg/agent/` instead of `~/.omg/agent/sessions/<encoded-cwd>/`, breaking `--resume` and `/resume`. Misplaced sessions are automatically migrated on startup. ([#320](https://github.com/badlogic/pi-mono/issues/320) by [@aliou](https://github.com/aliou))
 - **Custom system prompts missing context**: When using a custom system prompt string, project context files (AGENTS.md), skills, date/time, and working directory were not appended. ([#321](https://github.com/badlogic/pi-mono/issues/321))
 
 ## [0.30.0] - 2025-12-25
 
 ### Breaking Changes
 
-- **SessionManager API**: The second parameter of `create()`, `continueRecent()`, and `list()` changed from `agentDir` to `sessionDir`. When provided, it specifies the session directory directly (no cwd encoding). When omitted, uses default (`~/.omp/agent/sessions/<encoded-cwd>/`). `open()` no longer takes `agentDir`. ([#313](https://github.com/badlogic/pi-mono/pull/313))
+- **SessionManager API**: The second parameter of `create()`, `continueRecent()`, and `list()` changed from `agentDir` to `sessionDir`. When provided, it specifies the session directory directly (no cwd encoding). When omitted, uses default (`~/.omg/agent/sessions/<encoded-cwd>/`). `open()` no longer takes `agentDir`. ([#313](https://github.com/badlogic/pi-mono/pull/313))
 
 ### Added
 
-- **`--session-dir` flag**: Use a custom directory for sessions instead of the default `~/.omp/agent/sessions/<encoded-cwd>/`. Works with `-c` (continue) and `-r` (resume) flags. ([#313](https://github.com/badlogic/pi-mono/pull/313) by [@scutifer](https://github.com/scutifer))
+- **`--session-dir` flag**: Use a custom directory for sessions instead of the default `~/.omg/agent/sessions/<encoded-cwd>/`. Works with `-c` (continue) and `-r` (resume) flags. ([#313](https://github.com/badlogic/pi-mono/pull/313) by [@scutifer](https://github.com/scutifer))
 - **Reverse model cycling and model selector**: Shift+Ctrl+P cycles models backward, Ctrl+L opens model selector (retaining text in editor). ([#315](https://github.com/badlogic/pi-mono/pull/315) by [@mitsuhiko](https://github.com/mitsuhiko))
 
 ## [0.29.1] - 2025-12-25
 
 ### Added
 
-- **Automatic custom system prompt loading**: OMP now auto-loads `SYSTEM.md` files to replace the default system prompt. Project-local `.omp/SYSTEM.md` takes precedence over global `~/.omp/agent/SYSTEM.md`. CLI `--system-prompt` flag overrides both. ([#309](https://github.com/badlogic/pi-mono/issues/309))
+- **Automatic custom system prompt loading**: OMG now auto-loads `SYSTEM.md` files to replace the default system prompt. Project-local `.omg/SYSTEM.md` takes precedence over global `~/.omg/agent/SYSTEM.md`. CLI `--system-prompt` flag overrides both. ([#309](https://github.com/badlogic/pi-mono/issues/309))
 - **Unified `/settings` command**: New settings menu consolidating thinking level, theme, queue mode, auto-compact, show images, hide thinking, and collapse changelog. Replaces individual `/thinking`, `/queue`, `/theme`, `/autocompact`, and `/show-images` commands. ([#310](https://github.com/badlogic/pi-mono/issues/310))
 
 ### Fixed
@@ -7673,7 +7673,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Changed
 
-- **Credential storage refactored**: API keys and OAuth tokens are now stored in `~/.omp/agent/auth.json` instead of `oauth.json` and `settings.json`. Existing credentials are automatically migrated on first run. ([#296](https://github.com/badlogic/pi-mono/issues/296))
+- **Credential storage refactored**: API keys and OAuth tokens are now stored in `~/.omg/agent/auth.json` instead of `oauth.json` and `settings.json`. Existing credentials are automatically migrated on first run. ([#296](https://github.com/badlogic/pi-mono/issues/296))
 
 - **SDK API changes** ([#296](https://github.com/badlogic/pi-mono/issues/296)):
   - Added `AuthStorage` class for credential management (API keys and OAuth tokens)
@@ -7682,7 +7682,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
   - `createAgentSession()` now accepts `authStorage` and `modelRegistry` options
   - Removed `configureOAuthStorage()`, `defaultGetApiKey()`, `findModel()`, `discoverAvailableModels()`
   - Removed `getApiKey` callback option (use `AuthStorage.setRuntimeApiKey()` for runtime overrides)
-  - Use `getModel()` from `@oh-my-pi/pi-ai` for built-in models, `modelRegistry.find()` for custom models + built-in models
+  - Use `getModel()` from `@oh-my-gpt/gpt-ai` for built-in models, `modelRegistry.find()` for custom models + built-in models
   - See updated [SDK documentation](docs/sdk.md) and [README](README.md)
 
 - **Settings changes**: Removed `apiKeys` from `settings.json`. Use `auth.json` instead. ([#296](https://github.com/badlogic/pi-mono/issues/296))
@@ -7739,13 +7739,13 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Fixed
 
-- **Symlinked skill directories**: Skills in symlinked directories (e.g., `~/.omp/agent/skills/my-skills -> /path/to/skills`) are now correctly discovered and loaded.
+- **Symlinked skill directories**: Skills in symlinked directories (e.g., `~/.omg/agent/skills/my-skills -> /path/to/skills`) are now correctly discovered and loaded.
 
 ## [0.27.3] - 2025-12-24
 
 ### Added
 
-- **API keys in settings.json**: Store API keys in `~/.omp/agent/settings.json` under the `apiKeys` field (e.g., `{ "apiKeys": { "anthropic": "sk-..." } }`). Settings keys take priority over environment variables. ([#295](https://github.com/badlogic/pi-mono/issues/295))
+- **API keys in settings.json**: Store API keys in `~/.omg/agent/settings.json` under the `apiKeys` field (e.g., `{ "apiKeys": { "anthropic": "sk-..." } }`). Settings keys take priority over environment variables. ([#295](https://github.com/badlogic/pi-mono/issues/295))
 
 ### Fixed
 
@@ -7766,7 +7766,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Added
 
-- **Startup timing instrumentation**: Set `OMP_TIMING=1` to see startup performance breakdown (interactive mode only).
+- **Startup timing instrumentation**: Set `OMG_TIMING=1` to see startup performance breakdown (interactive mode only).
 
 ## [0.27.0] - 2025-12-22
 
@@ -7796,7 +7796,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - **SDK for programmatic usage**: New `createAgentSession()` factory with full control over model, tools, hooks, skills, session persistence, and settings. Philosophy: "omit to discover, provide to override". Includes 12 examples and comprehensive documentation. ([#272](https://github.com/badlogic/pi-mono/issues/272))
 
-- **Project-specific settings**: Settings now load from both `~/.omp/agent/settings.json` (global) and `<cwd>/.omp/settings.json` (project). Project settings override global with deep merge for nested objects. Project settings are read-only (for version control). ([#276](https://github.com/badlogic/pi-mono/pull/276))
+- **Project-specific settings**: Settings now load from both `~/.omg/agent/settings.json` (global) and `<cwd>/.omg/settings.json` (project). Project settings override global with deep merge for nested objects. Project settings are read-only (for version control). ([#276](https://github.com/badlogic/pi-mono/pull/276))
 
 - **SettingsManager static factories**: `SettingsManager.create(cwd?, agentDir?)` for file-based settings, `SettingsManager.inMemory(settings?)` for testing. Added `applyOverrides()` for programmatic overrides.
 
@@ -7816,7 +7816,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - **External editor support**: Press `Ctrl+G` to edit your message in an external editor. Uses `$VISUAL` or `$EDITOR` environment variable. On successful save, the message is replaced; on cancel, the original is kept. ([#266](https://github.com/badlogic/pi-mono/pull/266) by [@aliou](https://github.com/aliou))
 
-- **Process suspension**: Press `Ctrl+Z` to suspend omp and return to the shell. Resume with `fg` as usual. ([#267](https://github.com/badlogic/pi-mono/pull/267) by [@aliou](https://github.com/aliou))
+- **Process suspension**: Press `Ctrl+Z` to suspend omg and return to the shell. Resume with `fg` as usual. ([#267](https://github.com/badlogic/pi-mono/pull/267) by [@aliou](https://github.com/aliou))
 
 - **Configurable skills directories**: Added granular control over skill sources with `enableCodexUser`, `enableClaudeUser`, `enableClaudeProject`, `enablePiUser`, `enablePiProject` toggles, plus `customDirectories` and `ignoredSkills` settings. ([#269](https://github.com/badlogic/pi-mono/pull/269) by [@nicobailon](https://github.com/nicobailon))
 
@@ -7886,7 +7886,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Added
 
-- **OAuth and model config exports**: Scripts using `AgentSession` directly can now import `getAvailableModels`, `getApiKeyForModel`, `findModel`, `login`, `logout`, and `getOAuthProviders` from `@oh-my-pi/pi-coding-agent` to reuse OAuth token storage and model resolution. ([#245](https://github.com/badlogic/pi-mono/issues/245))
+- **OAuth and model config exports**: Scripts using `AgentSession` directly can now import `getAvailableModels`, `getApiKeyForModel`, `findModel`, `login`, `logout`, and `getOAuthProviders` from `@oh-my-gpt/gpt-coding-agent` to reuse OAuth token storage and model resolution. ([#245](https://github.com/badlogic/pi-mono/issues/245))
 
 - **xhigh thinking level for gpt-5.2 models**: The thinking level selector and shift+tab cycling now show xhigh option for gpt-5.2 and gpt-5.2-codex models (in addition to gpt-5.1-codex-max). ([#236](https://github.com/badlogic/pi-mono/pull/236) by [@theBucky](https://github.com/theBucky))
 
@@ -7900,7 +7900,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - **OpenRouter models with colons in IDs**: Fixed parsing of OpenRouter model IDs that contain colons (e.g., `openrouter:meta-llama/llama-4-scout:free`). ([#242](https://github.com/badlogic/pi-mono/pull/242) by [@aliou](https://github.com/aliou))
 
-- **Global AGENTS.md loaded twice**: Fixed global AGENTS.md being loaded twice when present in both `~/.omp/agent/` and the current directory. ([#239](https://github.com/badlogic/pi-mono/pull/239) by [@aliou](https://github.com/aliou))
+- **Global AGENTS.md loaded twice**: Fixed global AGENTS.md being loaded twice when present in both `~/.omg/agent/` and the current directory. ([#239](https://github.com/badlogic/pi-mono/pull/239) by [@aliou](https://github.com/aliou))
 
 - **Kitty keyboard protocol on Linux**: Fixed keyboard input not working in Ghostty on Linux when Num Lock is enabled. The Kitty protocol includes Caps Lock and Num Lock state in modifier values, which broke key detection. Now correctly masks out lock key bits when matching keyboard shortcuts. ([#243](https://github.com/badlogic/pi-mono/issues/243))
 
@@ -7912,7 +7912,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - **Subagent orchestration example**: Added comprehensive custom tool example for spawning and orchestrating sub-agents with isolated context windows. Includes scout/planner/reviewer/worker agents and workflow commands for multi-agent pipelines. ([#215](https://github.com/badlogic/pi-mono/pull/215) by [@nicobailon](https://github.com/nicobailon))
 
-- **`getMarkdownTheme()` export**: Custom tools can now import `getMarkdownTheme()` from `@oh-my-pi/pi-coding-agent` to use the same markdown styling as the main UI.
+- **`getMarkdownTheme()` export**: Custom tools can now import `getMarkdownTheme()` from `@oh-my-gpt/gpt-coding-agent` to use the same markdown styling as the main UI.
 
 - **`pi.exec()` signal and timeout support**: Custom tools and hooks can now pass `{ signal, timeout }` options to `pi.exec()` for cancellation and timeout handling. The result includes a `killed` flag when the process was terminated.
 
@@ -7932,13 +7932,13 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Fixed
 
-- **JSON mode stdout flush**: Fixed race condition where `omp --mode json` could exit before all output was written to stdout, causing consumers to miss final events.
+- **JSON mode stdout flush**: Fixed race condition where `omg --mode json` could exit before all output was written to stdout, causing consumers to miss final events.
 
 - **Symlinked tools, hooks, and slash commands**: Discovery now correctly follows symlinks when scanning for custom tools, hooks, and slash commands. ([#219](https://github.com/badlogic/pi-mono/pull/219), [#232](https://github.com/badlogic/pi-mono/pull/232) by [@aliou](https://github.com/aliou))
 
 ### Breaking Changes
 
-- **Custom tools now require `index.ts` entry point**: Auto-discovered custom tools must be in a subdirectory with an `index.ts` file. The old pattern `~/.omp/agent/tools/mytool.ts` must become `~/.omp/agent/tools/mytool/index.ts`. This allows multi-file tools to import helper modules. Explicit paths via `--tool` or `settings.json` still work with any `.ts` file.
+- **Custom tools now require `index.ts` entry point**: Auto-discovered custom tools must be in a subdirectory with an `index.ts` file. The old pattern `~/.omg/agent/tools/mytool.ts` must become `~/.omg/agent/tools/mytool/index.ts`. This allows multi-file tools to import helper modules. Explicit paths via `--tool` or `settings.json` still work with any `.ts` file.
 
 - **Hook `tool_result` event restructured**: The `ToolResultEvent` now exposes full tool result data instead of just text. ([#233](https://github.com/badlogic/pi-mono/pull/233))
   - Removed: `result: string` field
@@ -7983,7 +7983,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
   - `rpc.md`: Added missing `hook_error` event documentation
   - `README.md`: Complete settings table, condensed philosophy section, standardized OAuth docs
 
-- Hooks loader now supports same import aliases as custom tools (`@sinclair/typebox`, `@oh-my-pi/pi-ai`, `@oh-my-pi/pi-tui`, `@oh-my-pi/pi-coding-agent`).
+- Hooks loader now supports same import aliases as custom tools (`@sinclair/typebox`, `@oh-my-gpt/gpt-ai`, `@oh-my-gpt/gpt-tui`, `@oh-my-gpt/gpt-coding-agent`).
 
 ### Breaking Changes
 
@@ -8005,13 +8005,13 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - Fixed TUI performance regression caused by Box component lacking render caching. Built-in tools now use Text directly (like v0.22.5), and Box has proper caching for custom tool rendering.
 
-- Fixed custom tools failing to load from `~/.omp/agent/tools/` when omp is installed globally. Module imports (`@sinclair/typebox`, `@oh-my-pi/pi-tui`, `@oh-my-pi/pi-ai`) are now resolved via aliases.
+- Fixed custom tools failing to load from `~/.omg/agent/tools/` when omg is installed globally. Module imports (`@sinclair/typebox`, `@oh-my-gpt/gpt-tui`, `@oh-my-gpt/gpt-ai`) are now resolved via aliases.
 
 ## [0.23.0] - 2025-12-17
 
 ### Added
 
-- **Custom tools**: Extend omp with custom tools written in TypeScript. Tools can provide custom TUI rendering, interact with users via `omp.ui` (select, confirm, input, notify), and maintain state across sessions via `onSession` callback. See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](examples/custom-tools/). ([#190](https://github.com/badlogic/pi-mono/issues/190))
+- **Custom tools**: Extend omg with custom tools written in TypeScript. Tools can provide custom TUI rendering, interact with users via `omg.ui` (select, confirm, input, notify), and maintain state across sessions via `onSession` callback. See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](examples/custom-tools/). ([#190](https://github.com/badlogic/pi-mono/issues/190))
 
 - **Hook and tool examples**: Added `examples/hooks/` and `examples/custom-tools/` with working examples. Examples are now bundled in npm and binary releases.
 
@@ -8045,7 +8045,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 - **Tool output display**: When collapsed, tool output now shows the last N lines instead of the first N lines, making streaming output more useful.
 
-- Updated `@oh-my-pi/pi-ai` with X-Initiator header support for GitHub Copilot, ensuring agent calls are not deducted from quota. ([#200](https://github.com/badlogic/pi-mono/pull/200) by [@kim0](https://github.com/kim0))
+- Updated `@oh-my-gpt/gpt-ai` with X-Initiator header support for GitHub Copilot, ensuring agent calls are not deducted from quota. ([#200](https://github.com/badlogic/pi-mono/pull/200) by [@kim0](https://github.com/kim0))
 
 ### Fixed
 
@@ -8057,7 +8057,7 @@ Total color count increased from 46 to 50. See [docs/theme.md](docs/theme.md) fo
 
 ### Changed
 
-- Updated `@oh-my-pi/pi-ai` with interleaved thinking enabled by default for Anthropic Claude 4 models.
+- Updated `@oh-my-gpt/gpt-ai` with interleaved thinking enabled by default for Anthropic Claude 4 models.
 
 ## [0.22.1] - 2025-12-15
 
@@ -8065,7 +8065,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Changed
 
-- Updated `@oh-my-pi/pi-ai` with interleaved thinking support for Anthropic models.
+- Updated `@oh-my-gpt/gpt-ai` with interleaved thinking support for Anthropic models.
 
 ## [0.22.0] - 2025-12-15
 
@@ -8101,7 +8101,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Breaking Changes
 
-- **OMP skills now use `SKILL.md` convention**: OMP skills must now be named `SKILL.md` inside a directory, matching Codex CLI format. Previously any `*.md` file was treated as a skill. Migrate by renaming `~/.omp/agent/skills/foo.md` to `~/.omp/agent/skills/foo/SKILL.md`.
+- **OMG skills now use `SKILL.md` convention**: OMG skills must now be named `SKILL.md` inside a directory, matching Codex CLI format. Previously any `*.md` file was treated as a skill. Migrate by renaming `~/.omg/agent/skills/foo.md` to `~/.omg/agent/skills/foo/SKILL.md`.
 
 ### Added
 
@@ -8117,7 +8117,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- **Skills system**: Auto-discover and load instruction files on-demand. Supports Claude Code (`~/.claude/skills/*/SKILL.md`), Codex CLI (`~/.codex/skills/`), and OMP-native formats (`~/.omp/agent/skills/`, `.omp/skills/`). Skills are listed in system prompt with descriptions, agent loads them via read tool when needed. Supports `{baseDir}` placeholder. Disable with `--no-skills` or `skills.enabled: false` in settings. ([#169](https://github.com/badlogic/pi-mono/issues/169))
+- **Skills system**: Auto-discover and load instruction files on-demand. Supports Claude Code (`~/.claude/skills/*/SKILL.md`), Codex CLI (`~/.codex/skills/`), and OMG-native formats (`~/.omg/agent/skills/`, `.omg/skills/`). Skills are listed in system prompt with descriptions, agent loads them via read tool when needed. Supports `{baseDir}` placeholder. Disable with `--no-skills` or `skills.enabled: false` in settings. ([#169](https://github.com/badlogic/pi-mono/issues/169))
 
 - **Version flag**: Added `--version` / `-v` flag to display the current version and exit. ([#170](https://github.com/badlogic/pi-mono/pull/170))
 
@@ -8135,7 +8135,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 - **In-memory branching for `--no-session` mode**: Branching now works correctly in `--no-session` mode without creating any session files. The conversation is truncated in memory.
 
-- **Git branch indicator now works in subdirectories**: The footer's git branch detection now walks up the directory hierarchy to find the git root, so it works when running omp from a subdirectory of a repository. ([#156](https://github.com/badlogic/pi-mono/issues/156))
+- **Git branch indicator now works in subdirectories**: The footer's git branch detection now walks up the directory hierarchy to find the git root, so it works when running omg from a subdirectory of a repository. ([#156](https://github.com/badlogic/pi-mono/issues/156))
 
 ## [0.18.1] - 2025-12-10
 
@@ -8151,7 +8151,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- **Hooks system**: TypeScript modules that extend agent behavior by subscribing to lifecycle events. Hooks can intercept tool calls, prompt for confirmation, modify results, and inject messages from external sources. Auto-discovered from `~/.omp/agent/hooks/*.ts` and `.omp/hooks/*.ts`. Thanks to [@nicobailon](https://github.com/nicobailon) for the collaboration on the design and implementation. ([#145](https://github.com/badlogic/pi-mono/issues/145), supersedes [#158](https://github.com/badlogic/pi-mono/pull/158))
+- **Hooks system**: TypeScript modules that extend agent behavior by subscribing to lifecycle events. Hooks can intercept tool calls, prompt for confirmation, modify results, and inject messages from external sources. Auto-discovered from `~/.omg/agent/hooks/*.ts` and `.omg/hooks/*.ts`. Thanks to [@nicobailon](https://github.com/nicobailon) for the collaboration on the design and implementation. ([#145](https://github.com/badlogic/pi-mono/issues/145), supersedes [#158](https://github.com/badlogic/pi-mono/pull/158))
 
 - **`pi.send()` API**: Hooks can inject messages into the agent session from external sources (file watchers, webhooks, CI systems). If streaming, messages are queued; otherwise a new agent loop starts immediately.
 
@@ -8229,7 +8229,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 - **xhigh thinking level**: Added `xhigh` thinking level for OpenAI codex-max models. Cycle through thinking levels with Shift+Tab; `xhigh` appears only when using a codex-max model. ([#143](https://github.com/badlogic/pi-mono/issues/143))
 
-- **Collapse changelog setting**: Add `"collapseChangelog": true` to `~/.omp/agent/settings.json` to show a condensed "Updated to vX.Y.Z" message instead of the full changelog after updates. Use `/changelog` to view the full changelog. ([#148](https://github.com/badlogic/pi-mono/issues/148))
+- **Collapse changelog setting**: Add `"collapseChangelog": true` to `~/.omg/agent/settings.json` to show a condensed "Updated to vX.Y.Z" message instead of the full changelog after updates. Use `/changelog` to view the full changelog. ([#148](https://github.com/badlogic/pi-mono/issues/148))
 
 - **Bash mode**: Execute shell commands directly from the editor by prefixing with `!` (e.g., `!ls -la`). Output streams in real-time, is added to the LLM context, and persists in session history. Supports multiline commands, cancellation (Escape), truncation for large outputs, and preview/expand toggle (Ctrl+O). Also available in RPC mode via `{"type":"bash","command":"..."}`. ([#112](https://github.com/badlogic/pi-mono/pull/112), original implementation by [@markusylisiurunen](https://github.com/markusylisiurunen))
 
@@ -8249,7 +8249,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- **Flexible Windows shell configuration**: The bash tool now supports multiple shell sources beyond Git Bash. Resolution order: (1) custom `shellPath` in settings.json, (2) Git Bash in standard locations, (3) any bash.exe on PATH. This enables Cygwin, MSYS2, and other bash environments. Configure with `~/.omp/agent/settings.json`: `{"shellPath": "C:\\cygwin64\\bin\\bash.exe"}`.
+- **Flexible Windows shell configuration**: The bash tool now supports multiple shell sources beyond Git Bash. Resolution order: (1) custom `shellPath` in settings.json, (2) Git Bash in standard locations, (3) any bash.exe on PATH. This enables Cygwin, MSYS2, and other bash environments. Configure with `~/.omg/agent/settings.json`: `{"shellPath": "C:\\cygwin64\\bin\\bash.exe"}`.
 
 ### Fixed
 
@@ -8462,7 +8462,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- **File-based Slash Commands**: Create custom reusable prompts as `.txt` files in `~/.omp/slash-commands/`. Files become `/filename` commands with first-line descriptions. Supports `{{selection}}` placeholder for referencing selected/attached content.
+- **File-based Slash Commands**: Create custom reusable prompts as `.txt` files in `~/.omg/slash-commands/`. Files become `/filename` commands with first-line descriptions. Supports `{{selection}}` placeholder for referencing selected/attached content.
 - **`/branch` Command**: Create conversation branches from any previous user message. Opens a selector to pick a message, then creates a new session file starting from that point. Original message text is placed in the editor for modification.
 - **Unified Content References**: Both `@path` in messages and `--file path` CLI arguments now use the same attachment system with consistent MIME type detection.
 - **Drag & Drop Files**: Drop files onto the terminal to attach them to your message. Supports multiple files and both text and image content.
@@ -8524,7 +8524,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- Added thinking level persistence. Default level stored in `~/.omp/settings.json`, restored on startup. Per-session overrides saved in session files.
+- Added thinking level persistence. Default level stored in `~/.omg/settings.json`, restored on startup. Per-session overrides saved in session files.
 - Added model cycling shortcut: `Ctrl+I` cycles through available models (or scoped models with `-m` flag).
 - Added automatic retry with exponential backoff for transient API errors (network issues, 500s, overload).
 - Cumulative token usage now shown in footer (total tokens used across all messages in session).
@@ -8541,7 +8541,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- Add custom model configuration via `~/.omp/models.json`
+- Add custom model configuration via `~/.omg/models.json`
 
 ## [0.10.0] - 2025-11-25
 

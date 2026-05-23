@@ -1,12 +1,12 @@
 /**
  * Custom tool loader - loads TypeScript tool modules using native Bun import.
  *
- * Dependencies (the zod-backed typebox shim and pi-coding-agent) are injected via the
+ * Dependencies (the zod-backed typebox shim and gpt-coding-agent) are injected via the
  * CustomToolAPI to avoid import resolution issues with custom tools loaded from user directories.
  */
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@oh-my-gpt/gpt-agent-core";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import { toolCapability } from "../../capability/tool";
 import { type CustomTool, loadCapability } from "../../discovery";
@@ -86,7 +86,7 @@ export class CustomToolLoader {
 	#seenNames: Set<string>;
 
 	constructor(
-		pi: typeof import("@oh-my-pi/pi-coding-agent"),
+		pi: typeof import("@oh-my-gpt/gpt-coding-agent"),
 		cwd: string,
 		builtInToolNames: string[],
 		pushPendingAction?: (action: {
@@ -173,7 +173,7 @@ export async function loadCustomTools(
 	}) => void,
 ) {
 	const loader = new CustomToolLoader(
-		await import("@oh-my-pi/pi-coding-agent"),
+		await import("@oh-my-gpt/gpt-coding-agent"),
 		cwd,
 		builtInToolNames,
 		pushPendingAction,
@@ -191,7 +191,7 @@ export async function loadCustomTools(
 /**
  * Discover and load tools from standard locations via capability system:
  * 1. User and project tools discovered by capability providers
- * 2. Installed plugins (~/.omp/plugins/node_modules/*)
+ * 2. Installed plugins (~/.omg/plugins/node_modules/*)
  * 3. Explicitly configured paths from settings or CLI
  *
  * @param configuredPaths - Explicit paths from settings.json and CLI --tool flags
@@ -231,7 +231,7 @@ export async function discoverAndLoadCustomTools(
 		});
 	}
 
-	// 2. Plugin tools: ~/.omp/plugins/node_modules/*/
+	// 2. Plugin tools: ~/.omg/plugins/node_modules/*/
 	for (const pluginPath of await getAllPluginToolPaths(cwd)) {
 		addPath(pluginPath, { provider: "plugin", providerName: "Plugin", level: "user" });
 	}

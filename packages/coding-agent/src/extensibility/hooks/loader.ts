@@ -2,7 +2,7 @@
  * Hook loader - loads TypeScript hook modules using native Bun import.
  */
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import * as zod from "zod/v4";
 import { hookCapability } from "../../capability/hook";
 import type { Hook } from "../../discovery";
@@ -138,7 +138,7 @@ async function createHookAPI(
 		logger,
 		typebox,
 		zod,
-		pi: await import("@oh-my-pi/pi-coding-agent"),
+		pi: await import("@oh-my-gpt/gpt-coding-agent"),
 	} as HookAPI;
 
 	return {
@@ -225,7 +225,7 @@ export async function loadHooks(paths: string[], cwd: string): Promise<LoadHooks
 /**
  * Discover and load hooks from all registered providers.
  * Uses the capability API to discover hook paths from:
- * 1. OMP native configs (.omp/.pi hooks/)
+ * 1. OMG native configs (.omg/.pi hooks/)
  * 2. Installed plugins
  * 3. Other editor/IDE configurations
  *

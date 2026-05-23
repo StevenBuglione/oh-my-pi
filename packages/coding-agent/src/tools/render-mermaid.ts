@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import { type MermaidAsciiRenderOptions, prompt, renderMermaidAscii } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-gpt/gpt-agent-core";
+import { type MermaidAsciiRenderOptions, prompt, renderMermaidAscii } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import renderMermaidDescription from "../prompts/tools/render-mermaid.md" with { type: "text" };
 import type { ToolSession } from "./index";

@@ -13,7 +13,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://z.ai/manage-apikey/apikey-list";
-const API_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
+const AOMG_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
 const VALIDATION_MODEL = "glm-4.7";
 
 /**
@@ -52,7 +52,7 @@ export async function loginZai(options: OAuthController): Promise<string> {
 	await validateOpenAICompatibleApiKey({
 		provider: "Z.AI",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

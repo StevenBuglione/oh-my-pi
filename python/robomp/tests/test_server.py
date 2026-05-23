@@ -73,13 +73,13 @@ def test_index_serves_dashboard_html(settings: Settings) -> None:
     assert 'id="robomp-config"' in resp.text
     # The sentinel must have been substituted — neither the literal sentinel
     # nor an empty script body is acceptable.
-    assert "__ROBOMP_CONFIG__" not in resp.text
+    assert "__ROBOMG_CONFIG__" not in resp.text
     assert '"replayEnabled":' in resp.text
 
 
 def test_index_substitutes_replay_token(env, monkeypatch: pytest.MonkeyPatch) -> None:
     """When a replay token is set, the config blob exposes it to the SPA."""
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "secret-token-7")
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "secret-token-7")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     cfg.ensure_paths()
@@ -299,7 +299,7 @@ async def test_await_terminal_state_times_out_with_current_state(db: Database) -
 
 def _enable_replay(monkeypatch: pytest.MonkeyPatch) -> str:
     token = "trigger-secret"
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", token)
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", token)
     reset_settings_cache()
     return token
 
@@ -549,7 +549,7 @@ def test_trigger_triage_rejects_repo_not_in_allowlist(env, monkeypatch: pytest.M
         )
     close_database()
     assert resp.status_code == 403
-    assert "ROBOMP_REPO_ALLOWLIST" in resp.json()["detail"]
+    assert "ROBOMG_REPO_ALLOWLIST" in resp.json()["detail"]
 
 
 @pytest.mark.parametrize("state", ["queued", "running"])
@@ -730,7 +730,7 @@ def test_trigger_retry_by_issue_rejects_repo_not_in_allowlist(env, monkeypatch: 
             headers={"X-Robomp-Replay-Token": token},
         )
         assert resp.status_code == 403
-        assert "ROBOMP_REPO_ALLOWLIST" in resp.json()["detail"]
+        assert "ROBOMG_REPO_ALLOWLIST" in resp.json()["detail"]
         assert get_database(cfg.sqlite_path).get_event("d-evil").state == "failed"
     close_database()
 
@@ -836,10 +836,10 @@ def _post_pr_issue_comment(
 
 @pytest.fixture
 def rate_limited_settings(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> Settings:
-    monkeypatch.setenv("ROBOMP_RATE_LIMIT_DEFAULT", "2")
-    monkeypatch.setenv("ROBOMP_RATE_LIMIT_CONTRIBUTOR", "4")
-    monkeypatch.setenv("ROBOMP_RATE_LIMIT_WINDOW_SECONDS", "3600")
-    monkeypatch.setenv("ROBOMP_RATE_LIMIT_UNLIMITED", "can1357")
+    monkeypatch.setenv("ROBOMG_RATE_LIMIT_DEFAULT", "2")
+    monkeypatch.setenv("ROBOMG_RATE_LIMIT_CONTRIBUTOR", "4")
+    monkeypatch.setenv("ROBOMG_RATE_LIMIT_WINDOW_SECONDS", "3600")
+    monkeypatch.setenv("ROBOMG_RATE_LIMIT_UNLIMITED", "can1357")
     cfg = Settings()  # type: ignore[call-arg]
     cfg.ensure_paths()
     return cfg
@@ -1025,7 +1025,7 @@ def test_webhook_rate_limited_event_records_reason(rate_limited_settings: Settin
 
 
 def _allowlist(monkeypatch: pytest.MonkeyPatch, repos: str) -> None:
-    monkeypatch.setenv("ROBOMP_REPO_ALLOWLIST", repos)
+    monkeypatch.setenv("ROBOMG_REPO_ALLOWLIST", repos)
     reset_settings_cache()
 
 
@@ -1483,8 +1483,8 @@ def test_webhook_maintainer_bypasses_rate_limit(
     rate_limited_settings: Settings,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Login in ROBOMP_MAINTAINER_LOGINS is always unlimited, even with NONE association."""
-    monkeypatch.setenv("ROBOMP_MAINTAINER_LOGINS", "can1357")
+    """Login in ROBOMG_MAINTAINER_LOGINS is always unlimited, even with NONE association."""
+    monkeypatch.setenv("ROBOMG_MAINTAINER_LOGINS", "can1357")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     cfg.ensure_paths()

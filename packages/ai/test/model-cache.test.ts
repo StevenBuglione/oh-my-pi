@@ -33,7 +33,7 @@ describe("model cache migrations", () => {
 	let dbPath = "";
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-model-cache-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-model-cache-"));
 		dbPath = path.join(tempDir, "models.db");
 	});
 

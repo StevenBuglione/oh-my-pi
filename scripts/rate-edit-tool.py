@@ -23,9 +23,9 @@ from rich.table import Table
 from rich.text import Text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "python/omp-rpc/src"))
+sys.path.insert(0, str(REPO_ROOT / "python/omg-rpc/src"))
 
-from omp_rpc import (  # noqa: E402
+from omg_rpc import (  # noqa: E402
     AgentEndEvent,
     AutoRetryEndEvent,
     AutoRetryStartEvent,
@@ -949,9 +949,9 @@ def sync_reference_fixtures(fixtures_dir: Path) -> None:
 def resolve_omp_bin(raw: str | None) -> str:
     if raw:
         return raw
-    found = shutil.which("omp")
+    found = shutil.which("omg")
     if not found:
-        raise SystemExit("Could not find `omp` on PATH. Set --omp-bin or OMP_BIN.")
+        raise SystemExit("Could not find `omg` on PATH. Set --omg-bin or OMG_BIN.")
     return found
 
 
@@ -1410,9 +1410,9 @@ def run_oracle_review_sync(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run OpenRouter fixture evaluations through omp RPC mode."
+        description="Run OpenRouter fixture evaluations through omg RPC mode."
     )
-    parser.add_argument("--omp-bin", default=os.environ.get("OMP_BIN"))
+    parser.add_argument("--omg-bin", default=os.environ.get("OMG_BIN"))
     parser.add_argument("--fixtures-dir", default=os.path.expanduser("~/tmp/fixtures"))
     parser.add_argument("--results-dir")
     parser.add_argument(
@@ -1448,7 +1448,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def run_all(args: argparse.Namespace) -> int:
-    omp_bin = resolve_omp_bin(args.omp_bin)
+    omp_bin = resolve_omp_bin(args.omg_bin)
 
     if args.rerun or args.rerun_oracle:
         rerun_path = args.rerun_oracle or args.rerun
@@ -1491,7 +1491,7 @@ async def run_all(args: argparse.Namespace) -> int:
     results_dir = (
         Path(args.results_dir)
         if args.results_dir
-        else tmp_root / f"omp-fixture-runs-{timestamp}"
+        else tmp_root / f"omg-fixture-runs-{timestamp}"
     )
     results_dir.mkdir(parents=True, exist_ok=True)
     workspace_root = tmp_root / f"rate-edit-tool-workspaces-{timestamp}"

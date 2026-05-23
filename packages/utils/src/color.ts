@@ -3,7 +3,7 @@
  *
  * @example
  * ```ts
- * import { hexToHsv, hsvToHex } from "@oh-my-pi/pi-utils";
+ * import { hexToHsv, hsvToHex } from "@oh-my-gpt/gpt-utils";
  *
  * // Work with HSV directly
  *

@@ -3,8 +3,8 @@
  *
  * Run: bun packages/tui/bench/visible-width.ts
  */
-import { visibleWidth as nativeVisibleWidth } from "@oh-my-pi/pi-natives";
-import { getDefaultTabWidth } from "@oh-my-pi/pi-utils";
+import { visibleWidth as nativeVisibleWidth } from "@oh-my-gpt/gpt-natives";
+import { getDefaultTabWidth } from "@oh-my-gpt/gpt-utils";
 import { visibleWidthRaw as hybridVisibleWidth, replaceTabs } from "../src/utils";
 
 const ITERATIONS = 10_000;

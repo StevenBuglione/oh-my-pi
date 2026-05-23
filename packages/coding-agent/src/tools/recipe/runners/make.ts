@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $which, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { $which, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import type { DetectedRunner, RunnerTask, TaskRunner } from "../runner";
 
 const MAKEFILE_NAMES = ["Makefile", "makefile", "GNUmakefile"] as const;

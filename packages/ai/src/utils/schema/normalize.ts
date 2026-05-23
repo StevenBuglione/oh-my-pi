@@ -6,7 +6,7 @@
  * exposes one option-driven core plus thin dispatchers that pin the option set
  * for each target.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import { dereferenceJsonSchema } from "./dereference";
 import { upgradeJsonSchemaTo202012 } from "./draft";
 import { areJsonValuesEqual, mergePropertySchemas } from "./equality";

@@ -1,4 +1,4 @@
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@oh-my-gpt/gpt-utils";
 import btwUserPrompt from "../../prompts/system/btw-user.md" with { type: "text" };
 import { BtwPanelComponent } from "../components/btw-panel";
 import type { InteractiveModeContext } from "../types";

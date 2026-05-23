@@ -162,7 +162,7 @@ export const done = true;
   - Preserves BOM and original line-ending style.
 - Subprocesses / native bindings
   - `createLspWritethrough()` may trigger formatter / diagnostics work through the LSP subsystem.
-  - `invalidateFsScanAfterWrite()` calls native `invalidateFsScanCache()` from `@oh-my-pi/pi-natives`.
+  - `invalidateFsScanAfterWrite()` calls native `invalidateFsScanCache()` from `@oh-my-gpt/gpt-natives`.
 - Session state
   - Reads and updates the per-session `FileReadCache` used for stale-anchor recovery.
   - Stores pending deferred-diagnostics abort controllers per path inside `EditTool`.

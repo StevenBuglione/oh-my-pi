@@ -1,8 +1,8 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { Markdown, Text } from "@oh-my-pi/pi-tui";
-import { prompt } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-gpt/gpt-agent-core";
+import type { ImageContent } from "@oh-my-gpt/gpt-ai";
+import type { Component } from "@oh-my-gpt/gpt-tui";
+import { Markdown, Text } from "@oh-my-gpt/gpt-tui";
+import { prompt } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import { jsBackend, pythonBackend } from "../eval";
 import type { ExecutorBackend } from "../eval/backend";

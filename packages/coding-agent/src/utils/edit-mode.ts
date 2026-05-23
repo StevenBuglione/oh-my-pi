@@ -1,4 +1,4 @@
-import { $env } from "@oh-my-pi/pi-utils";
+import { $env } from "@oh-my-gpt/gpt-utils";
 
 export type EditMode = "replace" | "patch" | "hashline" | "vim" | "apply_patch";
 

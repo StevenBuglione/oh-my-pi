@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type Component, TUI } from "@oh-my-pi/pi-tui";
+import { type Component, TUI } from "@oh-my-gpt/gpt-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
 class MutableLinesComponent implements Component {
@@ -451,7 +451,7 @@ describe("TUI terminal-state regressions", () => {
 				"        ├─────────┘         └────────┘                     │",
 				"        ▼                                                  │",
 				"┌──────────────┐     ┌────────────┐                        │",
-				"│      ai      │     │ pi-natives │◄───────────────────────┘",
+				"│      ai      │     │ gpt-natives │◄───────────────────────┘",
 				"└──────────────┘     └────────────┘",
 			];
 			const working: string[] = [];
@@ -599,7 +599,7 @@ describe("TUI terminal-state regressions", () => {
 				"        ├─────────┘         └────────┘                     │",
 				"        ▼                                                  │",
 				"┌──────────────┐     ┌────────────┐                        │",
-				"│      ai      │     │ pi-natives │◄───────────────────────┘",
+				"│      ai      │     │ gpt-natives │◄───────────────────────┘",
 				"└──────────────┘     └────────────┘",
 			];
 			tui.addChild(new MutableLinesComponent(lines));

@@ -34,8 +34,8 @@ Define custom secret entries in YAML. Two locations are checked:
 
 | Level   | Path                       | Purpose                     |
 | ------- | -------------------------- | --------------------------- |
-| Global  | `~/.omp/agent/secrets.yml` | Secrets across all projects |
-| Project | `<cwd>/.omp/secrets.yml`   | Project-specific secrets    |
+| Global  | `~/.omg/agent/secrets.yml` | Secrets across all projects |
+| Project | `<cwd>/.omg/secrets.yml`   | Project-specific secrets    |
 
 Project entries override global entries with matching `content`.
 

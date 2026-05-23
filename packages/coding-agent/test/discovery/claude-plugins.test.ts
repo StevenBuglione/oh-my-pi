@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import { loadCapability } from "@oh-my-gpt/gpt-coding-agent/capability";
+import { clearCache as clearFsCache } from "@oh-my-gpt/gpt-coding-agent/capability/fs";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { discoverAgents } from "@oh-my-pi/pi-coding-agent/task/discovery";
-import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import type { SlashCommand } from "@oh-my-pi/pi-coding-agent/capability/slash-command";
+} from "@oh-my-gpt/gpt-coding-agent/discovery/helpers";
+import { discoverAgents } from "@oh-my-gpt/gpt-coding-agent/task/discovery";
+import "@oh-my-gpt/gpt-coding-agent/discovery/claude-plugins";
+import type { Skill } from "@oh-my-gpt/gpt-coding-agent/capability/skill";
+import type { SlashCommand } from "@oh-my-gpt/gpt-coding-agent/capability/slash-command";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("parses valid registry", () => {

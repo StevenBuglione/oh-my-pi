@@ -295,7 +295,7 @@ static BUILTIN_PIPELINES: LazyLock<PipelineRegistry> =
 	LazyLock::new(|| match pipeline::parse_file(BUILTIN_FILTERS_TOML, "builtin") {
 		Ok((pipelines, tests)) => PipelineRegistry { pipelines, tests },
 		Err(err) => {
-			eprintln!("[pi-natives minimizer] failed to load built-in filters: {err}");
+			eprintln!("[gpt-natives minimizer] failed to load built-in filters: {err}");
 			PipelineRegistry::default()
 		},
 	});

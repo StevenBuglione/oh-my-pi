@@ -14,7 +14,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://chat.qwen.ai";
-const API_BASE_URL = "https://portal.qwen.ai/v1";
+const AOMG_BASE_URL = "https://portal.qwen.ai/v1";
 const VALIDATION_MODEL = "coder-model";
 
 /**
@@ -51,7 +51,7 @@ export async function loginQwenPortal(options: OAuthController): Promise<string>
 	await validateOpenAICompatibleApiKey({
 		provider: "qwen-portal",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

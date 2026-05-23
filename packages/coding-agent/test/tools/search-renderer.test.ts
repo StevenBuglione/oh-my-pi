@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@oh-my-gpt/gpt-utils";
 import { getThemeByName } from "../../src/modes/theme/theme";
 import { searchToolRenderer } from "../../src/tools/search";
 

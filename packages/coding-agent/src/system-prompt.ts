@@ -3,8 +3,8 @@
  */
 
 import * as os from "node:os";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";

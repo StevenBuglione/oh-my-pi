@@ -1,8 +1,8 @@
-import type { CompactionSettings } from "@oh-my-pi/pi-agent-core/compaction";
-import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@oh-my-pi/pi-agent-core/compaction";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { countTokens } from "@oh-my-pi/pi-natives";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import type { CompactionSettings } from "@oh-my-gpt/gpt-agent-core/compaction";
+import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@oh-my-gpt/gpt-agent-core/compaction";
+import type { Model } from "@oh-my-gpt/gpt-ai";
+import { countTokens } from "@oh-my-gpt/gpt-natives";
+import { formatNumber } from "@oh-my-gpt/gpt-utils";
 import type { Skill } from "../../extensibility/skills";
 import type { AgentSession } from "../../session/agent-session";
 import type { Tool } from "../../tools";

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
-import { type AgentMessage, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { AutocompleteProvider, SlashCommand } from "@oh-my-pi/pi-tui";
-import { $env, sanitizeText } from "@oh-my-pi/pi-utils";
+import { type AgentMessage, ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { AutocompleteProvider, SlashCommand } from "@oh-my-gpt/gpt-tui";
+import { $env, sanitizeText } from "@oh-my-gpt/gpt-utils";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { expandEmoticons } from "../../modes/emoji-autocomplete";
 import { createPromptActionAutocompleteProvider } from "../../modes/prompt-action-autocomplete";
@@ -808,7 +808,7 @@ export class InputController {
 				? [ttyHandle.fd, ttyHandle.fd, ttyHandle.fd]
 				: ["inherit", "inherit", "inherit"];
 
-			const result = await openInEditor(editorCmd, currentText, { extension: ".omp.md", stdio });
+			const result = await openInEditor(editorCmd, currentText, { extension: ".omg.md", stdio });
 			if (result !== null) {
 				this.ctx.editor.setText(result);
 			}

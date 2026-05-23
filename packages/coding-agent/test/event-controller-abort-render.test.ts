@@ -15,11 +15,11 @@
  *         `errorMessage` is NOT set (TTSR existing behavior unchanged).
  */
 import { describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { AssistantMessage } from "@oh-my-gpt/gpt-ai";
+import { EventController } from "@oh-my-gpt/gpt-coding-agent/modes/controllers/event-controller";
+import type { InteractiveModeContext } from "@oh-my-gpt/gpt-coding-agent/modes/types";
+import type { AgentSessionEvent } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@oh-my-gpt/gpt-coding-agent/session/messages";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

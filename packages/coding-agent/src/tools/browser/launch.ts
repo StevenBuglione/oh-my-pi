@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, getPuppeteerDir, logger } from "@oh-my-pi/pi-utils";
+import { $which, getPuppeteerDir, logger } from "@oh-my-gpt/gpt-utils";
 import * as browsers from "@puppeteer/browsers";
 import type { Browser, CDPSession, Page, default as Puppeteer, Target } from "puppeteer-core";
 import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
@@ -81,7 +81,7 @@ export async function loadPuppeteerInWorker(safeDir: string): Promise<typeof Pup
 /**
  * Lazily download Chromium on first browser launch via @puppeteer/browsers.
  * Skipped when a system Chromium (NixOS) or PUPPETEER_EXECUTABLE_PATH is set.
- * The browser is cached under ~/.omp/puppeteer (getPuppeteerDir).
+ * The browser is cached under ~/.omg/puppeteer (getPuppeteerDir).
  */
 let chromiumExecutablePromise: Promise<string | undefined> | undefined;
 async function ensureChromiumExecutable(): Promise<string | undefined> {

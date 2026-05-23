@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@oh-my-gpt/gpt-ai";
 import { createConventionalAnalysisTool, parseConventionalAnalysisResponse } from "../src/commit/shared-llm";
 
 describe("commit shared LLM parsing", () => {

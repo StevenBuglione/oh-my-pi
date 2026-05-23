@@ -1,4 +1,4 @@
-import { $which, logger } from "@oh-my-pi/pi-utils";
+import { $which, logger } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import { resolvePython } from "./transcriber";
 

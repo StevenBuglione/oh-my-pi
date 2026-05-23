@@ -2,7 +2,7 @@
  * Shared utilities for Google Generative AI and Google Cloud Code Assist providers.
  */
 
-import { extractHttpStatusFromError, readSseJson } from "@oh-my-pi/pi-utils";
+import { extractHttpStatusFromError, readSseJson } from "@oh-my-gpt/gpt-utils";
 import { calculateCost } from "../models";
 import type {
 	Api,

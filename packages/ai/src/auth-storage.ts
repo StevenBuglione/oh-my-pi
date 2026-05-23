@@ -10,7 +10,7 @@
 import { Database, type Statement } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDbPath, logger } from "@oh-my-pi/pi-utils";
+import { getReadableAgentDbPath, logger } from "@oh-my-gpt/gpt-utils";
 import { getEnvApiKey } from "./stream";
 import type { Provider } from "./types";
 import type {
@@ -251,7 +251,7 @@ export type AuthStorageOptions = {
 	usageLogger?: UsageLogger;
 	/**
 	 * Resolve a config value (API key, header value, etc.) to an actual value.
-	 * - coding-agent injects its resolveConfigValue (supports "!command" syntax via pi-natives)
+	 * - coding-agent injects its resolveConfigValue (supports "!command" syntax via gpt-natives)
 	 * - Default: checks environment variable first, then treats as literal
 	 */
 	configValueResolver?: (config: string) => Promise<string | undefined>;
@@ -284,7 +284,7 @@ export type AuthStorageOptions = {
 	 * so the TUI can show where a token came from (broker URL or local SQLite path).
 	 *
 	 * Examples:
-	 * - `"local ~/.omp/agent/agent.db"`
+	 * - `"local ~/.omg/agent/agent.db"`
 	 * - `"broker http://can.internal:8765"`
 	 */
 	sourceLabel?: string;
@@ -307,7 +307,7 @@ export type AuthStorageOptions = {
 
 /**
  * Default config value resolver that checks env vars and treats as literal.
- * Does NOT support "!command" syntax (that requires pi-natives).
+ * Does NOT support "!command" syntax (that requires gpt-natives).
  */
 async function defaultConfigValueResolver(config: string): Promise<string | undefined> {
 	const envValue = process.env[config];
@@ -616,7 +616,7 @@ export class AuthStorage {
 
 	/**
 	 * Create an AuthStorage instance backed by a AuthCredentialStore.
-	 * Convenience factory for standalone use (e.g., pi-ai CLI).
+	 * Convenience factory for standalone use (e.g., gpt-ai CLI).
 	 * @param dbPath - Path to SQLite database
 	 */
 	static async create(dbPath: string, options: AuthStorageOptions = {}): Promise<AuthStorage> {
@@ -3192,7 +3192,7 @@ function extractOAuthTokenIdentifiers(token: string | undefined): string[] | und
 /**
  * Default SQLite-backed implementation of {@link AuthCredentialStore}.
  *
- * Used by the pi-ai CLI and as the default store for `AuthStorage.create()`.
+ * Used by the gpt-ai CLI and as the default store for `AuthStorage.create()`.
  * Also exposes convenience methods (`saveOAuth`, `getOAuth`, `saveApiKey`,
  * `getApiKey`, `listProviders`, `deleteProvider`) that callers can use directly
  * without going through `AuthStorage`.
@@ -3253,7 +3253,7 @@ export class SqliteAuthCredentialStore implements AuthCredentialStore {
 		this.#deleteExpiredCacheStmt = this.#db.prepare(`DELETE FROM cache WHERE expires_at <= ${SQLITE_NOW_EPOCH}`);
 	}
 
-	static async open(dbPath: string = getAgentDbPath()): Promise<SqliteAuthCredentialStore> {
+	static async open(dbPath: string = getReadableAgentDbPath()): Promise<SqliteAuthCredentialStore> {
 		const dir = path.dirname(dbPath);
 		const dirExists = await fs
 			.stat(dir)

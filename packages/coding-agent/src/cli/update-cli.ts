@@ -1,19 +1,19 @@
 /**
  * Update CLI command handler.
  *
- * Handles `omp update` to check for and install updates.
+ * Handles `omg update` to check for and install updates.
  * Uses bun if available, otherwise downloads binary from GitHub releases.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { $which, APP_NAME, isEnoent, VERSION } from "@oh-my-pi/pi-utils";
+import { $which, APP_NAME, isEnoent, VERSION } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
 
-const REPO = "can1357/oh-my-pi";
-const PACKAGE = "@oh-my-pi/pi-coding-agent";
+const REPO = "can1357/oh-my-gpt";
+const PACKAGE = "@oh-my-gpt/gpt-coding-agent";
 
 interface ReleaseInfo {
 	tag: string;
@@ -88,7 +88,7 @@ function isPathInDirectory(filePath: string, directoryPath: string): boolean {
 	if (isPathInDirectoryLexical(filePath, directoryPath)) return true;
 	// Layer realpath resolution on top of the lexical guard. On Windows, ~/.bun
 	// is a junction when Bun is installed via Scoop, so `bun pm bin -g` and the
-	// PATH-resolved omp path can refer to the same directory through different
+	// PATH-resolved omg path can refer to the same directory through different
 	// strings. path.resolve does not traverse junctions/symlinks; realpath does.
 	// Resolve the file's parent directory to tolerate the file itself not yet
 	// existing (e.g. a fresh install path) while still catching link-traversed
@@ -204,14 +204,14 @@ function getBinaryName(): string {
 }
 
 /**
- * Resolve the path that `omp` maps to in the user's PATH.
+ * Resolve the path that `omg` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
 	return $which(APP_NAME) ?? undefined;
 }
 
 /**
- * Run the resolved omp binary and check if it reports the expected version.
+ * Run the resolved omg binary and check if it reports the expected version.
  */
 async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	const ompPath = resolveOmpPath();
@@ -220,7 +220,7 @@ async function verifyInstalledVersion(expectedVersion: string): Promise<Installe
 		const result = await $`${ompPath} --version`.quiet().nothrow();
 		if (result.exitCode !== 0) return { ok: false, path: ompPath };
 		const output = result.text().trim();
-		// Output format: "omp/X.Y.Z"
+		// Output format: "omg/X.Y.Z"
 		const match = output.match(/\/(\d+\.\d+\.\d+)/);
 		const actual = match?.[1];
 		return { ok: actual === expectedVersion, actual, path: ompPath };
@@ -250,7 +250,7 @@ async function printVerification(expectedVersion: string): Promise<void> {
 		return;
 	}
 	console.log(chalk.yellow(`\nWarning: ${formatVerificationFailure(result, expectedVersion)}`));
-	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://omp.sh/install | sh`));
+	console.log(chalk.yellow(`You may need to reinstall: curl -fsSL https://omg.sh/install | sh`));
 }
 
 async function unlinkIfExists(filePath: string): Promise<void> {
@@ -369,7 +369,7 @@ export async function runUpdateCommand(opts: { force: boolean; check: boolean })
 		return;
 	}
 
-	// Choose update method based on the prioritized omp binary in PATH
+	// Choose update method based on the prioritized omg binary in PATH
 	try {
 		const target = await resolveUpdateTarget();
 		if (target.method === "bun") {

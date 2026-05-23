@@ -7,8 +7,8 @@
  * - API key (`PERPLEXITY_API_KEY`) via `api.perplexity.ai/chat/completions`
  */
 
-import { getEnvApiKey } from "@oh-my-pi/pi-ai";
-import { $env, getAgentDbPath, readSseJson } from "@oh-my-pi/pi-utils";
+import { getEnvApiKey } from "@oh-my-gpt/gpt-ai";
+import { $env, getAgentDbPath, readSseJson } from "@oh-my-gpt/gpt-utils";
 import { AgentStorage } from "../../../session/agent-storage";
 import type {
 	PerplexityMessageOutput,

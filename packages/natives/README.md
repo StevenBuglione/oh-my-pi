@@ -1,4 +1,4 @@
-# @oh-my-pi/pi-natives
+# @oh-my-gpt/gpt-natives
 
 Native Rust functionality via N-API.
 
@@ -16,7 +16,7 @@ that terminal protocol.
 ## Usage
 
 ```typescript
-import { grep, find, encodeSixel } from "@oh-my-pi/pi-natives";
+import { grep, find, encodeSixel } from "@oh-my-gpt/gpt-natives";
 
 // Grep for a pattern
 const results = await grep({
@@ -50,7 +50,7 @@ bun run check
 ## Architecture
 
 ```
-crates/pi-natives/       # Rust source (workspace member)
+crates/gpt-natives/       # Rust source (workspace member)
   src/lib.rs             # N-API exports
   src/sixel.rs           # SIXEL terminal-image encoding
   Cargo.toml             # Rust dependencies

@@ -1,13 +1,13 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAntigravityUserAgent, getEnvApiKey, type Model } from "@oh-my-pi/pi-ai";
+import { getAntigravityUserAgent, getEnvApiKey, type Model } from "@oh-my-gpt/gpt-ai";
 import {
 	CODEX_BASE_URL,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 	URL_PATHS,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/constants";
+} from "@oh-my-gpt/gpt-ai/providers/openai-codex/constants";
 import {
 	$env,
 	isEnoent,
@@ -17,7 +17,7 @@ import {
 	readSseJson,
 	Snowflake,
 	untilAborted,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import packageJson from "../../package.json" with { type: "json" };
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
@@ -544,7 +544,7 @@ function getExtensionForMime(mimeType: string): string {
 
 async function saveImageToTemp(image: InlineImageData): Promise<string> {
 	const ext = getExtensionForMime(image.mimeType);
-	const filename = `omp-image-${Snowflake.next()}.${ext}`;
+	const filename = `omg-image-${Snowflake.next()}.${ext}`;
 	const filepath = path.join(os.tmpdir(), filename);
 	await Bun.write(filepath, Buffer.from(image.data, "base64"));
 	return filepath;
@@ -1075,7 +1075,7 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 					headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${apiKey.apiKey}`,
-						"HTTP-Referer": "https://omp.sh/",
+						"HTTP-Referer": "https://omg.sh/",
 						"X-OpenRouter-Title": "Oh-My-Pi",
 						"X-OpenRouter-Categories": "cli-agent",
 					},

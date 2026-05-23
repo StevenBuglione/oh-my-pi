@@ -2,11 +2,11 @@
  * Print mode (single-shot): Send prompts, output result, exit.
  *
  * Used for:
- * - `omp -p "prompt"` - text output
- * - `omp --mode json "prompt"` - JSON event stream
+ * - `omg -p "prompt"` - text output
+ * - `omg --mode json "prompt"` - JSON event stream
  */
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { logger, sanitizeText } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, ImageContent } from "@oh-my-gpt/gpt-ai";
+import { logger, sanitizeText } from "@oh-my-gpt/gpt-utils";
 import type { AgentSession } from "../session/agent-session";
 import { isSilentAbort } from "../session/messages";
 import { initializeExtensions } from "./runtime-init";

@@ -109,7 +109,7 @@ describe("AuthStorage openai-codex email dedupe", () => {
 	let authStorage: AuthStorage | null = null;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-email-dedupe-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-email-dedupe-"));
 		dbPath = path.join(tempDir, "agent.db");
 		store = await SqliteAuthCredentialStore.open(dbPath);
 		authStorage = new AuthStorage(store);

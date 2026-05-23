@@ -5,8 +5,8 @@
  *
  * Pipeline under test:
  *   client → POST /v1/messages (Anthropic shape, cache_control markers)
- *     → anthropic-messages parser → omp Context (cacheRetention derived)
- *     → pi-ai openai-codex-responses provider
+ *     → anthropic-messages parser → omg Context (cacheRetention derived)
+ *     → gpt-ai openai-codex-responses provider
  *     → upstream Codex (ChatGPT-subscription Responses API)
  *     → assistant stream → anthropic-messages encoder
  *     → Anthropic-shape response with cache_read_input_tokens carrying
@@ -14,13 +14,13 @@
  *
  * Regression surface: the inbound parser strips cache_control hints into
  * `cacheRetention`, but the codex provider doesn't consume `cacheRetention`
- * directly — caching only works if pi-ai's codex transport reaches Codex
+ * directly — caching only works if gpt-ai's codex transport reaches Codex
  * with an effective cache identity (prompt_cache_key from sessionId, or
  * implicit session reuse). If that path breaks, this test catches it.
  *
  * Skips unless a local gateway is reachable at the default `127.0.0.1:4000`
- * (override via `OMP_E2E_GATEWAY_URL`) AND the bearer token file exists at
- * `~/.omp/auth-gateway.token`.
+ * (override via `OMG_E2E_GATEWAY_URL`) AND the bearer token file exists at
+ * `~/.omg/auth-gateway.token`.
  *
  * To run: `bun --cwd packages/ai test test/auth-gateway-anthropic-to-codex-caching.test.ts`
  */
@@ -42,7 +42,7 @@ interface AnthropicResponse {
 	error?: { type: string; message: string };
 }
 
-const MODEL = Bun.env.OMP_E2E_CODEX_MODEL ?? "gpt-5.3-codex";
+const MODEL = Bun.env.OMG_E2E_CODEX_MODEL ?? "gpt-5.3-codex";
 
 const gateway = await checkAuthGatewayE2EAvailable();
 
@@ -50,7 +50,7 @@ const gateway = await checkAuthGatewayE2EAvailable();
 // cache floor with headroom.
 const SYSTEM_PARAGRAPH = `
 You are a precise assistant participating in an automated end-to-end test of
-the omp auth-gateway's cross-protocol prompt-caching pipeline. The request
+the omg auth-gateway's cross-protocol prompt-caching pipeline. The request
 arrives over the Anthropic Messages wire format but is fulfilled by an
 OpenAI Codex backend, so the gateway must preserve the cached prefix across
 the translation. Always respond with extreme brevity: a single short word or
@@ -160,7 +160,7 @@ describe.skipIf(!gateway.ok)("auth-gateway: anthropic-messages → openai-codex 
 		//     downstream lost the cache-retention signal;
 		//   - the codex provider didn't surface a stable cache identity to
 		//     Codex (no prompt_cache_key, no session reuse, etc.);
-		//   - the anthropic-messages encoder forgot to map pi-ai's
+		//   - the anthropic-messages encoder forgot to map gpt-ai's
 		//     `usage.cacheRead` to `cache_read_input_tokens` on the wire.
 		const turn2Read = turn2.usage.cache_read_input_tokens ?? 0;
 		expect(turn2Read).toBeGreaterThan(0);

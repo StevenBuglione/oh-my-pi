@@ -6,30 +6,31 @@ import {
 	type AgentTool,
 	INTENT_FIELD,
 	type ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@oh-my-gpt/gpt-agent-core";
 import {
 	type CredentialDisabledEvent,
 	type Message,
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@oh-my-pi/pi-ai";
+} from "@oh-my-gpt/gpt-ai";
 import {
 	getOpenAICodexTransportDetails,
 	prewarmOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import type { Component } from "@oh-my-pi/pi-tui";
+} from "@oh-my-gpt/gpt-ai/providers/openai-codex-responses";
+import type { Component } from "@oh-my-gpt/gpt-tui";
 import {
 	$env,
 	$flag,
 	getAgentDbPath,
 	getAgentDir,
 	getProjectDir,
+	getReadableAgentDbPath,
 	logger,
 	postmortem,
 	prompt,
 	Snowflake,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import chalk from "chalk";
 import { type AsyncJob, AsyncJobManager, isBackgroundJobSupportEnabled } from "./async";
 import { createAutoresearchExtension } from "./autoresearch";
@@ -233,7 +234,7 @@ function buildMcpNotificationBatchMessage(entries: McpNotificationEntry[]): Agen
 export interface CreateAgentSessionOptions {
 	/** Working directory for project-local discovery. Default: getProjectDir() */
 	cwd?: string;
-	/** Global config directory. Default: ~/.omp/agent */
+	/** Global config directory. Default: ~/.omg/agent */
 	agentDir?: string;
 	/** Spawns to allow. Default: "*" */
 	spawns?: string;
@@ -284,7 +285,7 @@ export interface CreateAgentSessionOptions {
 	contextFiles?: Array<{ path: string; content: string }>;
 	/** Pre-built workspace tree (skips re-scanning; passed by parents to subagents). */
 	workspaceTree?: WorkspaceTree;
-	/** Prompt templates. Default: discovered from cwd/.omp/prompts/ + agentDir/prompts/ */
+	/** Prompt templates. Default: discovered from cwd/.omg/prompts/ + agentDir/prompts/ */
 	promptTemplates?: PromptTemplate[];
 	/** File-based slash commands. Default: discovered from commands/ directories */
 	slashCommands?: FileSlashCommand[];
@@ -405,7 +406,7 @@ function getDefaultAgentDir(): string {
  *
  * Default: local SQLite store at `<agentDir>/agent.db`.
  *
- * Broker mode: when `OMP_AUTH_BROKER_URL` is set, credentials are pulled from
+ * Broker mode: when `OMG_AUTH_BROKER_URL` is set, credentials are pulled from
  * a remote auth-broker over the wire. Refresh tokens never leave the broker;
  * the client receives access tokens with `refresh = "__remote__"` and calls
  * back into the broker through the {@link AuthStorageOptions.refreshOAuthCredential}
@@ -427,7 +428,8 @@ export async function discoverAuthStorage(agentDir: string = getDefaultAgentDir(
 		await storage.reload();
 		return storage;
 	}
-	const dbPath = getAgentDbPath(agentDir);
+	const defaultAgentDir = getDefaultAgentDir();
+	const dbPath = agentDir === defaultAgentDir ? getReadableAgentDbPath() : getAgentDbPath(agentDir);
 	const storage = await AuthStorage.create(dbPath, {
 		configValueResolver: resolveConfigValue,
 		sourceLabel: `local ${dbPath}`,
@@ -766,7 +768,7 @@ function buildMCPPromptCommands(manager: MCPManager): LoadedCustomCommand[] {
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@oh-my-pi/pi-ai';
+ * import { getModel } from '@oh-my-gpt/gpt-ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',
@@ -1301,7 +1303,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			customTools.push(...getSearchTools());
 		}
 
-		// Discover and load custom tools from .omp/tools/, .claude/tools/, etc.
+		// Discover and load custom tools from .omg/tools/, .claude/tools/, etc.
 		const builtInToolNames = builtinTools.map(t => t.name);
 		const discoveredCustomTools = await logger.time(
 			"discoverAndLoadCustomTools",

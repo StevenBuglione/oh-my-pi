@@ -1,14 +1,14 @@
 /**
- * Regression for the Windows `bun install -g` update path: when an `omp`
+ * Regression for the Windows `bun install -g` update path: when an `omg`
  * process is running, bun cannot overwrite a locked
- * `node_modules/@oh-my-pi/pi-natives/native/pi_natives.win32-x64.node` during
+ * `node_modules/@oh-my-gpt/gpt-natives/native/pi_natives.win32-x64.node` during
  * package update and silently keeps the old binary next to the new ESM
  * wrapper. The next launch then throws `<sym> is not a function` deep inside
  * tool execution (see Discord report, 2026-05-14).
  *
  * The fix has two halves, both pinned by this test:
  *   1. The loader stages `nativeDir/<filename>.node` → `versionedDir/<filename>.node`
- *      (per-package-version cache under `~/.omp/natives/<version>/`) so the
+ *      (per-package-version cache under `~/.omg/natives/<version>/`) so the
  *      running process holds its OS-level handle on a path bun is never asked
  *      to overwrite. Gated to Windows + node_modules installs + non-compiled
  *      mode by `shouldStageNodeModulesAddon`.
@@ -24,9 +24,9 @@ import * as path from "node:path";
 import { getAddonFilenames, resolveLoaderCandidates, shouldStageNodeModulesAddon } from "../native/loader-state.js";
 import packageJson from "../package.json" with { type: "json" };
 
-const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@oh-my-pi\\pi-natives\\native";
-const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\oh-my-pi\\packages\\natives\\native";
-const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@oh-my-pi/pi-natives/native";
+const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@oh-my-gpt\\gpt-natives\\native";
+const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\oh-my-gpt\\packages\\natives\\native";
+const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@oh-my-gpt/gpt-natives/native";
 
 describe("windows native addon staging", () => {
 	it("stages only on Windows node_modules installs", () => {
@@ -78,8 +78,8 @@ describe("windows native addon staging", () => {
 	});
 
 	it("prepends versionedDir candidates ahead of node_modules when staging on Windows", () => {
-		const versionedDir = "C:\\Users\\Admin\\.omp\\natives\\15.0.1";
-		const userDataDir = "C:\\Users\\Admin\\AppData\\Local\\omp";
+		const versionedDir = "C:\\Users\\Admin\\.omg\\natives\\15.0.1";
+		const userDataDir = "C:\\Users\\Admin\\AppData\\Local\\omg";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "win32-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,
@@ -110,7 +110,7 @@ describe("windows native addon staging", () => {
 	it("falls back to the node_modules-only candidate list when staging is off", () => {
 		// Mirrors the non-Windows / workspace-dev path: same behavior as before
 		// the staging feature was introduced.
-		const versionedDir = "/home/u/.omp/natives/15.0.1";
+		const versionedDir = "/home/u/.omg/natives/15.0.1";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "linux-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,
@@ -128,13 +128,13 @@ describe("windows native addon staging", () => {
 	});
 });
 
-describe("pi-natives version sentinel", () => {
+describe("gpt-natives version sentinel", () => {
 	it("Rust `js_name` matches the package version", async () => {
 		// The JS loader (`packages/natives/native/index.js`) computes its expected
 		// sentinel from `package.json#version`; if the Rust source falls out of
 		// sync we ship a `.node` that the loader will refuse to use. Pinning the
 		// pairing here catches release-script regressions before they reach CI.
-		const libRs = await Bun.file(path.join(import.meta.dir, "../../../crates/pi-natives/src/lib.rs")).text();
+		const libRs = await Bun.file(path.join(import.meta.dir, "../../../crates/gpt-natives/src/lib.rs")).text();
 		const sentinelMatch = libRs.match(/js_name = "(__piNativesV[A-Za-z0-9_]+)"/);
 		expect(sentinelMatch, 'Rust sentinel `js_name = "__piNativesV…"` not found in lib.rs').not.toBeNull();
 		const expected = `__piNativesV${packageJson.version.replace(/[^A-Za-z0-9]/g, "_")}`;
