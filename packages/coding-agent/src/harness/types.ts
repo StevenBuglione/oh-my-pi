@@ -44,33 +44,62 @@ export const CriticEnvelopeSchema = z.object({
 	verdict: z.enum(["good_enough", "not_good_enough"]),
 });
 
+export const WikiBlueprintEnvelopeSchema = z.object({
+	schema_version: z.literal("omg.wiki.blueprint.v1"),
+	status: z.enum(["complete", "blocked", "needs_more_context"]),
+	summary: z.string(),
+	architecture: z.string(),
+	workspace_layout: z.array(z.string()).default([]),
+	build_phases: z.array(z.string()).default([]),
+	required_files: z.array(z.string()).default([]),
+	validation_commands: z.array(z.string()).default([]),
+	assumptions: z.array(z.string()).default([]),
+	risks: z.array(z.string()).default([]),
+});
+
+export const WikiArtifactEnvelopeSchema = z.object({
+	schema_version: z.literal("omg.wiki.artifact.v1"),
+	status: z.literal("complete"),
+	artifact_name: z.string(),
+	expected_workspace_root_entries: z.array(z.string()).default([]),
+	required_wiki_contracts: z.array(z.string()).default([]),
+	test_commands: z.array(z.string()).default([]),
+	limitations: z.array(z.string()).default([]),
+});
+
+export const WikiReviewEnvelopeSchema = z.object({
+	schema_version: z.literal("omg.wiki.review.v1"),
+	approved: z.boolean(),
+	blocking_findings: z.array(z.unknown()).default([]),
+	non_blocking_findings: z.array(z.unknown()).default([]),
+	required_fixes: z.array(z.string()).default([]),
+	verdict: z.enum(["good_enough", "not_good_enough"]),
+});
+
 export const ChatGptJsonEnvelopeSchema = z.union([
 	HandoffEnvelopeSchema,
 	PatchEnvelopeSchema,
 	ArtifactEnvelopeSchema,
 	CriticEnvelopeSchema,
+	WikiBlueprintEnvelopeSchema,
+	WikiArtifactEnvelopeSchema,
+	WikiReviewEnvelopeSchema,
 ]);
 
 export type HandoffEnvelope = z.infer<typeof HandoffEnvelopeSchema>;
 export type PatchEnvelope = z.infer<typeof PatchEnvelopeSchema>;
 export type ArtifactEnvelope = z.infer<typeof ArtifactEnvelopeSchema>;
 export type CriticEnvelope = z.infer<typeof CriticEnvelopeSchema>;
+export type WikiBlueprintEnvelope = z.infer<typeof WikiBlueprintEnvelopeSchema>;
+export type WikiArtifactEnvelope = z.infer<typeof WikiArtifactEnvelopeSchema>;
+export type WikiReviewEnvelope = z.infer<typeof WikiReviewEnvelopeSchema>;
 export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
 
 export type HarnessTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
 export type HarnessRunStatus = "active" | "blocked" | "good_enough" | "not_good_enough" | "abandoned";
 export type HarnessGateStatus = "pending" | "running" | "passed" | "failed" | "skipped";
-export type HarnessGateId =
-	| "doctor"
-	| "packet"
-	| "planner"
-	| "builder"
-	| "download"
-	| "manifest"
-	| "validate"
-	| "fixer"
-	| "critic"
-	| "report";
+export type HarnessTemplate = "artifact-project" | "wiki-machine";
+export type HarnessGateId = string;
 
 export const ProjectManifestSchema = z.object({
 	name: z.string().min(1),
@@ -83,6 +112,18 @@ export const ProjectManifestSchema = z.object({
 });
 
 export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
+
+export const AiWikiManifestSchema = z.object({
+	name: z.string().min(1),
+	description: z.string().min(1),
+	schema_version: z.literal("omg.ai-wiki.workspace.v1"),
+	packages: z.array(z.string()).default([]),
+	test_command: z.string().min(1),
+	required_contracts: z.array(z.string()).default([]),
+	limitations: z.array(z.string()).default([]),
+});
+
+export type AiWikiManifest = z.infer<typeof AiWikiManifestSchema>;
 
 export interface HarnessTodoItem {
 	id: string;
@@ -98,7 +139,7 @@ export interface HarnessGateState {
 	completedAt?: string;
 	inputPaths?: string[];
 	outputPaths?: string[];
-	workerRole?: "planner" | "builder" | "critic" | "fixer";
+	workerRole?: string;
 	workerId?: string;
 	requestId?: string;
 	conversationUrl?: string;
@@ -110,7 +151,7 @@ export interface HarnessRunState {
 	schemaVersion: typeof HARNESS_SCHEMA_VERSION;
 	runId: string;
 	objective: string;
-	template?: "artifact-project";
+	template?: HarnessTemplate;
 	status: HarnessRunStatus;
 	createdAt: string;
 	updatedAt: string;

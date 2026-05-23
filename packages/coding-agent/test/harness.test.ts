@@ -17,8 +17,11 @@ import {
 	parseChatGptJsonEnvelope,
 	readRunState,
 	resumeArtifactProjectHarness,
+	resumeWikiMachineHarness,
 	runArtifactProjectHarness,
 	runHarnessDoctor,
+	runWikiMachineHarness,
+	validateAiWikiManifest,
 	validateChatGptSkill,
 	validateProjectManifest,
 } from "../src/harness";
@@ -148,6 +151,26 @@ describe("harness core", () => {
 			}),
 		);
 		expect((await validateProjectManifest(workspace)).ok).toBe(true);
+	});
+
+	it("validates AI_WIKI_MANIFEST.json contracts", async () => {
+		const workspace = path.join(tempRoot, "wiki-workspace");
+		await fs.mkdir(workspace, { recursive: true });
+
+		expect((await validateAiWikiManifest(workspace)).ok).toBe(false);
+
+		await writeWikiWorkspace(workspace, {
+			omit: ["wiki-data-devops/published/dist/local/wiki-health.json"],
+		});
+		const invalid = await validateAiWikiManifest(workspace);
+		expect(invalid.ok).toBe(false);
+		expect(invalid.errors.join("\n")).toContain("wiki-health.json");
+
+		await fs.rm(workspace, { recursive: true, force: true });
+		await writeWikiWorkspace(workspace);
+		const valid = await validateAiWikiManifest(workspace);
+		expect(valid.ok).toBe(true);
+		expect(valid.manifest?.packages).toContain("wiki-site");
 	});
 
 	it("builds ChatGPT CLI commands without running them", () => {
@@ -1048,6 +1071,433 @@ describe("harness core", () => {
 		expect(state.validation.filter(entry => entry.status === "failed")).toHaveLength(2);
 		expect(state.reviewerFindings).toContain("local validation still failed");
 	});
+
+	it("runs a mocked wiki-machine workflow to good_enough", async () => {
+		const cwd = path.join(tempRoot, "wiki-repo");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "valid-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+		const sendFileCounts: number[] = [];
+
+		const state = await runWikiMachineHarness("build an AI wiki machine local proof", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-wiki`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					sendFileCounts.push(input.files?.length ?? 0);
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify(wikiArtifact()));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(state.template).toBe("wiki-machine");
+		expect(state.gates?.map(gate => gate.id)).toContain("wiki_manifest");
+		expect(state.workers.map(worker => worker.role)).toEqual(["architect", "builder", "critic"]);
+		expect(sendFileCounts.every(count => count === 1)).toBe(true);
+	});
+
+	it("retries delayed wiki-machine artifact downloads before blocking", async () => {
+		const cwd = path.join(tempRoot, "wiki-retry");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "retry-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+		let artifactDownloadCount = 0;
+
+		const state = await runWikiMachineHarness("build a delayed AI wiki artifact", {
+			cwd,
+			checkDoctor: false,
+			artifactDownloadRetryDelaysMs: [0],
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-retry`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify(wikiArtifact()));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					artifactDownloadCount += 1;
+					if (artifactDownloadCount === 1) return { ...ok(input, "{}"), downloadedFiles: [] };
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(artifactDownloadCount).toBe(2);
+		expect(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "responses", "builder-download-attempt-2.json"),
+			).exists(),
+		).toBe(true);
+	});
+
+	it("asks the wiki builder for one artifact repair when JSON arrives without a zip", async () => {
+		const cwd = path.join(tempRoot, "wiki-artifact-repair");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "artifact-repair-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+		let repairSent = false;
+		let artifactDownloadCount = 0;
+
+		const state = await runWikiMachineHarness("repair missing wiki artifact", {
+			cwd,
+			checkDoctor: false,
+			artifactDownloadRetryDelaysMs: [0],
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-repair`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					if (String(input.prompt).includes("local artifact download failed")) repairSent = true;
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify(wikiArtifact()));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					artifactDownloadCount += 1;
+					if (!repairSent) return { ...ok(input, "{}"), downloadedFiles: [] };
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(state.promptBudget.used).toBe(4);
+		expect(artifactDownloadCount).toBe(3);
+		expect(
+			await Bun.file(path.join(getHarnessRunDir(state.runId), "prompts", "builder-artifact-repair.md")).exists(),
+		).toBe(true);
+	});
+
+	it("repairs invalid wiki architect JSON once and then blocks cleanly", async () => {
+		await writeSkill(tempRoot, "wiki-architect");
+		const promise = runWikiMachineHarness("invalid wiki architect JSON", {
+			cwd: tempRoot,
+			checkDoctor: false,
+			workerRunner: async input => {
+				if (input.action === "create") {
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: "architect-bad", conversation_url: "https://chatgpt.com/c/architect" }]),
+					);
+				}
+				if (input.action === "send") {
+					return ok(
+						input,
+						JSON.stringify({ request_id: "req", conversation_url: "https://chatgpt.com/c/architect" }),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({ request_id: "req", conversation_url: "https://chatgpt.com/c/architect" }),
+					);
+				}
+				if (input.action === "copy_message") return ok(input, '{"schema_version":"omg.wiki.blueprint.v1"}');
+				return ok(input, "{}");
+			},
+		});
+
+		await expect(promise).rejects.toThrow("valid wiki-machine JSON envelope after one repair attempt");
+		const [state] = await listHarnessRuns();
+		expect(state.status).toBe("blocked");
+		expect(state.promptBudget.used).toBe(2);
+	});
+
+	it("blocks a wiki-machine artifact missing AI_WIKI_MANIFEST.json", async () => {
+		await writeSkill(tempRoot, "wiki-architect");
+		await writeSkill(tempRoot, "wiki-builder");
+		let workerIndex = 0;
+		const zipBytes = zipSync({
+			"workspace/README.md": new TextEncoder().encode("missing manifest\n"),
+		});
+
+		await expect(
+			runWikiMachineHarness("missing wiki manifest", {
+				cwd: tempRoot,
+				checkDoctor: false,
+				workerRunner: async input => {
+					if (input.action === "create") {
+						workerIndex += 1;
+						const role = ["architect", "builder"][workerIndex - 1] ?? "worker";
+						return ok(
+							input,
+							JSON.stringify([
+								{ worker_id: `${role}-missing`, conversation_url: `https://chatgpt.com/c/${role}` },
+							]),
+						);
+					}
+					if (input.action === "send") {
+						return ok(
+							input,
+							JSON.stringify({
+								request_id: "req",
+								conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+							}),
+						);
+					}
+					if (input.action === "watch") {
+						return ok(
+							input,
+							JSON.stringify({
+								request_id: "req",
+								conversation_url: `https://chatgpt.com/c/${input.worker?.split("-")[0]}`,
+							}),
+						);
+					}
+					if (input.action === "copy_message") {
+						return ok(
+							input,
+							JSON.stringify(input.conversationUrl?.includes("architect") ? wikiBlueprint() : wikiArtifact()),
+						);
+					}
+					if (input.action === "download_artifacts" && input.downloadDir) {
+						await fs.mkdir(input.downloadDir, { recursive: true });
+						if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+						await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+						return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+					}
+					return ok(input, "{}");
+				},
+			}),
+		).rejects.toThrow("AI wiki manifest validation failed");
+		const [state] = await listHarnessRuns();
+		expect(state.status).toBe("blocked");
+		expect(state.gates?.find(gate => gate.id === "wiki_manifest")?.status).toBe("failed");
+	});
+
+	it("resumes a wiki-machine run after prompt budget blocks before critic", async () => {
+		const cwd = path.join(tempRoot, "wiki-resume");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "resume-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let createCount = 0;
+		let architectSends = 0;
+		let builderSends = 0;
+
+		const runner = async (input: any) => {
+			if (input.action === "create") {
+				createCount += 1;
+				const role = ["architect", "builder", "critic"][createCount - 1] ?? "worker";
+				return ok(
+					input,
+					JSON.stringify([{ worker_id: `${role}-resume`, conversation_url: `https://chatgpt.com/c/${role}` }]),
+				);
+			}
+			if (input.action === "send") {
+				if (String(input.worker).includes("architect")) architectSends += 1;
+				if (String(input.worker).includes("builder")) builderSends += 1;
+				return ok(
+					input,
+					JSON.stringify({
+						request_id: `req-${input.worker}`,
+						conversation_url: `https://chatgpt.com/c/${String(input.worker).split("-")[0]}`,
+					}),
+				);
+			}
+			if (input.action === "watch") {
+				return ok(
+					input,
+					JSON.stringify({
+						request_id: `req-${input.worker}`,
+						conversation_url: `https://chatgpt.com/c/${String(input.worker).split("-")[0]}`,
+					}),
+				);
+			}
+			if (input.action === "copy_message") {
+				if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+				if (input.conversationUrl?.includes("critic")) {
+					return ok(
+						input,
+						JSON.stringify({
+							schema_version: "omg.wiki.review.v1",
+							approved: true,
+							blocking_findings: [],
+							non_blocking_findings: [],
+							required_fixes: [],
+							verdict: "good_enough",
+						}),
+					);
+				}
+				return ok(input, JSON.stringify(wikiArtifact()));
+			}
+			if (input.action === "download_artifacts" && input.downloadDir) {
+				await fs.mkdir(input.downloadDir, { recursive: true });
+				if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+				await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+				return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+			}
+			return ok(input, "{}");
+		};
+
+		await expect(
+			runWikiMachineHarness("resume wiki machine", {
+				cwd,
+				checkDoctor: false,
+				promptLimit: 2,
+				testCommand: [process.execPath, "-e", "process.exit(0)"],
+				workerRunner: runner,
+			}),
+		).rejects.toThrow("prompt budget exhausted");
+		const [blocked] = await listHarnessRuns();
+		const resumed = await resumeWikiMachineHarness(blocked.runId, {
+			cwd,
+			checkDoctor: false,
+			promptLimit: 10,
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: runner,
+		});
+
+		expect(resumed.status).toBe("good_enough");
+		expect(architectSends).toBe(1);
+		expect(builderSends).toBe(1);
+	});
 });
 
 function ok(input: { action: string }, stdout: string) {
@@ -1099,4 +1549,139 @@ async function writeSkill(cwd: string, name: string): Promise<void> {
 
 function manifestBytes(manifest: Record<string, unknown>): Uint8Array {
 	return new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+function wikiBlueprint(): Record<string, unknown> {
+	return {
+		schema_version: "omg.wiki.blueprint.v1",
+		status: "complete",
+		summary: "Build a local AI wiki proof workspace.",
+		architecture: "Local Docusaurus-style shell plus registry and one data source.",
+		workspace_layout: ["wiki-site", "wiki-data-registry", "wiki-data-devops"],
+		build_phases: ["contracts", "site shell", "data artifacts", "agent artifacts", "smoke validation"],
+		required_files: ["AI_WIKI_MANIFEST.json", "wiki-data-registry/sources.json"],
+		validation_commands: [`${process.execPath} scripts/validate-wiki.mjs`],
+		assumptions: [],
+		risks: [],
+	};
+}
+
+function wikiArtifact(): Record<string, unknown> {
+	return {
+		schema_version: "omg.wiki.artifact.v1",
+		status: "complete",
+		artifact_name: "workspace.zip",
+		expected_workspace_root_entries: ["AI_WIKI_MANIFEST.json", "wiki-site", "wiki-data-registry", "wiki-data-devops"],
+		required_wiki_contracts: [
+			"wiki-data-registry/sources.json",
+			"wiki-data-devops/published/dist/local/wiki-manifest.json",
+		],
+		test_commands: [`${process.execPath} scripts/validate-wiki.mjs`],
+		limitations: [],
+	};
+}
+
+async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {}): Promise<void> {
+	const omit = new Set(options.omit ?? []);
+	const files: Record<string, string> = {
+		"README.md": "# AI Wiki Proof\n",
+		"PROJECT_REPORT.md": "Local wiki-machine proof report.\n",
+		"AI_WIKI_MANIFEST.json": JSON.stringify(
+			{
+				schema_version: "omg.ai-wiki.workspace.v1",
+				name: "ai-wiki-proof",
+				description: "Local deterministic AI wiki proof workspace",
+				packages: ["wiki-site", "wiki-data-registry", "wiki-data-devops"],
+				test_command: `${process.execPath} scripts/validate-wiki.mjs`,
+				required_contracts: [
+					"wiki-site/package.json",
+					"wiki-site/src/wiki-core/types.ts",
+					"wiki-site/static/llms.txt",
+					"wiki-site/static/.well-known/wiki-agent.json",
+					"wiki-data-registry/sources.json",
+					"wiki-data-registry/agent-sources.json",
+					"wiki-data-devops/wiki.source.json",
+					"wiki-data-devops/docs/index.md",
+					"wiki-data-devops/published/latest.json",
+					"wiki-data-devops/published/latest-agent.json",
+					"wiki-data-devops/published/dist/local/wiki-manifest.json",
+					"wiki-data-devops/published/dist/local/wiki-catalog.json",
+					"wiki-data-devops/published/dist/local/wiki-tags.json",
+					"wiki-data-devops/published/dist/local/wiki-health.json",
+					"wiki-data-devops/published/dist/local/agent/agent-manifest.json",
+					"wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl",
+				],
+				limitations: ["local proof only"],
+			},
+			null,
+			2,
+		),
+		"scripts/validate-wiki.mjs": "console.log('wiki proof ok');\n",
+		"wiki-site/package.json": JSON.stringify({ scripts: { test: "node ../../scripts/validate-wiki.mjs" } }, null, 2),
+		"wiki-site/src/wiki-core/types.ts": "export type WikiSourceId = string;\n",
+		"wiki-site/static/llms.txt": "# AI Wiki\n",
+		"wiki-site/static/.well-known/wiki-agent.json": JSON.stringify({ schemaVersion: "steve-wiki-agent/v1" }),
+		"wiki-data-registry/sources.json": JSON.stringify({ schemaVersion: "steve-wiki-registry/v1", sources: [] }),
+		"wiki-data-registry/agent-sources.json": JSON.stringify({
+			schemaVersion: "steve-wiki-agent-sources/v1",
+			sources: [],
+		}),
+		"wiki-data-devops/wiki.source.json": JSON.stringify({ schemaVersion: "steve-wiki-source/v1", id: "devops" }),
+		"wiki-data-devops/docs/index.md": "---\ntitle: Index\n---\n# Index\n",
+		"wiki-data-devops/published/latest.json": JSON.stringify({
+			schemaVersion: "steve-wiki-latest/v1",
+			sourceId: "devops",
+		}),
+		"wiki-data-devops/published/latest-agent.json": JSON.stringify({
+			schemaVersion: "steve-wiki-agent-latest/v1",
+			sourceId: "devops",
+		}),
+		"wiki-data-devops/published/dist/local/wiki-manifest.json": JSON.stringify({
+			schemaVersion: "steve-wiki-manifest/v1",
+			pages: [],
+		}),
+		"wiki-data-devops/published/dist/local/wiki-catalog.json": JSON.stringify({
+			schemaVersion: "steve-wiki-catalog/v1",
+			counts: { pages: 1 },
+		}),
+		"wiki-data-devops/published/dist/local/wiki-tags.json": JSON.stringify({
+			schemaVersion: "steve-wiki-tags/v1",
+			tags: [],
+		}),
+		"wiki-data-devops/published/dist/local/wiki-health.json": JSON.stringify({
+			schemaVersion: "steve-wiki-health/v1",
+			status: "ok",
+		}),
+		"wiki-data-devops/published/dist/local/agent/agent-manifest.json": JSON.stringify({
+			schemaVersion: "steve-wiki-agent-manifest/v1",
+		}),
+		"wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl": `${JSON.stringify({
+			chunkId: "devops:index#top",
+			text: "Index",
+		})}\n`,
+	};
+	await fs.mkdir(root, { recursive: true });
+	for (const [relPath, content] of Object.entries(files)) {
+		if (omit.has(relPath)) continue;
+		const absolute = path.join(root, relPath);
+		await fs.mkdir(path.dirname(absolute), { recursive: true });
+		await Bun.write(absolute, content);
+	}
+}
+
+async function zipDirectory(root: string, prefix = ""): Promise<Uint8Array> {
+	const entries: Record<string, Uint8Array> = {};
+	async function walk(dir: string): Promise<void> {
+		for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+			const absolute = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				await walk(absolute);
+			} else if (entry.isFile()) {
+				const rel = path.relative(root, absolute).replace(/\\/g, "/");
+				entries[prefix ? `${prefix}/${rel}` : rel] = new Uint8Array(await Bun.file(absolute).arrayBuffer());
+			}
+		}
+	}
+	await walk(root);
+	return zipSync(entries);
 }

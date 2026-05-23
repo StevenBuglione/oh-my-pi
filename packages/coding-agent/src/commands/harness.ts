@@ -8,8 +8,10 @@ import {
 	listHarnessRuns,
 	readRunState,
 	resumeArtifactProjectHarness,
+	resumeWikiMachineHarness,
 	runArtifactProjectHarness,
 	runHarnessDoctor,
+	runWikiMachineHarness,
 	validateChatGptSkill,
 	writeReport,
 } from "../harness";
@@ -47,6 +49,7 @@ export default class Harness extends Command {
 		"# Validate or bundle a ChatGPT worker skill\n  omg harness skills validate critic-review\n  omg harness skills bundle artifact-builder",
 		"# Check live harness prerequisites\n  omg harness doctor",
 		'# Run the live artifact-project workflow\n  omg harness run --live --template artifact-project "build a small validated tool"',
+		'# Run the live wiki-machine workflow\n  omg harness run --live --template wiki-machine "build a local AI wiki proof"',
 	];
 
 	async run(): Promise<void> {
@@ -62,10 +65,11 @@ export default class Harness extends Command {
 			const objective = [args.subject, args.value].filter(Boolean).join(" ").trim();
 			if (!objective) throw new Error("omg harness run requires an objective");
 			if (flags.live) {
-				if (flags.template !== "artifact-project") {
-					throw new Error("only --template artifact-project is currently supported for live harness runs");
+				if (flags.template !== "artifact-project" && flags.template !== "wiki-machine") {
+					throw new Error("supported live harness templates: artifact-project, wiki-machine");
 				}
-				const state = await runArtifactProjectHarness(objective, {
+				const runTemplate = flags.template === "wiki-machine" ? runWikiMachineHarness : runArtifactProjectHarness;
+				const state = await runTemplate(objective, {
 					promptLimit: flags.limit,
 					files: flags.file ?? [],
 					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
@@ -77,11 +81,13 @@ export default class Harness extends Command {
 				}
 				return;
 			}
-			const state = await createHarnessRun(objective, { promptLimit: flags.limit });
+			const template =
+				flags.template === "artifact-project" || flags.template === "wiki-machine" ? flags.template : undefined;
+			const state = await createHarnessRun(objective, { promptLimit: flags.limit, template });
 			const packet = await buildEvidencePacket({
 				runId: state.runId,
 				objective,
-				role: flags.role ?? "planner",
+				role: template === "wiki-machine" ? "wiki-architect" : (flags.role ?? "planner"),
 				successCriteria: [
 					"Use evidence packets for ChatGPT handoffs.",
 					"Require structured JSON responses.",
@@ -101,7 +107,10 @@ export default class Harness extends Command {
 
 		if (action === "resume") {
 			if (!args.subject) throw new Error("omg harness resume requires a run id");
-			const state = await resumeArtifactProjectHarness(args.subject, {
+			const existing = await readRunState(args.subject);
+			const resumeTemplate =
+				existing.template === "wiki-machine" ? resumeWikiMachineHarness : resumeArtifactProjectHarness;
+			const state = await resumeTemplate(args.subject, {
 				promptLimit: flags.limit,
 				files: flags.file ?? [],
 				onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
@@ -112,7 +121,9 @@ export default class Harness extends Command {
 		}
 
 		if (action === "doctor") {
-			const result = await runHarnessDoctor({ cwd: process.cwd(), requireLive: true });
+			const requiredSkills =
+				flags.template === "wiki-machine" ? ["wiki-architect", "wiki-builder", "wiki-critic"] : undefined;
+			const result = await runHarnessDoctor({ cwd: process.cwd(), requireLive: true, requiredSkills });
 			if (flags.json) {
 				process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 			} else {

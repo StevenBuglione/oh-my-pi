@@ -7,6 +7,7 @@ import {
 	type HarnessGateId,
 	type HarnessGateState,
 	type HarnessRunState,
+	type HarnessTemplate,
 	type HarnessTodoItem,
 } from "./types";
 
@@ -30,6 +31,19 @@ const ARTIFACT_PROJECT_GATES: HarnessGateId[] = [
 	"manifest",
 	"validate",
 	"fixer",
+	"critic",
+	"report",
+];
+
+const WIKI_MACHINE_GATES: HarnessGateId[] = [
+	"doctor",
+	"blueprint_packet",
+	"architect",
+	"contract",
+	"builder",
+	"download",
+	"wiki_manifest",
+	"smoke_validate",
 	"critic",
 	"report",
 ];
@@ -69,10 +83,16 @@ export function defaultArtifactProjectGates(): HarnessGateState[] {
 	return ARTIFACT_PROJECT_GATES.map(id => ({ id, status: id === "fixer" ? "skipped" : "pending" }));
 }
 
+export function defaultHarnessGates(template?: HarnessTemplate): HarnessGateState[] | undefined {
+	if (template === "artifact-project") return defaultArtifactProjectGates();
+	if (template === "wiki-machine") return WIKI_MACHINE_GATES.map(id => ({ id, status: "pending" }));
+	return undefined;
+}
+
 export function ensureHarnessGates(state: HarnessRunState): HarnessGateState[] {
-	if (!state.gates) state.gates = defaultArtifactProjectGates();
+	if (!state.gates) state.gates = defaultHarnessGates(state.template) ?? defaultArtifactProjectGates();
 	const existing = new Set(state.gates.map(gate => gate.id));
-	for (const gate of defaultArtifactProjectGates()) {
+	for (const gate of defaultHarnessGates(state.template) ?? defaultArtifactProjectGates()) {
 		if (!existing.has(gate.id)) state.gates.push(gate);
 	}
 	return state.gates;
@@ -103,7 +123,7 @@ export async function createHarnessRun(
 		createdAt,
 		updatedAt: createdAt,
 		promptBudget: { used: 0, limit: options.promptLimit ?? 10 },
-		gates: options.template === "artifact-project" ? defaultArtifactProjectGates() : undefined,
+		gates: defaultHarnessGates(options.template),
 		workers: [],
 		evidencePackets: [],
 		artifacts: [],
@@ -231,6 +251,7 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		`# Harness Run ${state.runId}`,
 		"",
 		`- Objective: ${state.objective}`,
+		`- Template: ${state.template ?? "(none)"}`,
 		`- Status: ${state.status}`,
 		`- Created: ${state.createdAt}`,
 		`- Updated: ${state.updatedAt}`,
@@ -239,6 +260,7 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		`- Artifacts: ${state.artifacts.length}`,
 		`- Validation entries: ${state.validation.length}`,
 		`- Verdict: ${state.verdict ?? "(pending)"}`,
+		`- Next command: ${state.status === "good_enough" || state.status === "abandoned" ? `omg harness export ${state.runId}` : `omg harness resume ${state.runId}`}`,
 		"",
 		"## Gates",
 		"",

@@ -9,3 +9,5 @@ export * from "./prompt-templates";
 export * from "./skills";
 export * from "./storage";
 export * from "./types";
+export * from "./wiki-machine";
+export * from "./wiki-manifest";

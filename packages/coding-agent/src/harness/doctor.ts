@@ -82,7 +82,13 @@ async function checkCdp(endpoint: string): Promise<HarnessDoctorCheck> {
 }
 
 export async function runHarnessDoctor(
-	options: { cwd?: string; cdp?: string; runner?: HarnessCommandRunner; requireLive?: boolean } = {},
+	options: {
+		cwd?: string;
+		cdp?: string;
+		runner?: HarnessCommandRunner;
+		requireLive?: boolean;
+		requiredSkills?: string[];
+	} = {},
 ): Promise<HarnessDoctorResult> {
 	const cwd = options.cwd ?? process.cwd();
 	const runner = options.runner ?? defaultHarnessCommandRunner;
@@ -178,7 +184,7 @@ export async function runHarnessDoctor(
 		),
 	);
 
-	for (const skill of REQUIRED_LIVE_SKILLS) {
+	for (const skill of options.requiredSkills ?? REQUIRED_LIVE_SKILLS) {
 		const validation = await validateChatGptSkill(skill, cwd);
 		checks.push(
 			check(

@@ -1123,10 +1123,10 @@ async function continueArtifactProjectHarness(
 		await startGate(state, "report", options);
 		await setTodoStatus(state.runId, "report", "completed");
 		await writeRunState(state);
-		await writeReport(state);
 		await passGate(state, "report", options, {
 			outputPaths: [path.join(getHarnessRunDir(state.runId), "report.md")],
 		});
+		await writeReport(state);
 		return state;
 	} catch (error) {
 		state.status = "blocked";

@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { pathIsWithin } from "@oh-my-gpt/gpt-utils/dirs";
 import { ensureRunDirs, getHarnessRunDir } from "./storage";
 import type { EvidencePacketOptions, EvidencePacketSummary } from "./types";
+import { REQUIRED_AI_WIKI_CONTRACTS, REQUIRED_AI_WIKI_PACKAGES } from "./wiki-manifest";
 
 let fflateModulePromise: Promise<typeof import("fflate")> | undefined;
 function loadFflate(): Promise<typeof import("fflate")> {
@@ -139,6 +140,79 @@ function responseSchemas(): Record<string, unknown> {
 				risks: baseStringArray,
 			},
 		},
+		"omg.wiki.blueprint.v1": {
+			$schema: "https://json-schema.org/draft/2020-12/schema",
+			type: "object",
+			additionalProperties: false,
+			required: [
+				"schema_version",
+				"status",
+				"summary",
+				"architecture",
+				"workspace_layout",
+				"build_phases",
+				"required_files",
+				"validation_commands",
+				"assumptions",
+				"risks",
+			],
+			properties: {
+				schema_version: { const: "omg.wiki.blueprint.v1" },
+				status: { enum: ["complete", "blocked", "needs_more_context"] },
+				summary: { type: "string" },
+				architecture: { type: "string" },
+				workspace_layout: baseStringArray,
+				build_phases: baseStringArray,
+				required_files: baseStringArray,
+				validation_commands: baseStringArray,
+				assumptions: baseStringArray,
+				risks: baseStringArray,
+			},
+		},
+		"omg.wiki.artifact.v1": {
+			$schema: "https://json-schema.org/draft/2020-12/schema",
+			type: "object",
+			additionalProperties: false,
+			required: [
+				"schema_version",
+				"status",
+				"artifact_name",
+				"expected_workspace_root_entries",
+				"required_wiki_contracts",
+				"test_commands",
+				"limitations",
+			],
+			properties: {
+				schema_version: { const: "omg.wiki.artifact.v1" },
+				status: { const: "complete" },
+				artifact_name: { type: "string" },
+				expected_workspace_root_entries: baseStringArray,
+				required_wiki_contracts: baseStringArray,
+				test_commands: baseStringArray,
+				limitations: baseStringArray,
+			},
+		},
+		"omg.wiki.review.v1": {
+			$schema: "https://json-schema.org/draft/2020-12/schema",
+			type: "object",
+			additionalProperties: false,
+			required: [
+				"schema_version",
+				"approved",
+				"blocking_findings",
+				"non_blocking_findings",
+				"required_fixes",
+				"verdict",
+			],
+			properties: {
+				schema_version: { const: "omg.wiki.review.v1" },
+				approved: { type: "boolean" },
+				blocking_findings: unknownArray,
+				non_blocking_findings: unknownArray,
+				required_fixes: baseStringArray,
+				verdict: { enum: ["good_enough", "not_good_enough"] },
+			},
+		},
 	};
 }
 
@@ -162,6 +236,18 @@ REVIEW_REQUIRED = {
 PATCH_REQUIRED = {
     "schema_version", "status", "base_file_hashes", "patch_format", "patch",
     "test_commands", "risks",
+}
+WIKI_BLUEPRINT_REQUIRED = {
+    "schema_version", "status", "summary", "architecture", "workspace_layout",
+    "build_phases", "required_files", "validation_commands", "assumptions", "risks",
+}
+WIKI_ARTIFACT_REQUIRED = {
+    "schema_version", "status", "artifact_name", "expected_workspace_root_entries",
+    "required_wiki_contracts", "test_commands", "limitations",
+}
+WIKI_REVIEW_REQUIRED = {
+    "schema_version", "approved", "blocking_findings", "non_blocking_findings",
+    "required_fixes", "verdict",
 }
 
 def fail(message: str) -> int:
@@ -238,6 +324,38 @@ def validate(path: str) -> int:
         if not isinstance(data.get("base_file_hashes"), dict):
             return fail("base_file_hashes must be object")
         for key in ("test_commands", "risks"):
+            code = require_list(data, key)
+            if code:
+                return code
+    elif version == "omg.wiki.blueprint.v1":
+        code = require_keys(data, WIKI_BLUEPRINT_REQUIRED)
+        if code:
+            return code
+        if data.get("status") not in {"complete", "blocked", "needs_more_context"}:
+            return fail("status is invalid")
+        for key in ("workspace_layout", "build_phases", "required_files", "validation_commands", "assumptions", "risks"):
+            code = require_list(data, key)
+            if code:
+                return code
+    elif version == "omg.wiki.artifact.v1":
+        code = require_keys(data, WIKI_ARTIFACT_REQUIRED)
+        if code:
+            return code
+        if data.get("status") != "complete":
+            return fail("status must be complete")
+        for key in ("expected_workspace_root_entries", "required_wiki_contracts", "test_commands", "limitations"):
+            code = require_list(data, key)
+            if code:
+                return code
+    elif version == "omg.wiki.review.v1":
+        code = require_keys(data, WIKI_REVIEW_REQUIRED)
+        if code:
+            return code
+        if not isinstance(data.get("approved"), bool):
+            return fail("approved must be boolean")
+        if data.get("verdict") not in {"good_enough", "not_good_enough"}:
+            return fail("verdict is invalid")
+        for key in ("blocking_findings", "non_blocking_findings", "required_fixes"):
             code = require_list(data, key)
             if code:
                 return code
@@ -321,7 +439,77 @@ async function writeResponseContractFiles(packetDir: string): Promise<void> {
 			2,
 		)}\n`,
 	);
+	await Bun.write(
+		path.join(packetDir, "AI_WIKI_MANIFEST.schema.json"),
+		`${JSON.stringify(
+			{
+				$schema: "https://json-schema.org/draft/2020-12/schema",
+				type: "object",
+				additionalProperties: false,
+				required: [
+					"schema_version",
+					"name",
+					"description",
+					"packages",
+					"test_command",
+					"required_contracts",
+					"limitations",
+				],
+				properties: {
+					schema_version: { const: "omg.ai-wiki.workspace.v1" },
+					name: { type: "string", minLength: 1 },
+					description: { type: "string", minLength: 1 },
+					packages: {
+						type: "array",
+						description:
+							"Required workspace package directories, including wiki-site, wiki-data-registry, and wiki-data-devops.",
+						items: { type: "string", minLength: 1 },
+					},
+					test_command: {
+						type: "string",
+						minLength: 1,
+						description: "The exact local command OMG should run after unpacking the wiki artifact.",
+					},
+					required_contracts: {
+						type: "array",
+						description: "Relative files that prove the wiki data contract exists.",
+						items: { type: "string", minLength: 1 },
+					},
+					limitations: { type: "array", items: { type: "string" } },
+				},
+			},
+			null,
+			2,
+		)}\n`,
+	);
 	await Bun.write(path.join(packetDir, "validate_response.py"), responseValidatorScript());
+}
+
+export async function writeWikiAcceptanceChecklist(packetDir: string): Promise<void> {
+	await Bun.write(
+		path.join(packetDir, "WIKI_ACCEPTANCE_CHECKLIST.md"),
+		[
+			"# Wiki-Machine Acceptance Checklist",
+			"",
+			"OMG validates these exact paths before running tests. The builder artifact must include them at the workspace root.",
+			"",
+			"## Required Package Directories",
+			"",
+			...REQUIRED_AI_WIKI_PACKAGES.map(item => `- ${item}/`),
+			"",
+			"## Required Contract Files",
+			"",
+			...REQUIRED_AI_WIKI_CONTRACTS.map(item => `- ${item}`),
+			"",
+			"## Artifact Rules",
+			"",
+			"- `AI_WIKI_MANIFEST.json` must include all required package directories in `packages`.",
+			"- `AI_WIKI_MANIFEST.json.required_contracts` may include more files, but it cannot replace the required paths above.",
+			"- All required `.json` files must parse as valid JSON.",
+			"- Tests must run offline without secrets, paid APIs, deployments, or network access.",
+			"",
+		].join("\n"),
+	);
 }
 
 async function maybeReadScopedFile(cwd: string, requestedPath: string) {
@@ -369,6 +557,7 @@ export async function buildEvidencePacket(options: EvidencePacketOptions): Promi
 	await Bun.write(path.join(packetDir, "CONSTRAINTS.md"), `${constraints.map(item => `- ${item}`).join("\n")}\n`);
 	await Bun.write(path.join(packetDir, "VALIDATION.md"), `${options.validation ?? "No prior validation."}\n`);
 	await writeResponseContractFiles(packetDir);
+	await writeWikiAcceptanceChecklist(packetDir);
 
 	const files: EvidencePacketSummary["files"] = [];
 	const omitted: string[] = [];
