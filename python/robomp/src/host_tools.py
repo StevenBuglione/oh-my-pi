@@ -1,4 +1,4 @@
-"""Host tools exposed to the agent through `omp_rpc.host_tool`.
+"""Host tools exposed to the agent through `omg_rpc.host_tool`.
 
 The agent uses these for any side effect that touches GitHub, the
 reproduction transcript store, or the orchestrator's bookkeeping.
@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, NoReturn
 
-from omp_rpc import HostTool, HostToolContext, RpcCommandError, host_tool
+from omg_rpc import HostTool, HostToolContext, RpcCommandError, host_tool
 
 from robomp import persona
 from robomp.config import Settings
@@ -45,8 +45,8 @@ _PRE_PR_CHECK_COMMAND = ("bun", "check")
 _REPO_COMMAND_SCRUBBED_ENV_KEYS: tuple[str, ...] = (
     "GITHUB_TOKEN",
     "GITHUB_WEBHOOK_SECRET",
-    "ROBOMP_REPLAY_TOKEN",
-    "ROBOMP_GH_PROXY_HMAC_KEY",
+    "ROBOMG_REPLAY_TOKEN",
+    "ROBOMG_GH_PROXY_HMAC_KEY",
 )
 _AGENT_HOME = Path("/srv/agent-home")
 _PRE_PR_FIX_TIMEOUT_SECONDS = 600.0
@@ -60,7 +60,7 @@ class AbortController:
     """Mutable handoff between the `abort_task` host tool and the worker.
 
     `signal()` is called from the host-tool thread to request an irrecoverable
-    teardown of the omp subprocess. The worker pre-populates `stop` with a
+    teardown of the omg subprocess. The worker pre-populates `stop` with a
     thread-safe terminator (the same one used for queue cancellation and the
     hard-timeout watchdog), and inspects `triggered` after `prompt_and_wait`
     unblocks to decide whether the resulting `RpcError` is an intentional
@@ -110,7 +110,7 @@ class ToolBindings:
     # itself does not carry triage labels.
     inbound_is_pr: bool = False
     slot_uid: int | None = None
-    # Set by the worker before launching omp. Carries the abort-task signal
+    # Set by the worker before launching omg. Carries the abort-task signal
     # back out to the worker; `None` for unit tests that exercise tools
     # without a live RpcClient.
     abort: AbortController | None = None
@@ -895,7 +895,7 @@ def _build_abort_task(bindings: ToolBindings) -> HostTool[Any, Any]:
             _raise_command("abort_task requires a non-empty 'reason' string.")
         reason = reason.strip()
         # Audit FIRST so the diagnosis is durable even if anything below
-        # races against the imminent omp teardown.
+        # races against the imminent omg teardown.
         _audit(bindings, "abort_task", args, result={"reason": reason})
         log.warning(
             "task_aborted",

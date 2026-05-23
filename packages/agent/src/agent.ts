@@ -19,7 +19,7 @@ import {
 	type ThinkingBudgets,
 	type ToolChoice,
 	type ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
+} from "@oh-my-gpt/gpt-ai";
 import { agentLoop, agentLoopContinue } from "./agent-loop";
 import type { HarmonyAuditEvent } from "./harmony-leak";
 import type {

@@ -1,6 +1,6 @@
 # Natives Architecture
 
-`@oh-my-pi/pi-natives` is now a two-layer package around a loader:
+`@oh-my-gpt/gpt-natives` is now a two-layer package around a loader:
 
 1. **CommonJS loader/package entrypoint** resolves and loads the correct `.node` addon and patches generated enum objects onto the export object.
 2. **Rust N-API module layer** implements the exported functions/classes and emits the generated TypeScript declarations.
@@ -17,7 +17,7 @@ This document is the foundation for deeper module-level docs.
 - `packages/natives/scripts/embed-native.ts`
 - `packages/natives/scripts/gen-enums.ts`
 - `packages/natives/package.json`
-- `crates/pi-natives/src/lib.rs`
+- `crates/gpt-natives/src/lib.rs`
 
 ## Package entrypoint and public surface
 
@@ -28,7 +28,7 @@ This document is the foundation for deeper module-level docs.
 - `exports["."].types`: `./native/index.d.ts`
 - `exports["."].import`: `./native/index.js`
 
-There is no current `packages/natives/src` TypeScript wrapper layer. Consumers import functions/classes/enums directly from `@oh-my-pi/pi-natives`; the type contract is the generated `native/index.d.ts` plus enum exports appended by `scripts/gen-enums.ts`.
+There is no current `packages/natives/src` TypeScript wrapper layer. Consumers import functions/classes/enums directly from `@oh-my-gpt/gpt-natives`; the type contract is the generated `native/index.d.ts` plus enum exports appended by `scripts/gen-enums.ts`.
 
 Current capability groups in the generated API include:
 
@@ -78,11 +78,11 @@ For compiled binaries, loader behavior is:
 
 1. Check versioned user cache path: `<getNativesDir()>/<packageVersion>/...`.
 2. Check legacy compiled-binary location:
-   - Windows: `%LOCALAPPDATA%/omp` (fallback `%USERPROFILE%/AppData/Local/omp`)
+   - Windows: `%LOCALAPPDATA%/omg` (fallback `%USERPROFILE%/AppData/Local/omg`)
    - non-Windows: `~/.local/bin`
 3. Fall back to packaged `native/` and executable directory candidates.
 
-`getNativesDir()` uses `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` exists; otherwise it uses `~/.omp/natives`.
+`getNativesDir()` uses `$XDG_DATA_HOME/omg/natives` when `$XDG_DATA_HOME/omg` exists; otherwise it uses `~/.omg/natives`.
 
 If a populated embedded addon manifest is present, it is also treated as a compiled-binary signal. The loader can extract the matching embedded `.node` into the versioned cache directory before candidate probing.
 
@@ -98,7 +98,7 @@ The current loader does not perform a separate post-`require` export validation 
 
 ## Rust N-API module layer
 
-`crates/pi-natives/src/lib.rs` declares exported module ownership:
+`crates/gpt-natives/src/lib.rs` declares exported module ownership:
 
 - `appearance`
 - `ast`
@@ -133,7 +133,7 @@ N-API exports are generated from Rust `#[napi]` functions/classes/objects/enums.
   - CPU variant selection and override handling
   - compiled-binary embedded extraction
   - generated TypeScript declarations and enum export patching
-- **Rust ownership (`crates/pi-natives/src`)**
+- **Rust ownership (`crates/gpt-natives/src`)**
   - algorithmic and system-level implementation
   - platform-native behavior and performance-sensitive logic
   - N-API symbol implementation consumed directly by package callers
@@ -143,7 +143,7 @@ N-API exports are generated from Rust `#[napi]` functions/classes/objects/enums.
 
 ## Runtime flow (high level)
 
-1. Consumer imports from `@oh-my-pi/pi-natives`.
+1. Consumer imports from `@oh-my-gpt/gpt-natives`.
 2. `native/index.js` computes platform/arch/variant and candidate paths.
 3. Optional embedded binary extraction occurs for compiled distributions.
 4. The first `require(candidate)` that succeeds becomes the exported addon object.

@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@oh-my-gpt/gpt-coding-agent/sdk";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 
 const toolActivationExtension: ExtensionFactory = pi => {

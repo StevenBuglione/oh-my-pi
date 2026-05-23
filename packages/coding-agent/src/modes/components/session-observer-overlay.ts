@@ -14,9 +14,9 @@
  *   - Esc from picker -> close overlay
  *   - Enter on main session -> close overlay (jump back)
  */
-import type { ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { Container, Markdown, type MarkdownTheme, matchesKey } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber, logger } from "@oh-my-pi/pi-utils";
+import type { ToolResultMessage } from "@oh-my-gpt/gpt-ai";
+import { Container, Markdown, type MarkdownTheme, matchesKey } from "@oh-my-gpt/gpt-tui";
+import { formatDuration, formatNumber, logger } from "@oh-my-gpt/gpt-utils";
 import type { KeyId } from "../../config/keybindings";
 import { isSilentAbort } from "../../session/messages";
 import type { SessionMessageEntry } from "../../session/session-manager";

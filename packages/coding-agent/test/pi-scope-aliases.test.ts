@@ -1,38 +1,38 @@
 /**
  * Regression: plugin extensions must resolve `pi-*` imports across every scope
  * that has ever been used to publish or alias the internal packages —
- * `@mariozechner` (original), `@earendil-works` (fork), and `@oh-my-pi`
+ * `@mariozechner` (original), `@earendil-works` (fork), and `@oh-my-gpt`
  * (canonical). The shim in `legacy-pi-compat.ts` remaps all three to the same
  * in-process bundled copy so that plugins observe a single module registry
  * regardless of which scope name their peerDependencies happened to declare.
  *
  * Reported failures the test covers:
- *   - `@juicesharp/rpiv-ask-user-question` ⇒ `@earendil-works/pi-tui`
- *   - `@oh-my-pi/swarm-extension`         ⇒ `@oh-my-pi/pi-utils`
- *   - `@plannotator/pi-extension`         ⇒ `@oh-my-pi/pi-agent-core`
- *   - `@runfusion/fusion`                 ⇒ `@oh-my-pi/pi-coding-agent/...`
+ *   - `@juicesharp/rpiv-ask-user-question` ⇒ `@earendil-works/gpt-tui`
+ *   - `@oh-my-gpt/swarm-extension`         ⇒ `@oh-my-gpt/gpt-utils`
+ *   - `@plannotator/pi-extension`         ⇒ `@oh-my-gpt/gpt-agent-core`
+ *   - `@runfusion/fusion`                 ⇒ `@oh-my-gpt/gpt-coding-agent/...`
  *
  * Plus the two upstream-only surfaces that turned up via real-plugin E2E:
- *   - `Key` runtime helper from `pi-tui` (used by plannotator + rpiv-*).
- *   - `pi-ai/oauth` subpath (used by runfusion's bundled extension).
+ *   - `Key` runtime helper from `gpt-tui` (used by plannotator + rpiv-*).
+ *   - `gpt-ai/oauth` subpath (used by runfusion's bundled extension).
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { loadExtensions } from "@oh-my-gpt/gpt-coding-agent/extensibility/extensions/loader";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 
-const canonicalCodingAgent = Bun.resolveSync("@oh-my-pi/pi-coding-agent", import.meta.dir);
+const canonicalCodingAgent = Bun.resolveSync("@oh-my-gpt/gpt-coding-agent", import.meta.dir);
 const canonicalCodingAgentExtensions = Bun.resolveSync(
-	"@oh-my-pi/pi-coding-agent/extensibility/extensions",
+	"@oh-my-gpt/gpt-coding-agent/extensibility/extensions",
 	import.meta.dir,
 );
-const canonicalUtils = Bun.resolveSync("@oh-my-pi/pi-utils", import.meta.dir);
-const canonicalTui = Bun.resolveSync("@oh-my-pi/pi-tui", import.meta.dir);
-// Subpath remap: upstream `pi-ai/oauth` re-exported `utils/oauth/index`; the
+const canonicalUtils = Bun.resolveSync("@oh-my-gpt/gpt-utils", import.meta.dir);
+const canonicalTui = Bun.resolveSync("@oh-my-gpt/gpt-tui", import.meta.dir);
+// Subpath remap: upstream `gpt-ai/oauth` re-exported `utils/oauth/index`; the
 // shim rewrites the legacy subpath onto its current home so plugins keep
 // importing the upstream layout.
-const canonicalAiOauth = Bun.resolveSync("@oh-my-pi/pi-ai/utils/oauth", import.meta.dir);
+const canonicalAiOauth = Bun.resolveSync("@oh-my-gpt/gpt-ai/utils/oauth", import.meta.dir);
 
 interface AliasCase {
 	id: string;
@@ -45,39 +45,39 @@ const CASES: readonly AliasCase[] = [
 	// @earendil-works fork — used by @juicesharp/rpiv-* plugins.
 	{
 		id: "earendil-tui",
-		aliasSpecifier: "@earendil-works/pi-tui",
+		aliasSpecifier: "@earendil-works/gpt-tui",
 		canonicalPath: canonicalTui,
 		symbol: "visibleWidth",
 	},
-	// @oh-my-pi self-import — canonical scope must still flow through the shim
+	// @oh-my-gpt self-import — canonical scope must still flow through the shim
 	// so a duplicate copy is never dragged in from a plugin's own node_modules.
-	{ id: "ohmypi-utils", aliasSpecifier: "@oh-my-pi/pi-utils", canonicalPath: canonicalUtils, symbol: "logger" },
+	{ id: "ohmygpt-utils", aliasSpecifier: "@oh-my-gpt/gpt-utils", canonicalPath: canonicalUtils, symbol: "logger" },
 	{
-		id: "ohmypi-coding-agent",
-		aliasSpecifier: "@oh-my-pi/pi-coding-agent",
+		id: "ohmygpt-coding-agent",
+		aliasSpecifier: "@oh-my-gpt/gpt-coding-agent",
 		canonicalPath: canonicalCodingAgent,
 		symbol: "isToolCallEventType",
 	},
 	// @mariozechner — defends the original remap (regression: issue #973).
 	{
 		id: "mariozechner-extensions",
-		aliasSpecifier: "@mariozechner/pi-coding-agent/extensibility/extensions",
+		aliasSpecifier: "@mariozechner/gpt-coding-agent/extensibility/extensions",
 		canonicalPath: canonicalCodingAgentExtensions,
 		symbol: "isToolCallEventType",
 	},
-	// Subpath remap: legacy `pi-ai/oauth` should resolve to `pi-ai/utils/oauth`.
+	// Subpath remap: legacy `gpt-ai/oauth` should resolve to `gpt-ai/utils/oauth`.
 	{
 		id: "mariozechner-ai-oauth",
-		aliasSpecifier: "@mariozechner/pi-ai/oauth",
+		aliasSpecifier: "@mariozechner/gpt-ai/oauth",
 		canonicalPath: canonicalAiOauth,
 		// `refreshOAuthToken` is exported by our `utils/oauth/index` and by
 		// upstream's `oauth.d.ts`; it makes a stable probe across both layouts.
 		symbol: "refreshOAuthToken",
 	},
-	// `Key` runtime helper restored on pi-tui (plannotator + rpiv-* import it).
+	// `Key` runtime helper restored on gpt-tui (plannotator + rpiv-* import it).
 	{
 		id: "earendil-tui-key",
-		aliasSpecifier: "@earendil-works/pi-tui",
+		aliasSpecifier: "@earendil-works/gpt-tui",
 		canonicalPath: canonicalTui,
 		symbol: "Key",
 	},

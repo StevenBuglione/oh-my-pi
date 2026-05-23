@@ -1,7 +1,7 @@
 /**
  * Regression test for issue #1234.
  *
- * `omp acp` must not auto-discover host `.mcp.json` servers when creating a
+ * `omg acp` must not auto-discover host `.mcp.json` servers when creating a
  * session for an ACP client. MCP server ownership belongs entirely to the ACP
  * client (`session/new.mcpServers` → `AcpAgent#configureMcpServers`); letting
  * `createAgentSession` run on-disk discovery in parallel registers host MCP
@@ -16,7 +16,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { createAcpSessionFactory } from "../src/main";

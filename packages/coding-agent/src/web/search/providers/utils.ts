@@ -1,4 +1,4 @@
-import { getAgentDbPath } from "@oh-my-pi/pi-utils";
+import { getAgentDbPath } from "@oh-my-gpt/gpt-utils";
 import { AgentStorage } from "../../../session/agent-storage";
 import { SearchProviderError, type SearchProviderId, type SearchSource } from "../../../web/search/types";
 import { dateToAgeSeconds } from "../utils";

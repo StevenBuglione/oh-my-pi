@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { getProjectDir, setProjectDir } from "@oh-my-gpt/gpt-utils";
 import type { SegmentContext } from "../src/modes/components/status-line/segments";
 import { renderSegment } from "../src/modes/components/status-line/segments";
 
@@ -65,9 +65,9 @@ describe("status line path segment", () => {
 		const projectsRoot = path.join(os.homedir(), "Projects");
 		fs.mkdirSync(projectsRoot, { recursive: true });
 
-		const realProjectDir = fs.mkdtempSync(path.join(projectsRoot, "omp-status-line-"));
+		const realProjectDir = fs.mkdtempSync(path.join(projectsRoot, "omg-status-line-"));
 		const nestedDir = path.join(realProjectDir, "nested");
-		const aliasRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-alias-"));
+		const aliasRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omg-status-line-alias-"));
 		const homeAlias = path.join(aliasRoot, "home-link");
 
 		try {
@@ -91,7 +91,7 @@ describe("status line path segment", () => {
 	});
 
 	it("strips the scratch root and shows only the trailing folder inside the OS tmp dir", () => {
-		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-scratch-"));
+		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-status-line-scratch-"));
 		try {
 			setProjectDir(scratchDir);
 
@@ -108,7 +108,7 @@ describe("status line path segment", () => {
 	});
 
 	it("keeps nested subpaths visible under a scratch root", () => {
-		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-scratch-nest-"));
+		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-status-line-scratch-nest-"));
 		const nested = path.join(scratchDir, "sub", "deep");
 		fs.mkdirSync(nested, { recursive: true });
 		try {
@@ -125,7 +125,7 @@ describe("status line path segment", () => {
 	});
 
 	it("keeps the folder icon for scratch paths when stripWorkPrefix is disabled", () => {
-		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-scratch-noprefix-"));
+		const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-status-line-scratch-noprefix-"));
 		try {
 			setProjectDir(scratchDir);
 
@@ -143,7 +143,7 @@ describe("status line path segment", () => {
 	it("keeps the folder icon for paths outside any scratch root", () => {
 		const projectsRoot = path.join(os.homedir(), "Projects");
 		fs.mkdirSync(projectsRoot, { recursive: true });
-		const realProjectDir = fs.mkdtempSync(path.join(projectsRoot, "omp-status-line-real-"));
+		const realProjectDir = fs.mkdtempSync(path.join(projectsRoot, "omg-status-line-real-"));
 		try {
 			setProjectDir(realProjectDir);
 

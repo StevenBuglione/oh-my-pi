@@ -1,6 +1,6 @@
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
-import { Container, Image, ImageProtocol, Markdown, Spacer, TERMINAL, Text } from "@oh-my-pi/pi-tui";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, ImageContent, Usage } from "@oh-my-gpt/gpt-ai";
+import { Container, Image, ImageProtocol, Markdown, Spacer, TERMINAL, Text } from "@oh-my-gpt/gpt-tui";
+import { formatNumber } from "@oh-my-gpt/gpt-utils";
 import { settings } from "../../config/settings";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import { isSilentAbort } from "../../session/messages";

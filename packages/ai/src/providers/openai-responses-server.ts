@@ -1,15 +1,15 @@
 /**
- * OpenAI Responses HTTP wire-format ↔ omp Context bridge for the auth-gateway.
+ * OpenAI Responses HTTP wire-format ↔ omg Context bridge for the auth-gateway.
  *
  * Inbound: parses `POST /v1/responses` request bodies into a {@link ParsedRequest}.
- * Outbound: encodes omp's {@link AssistantMessage} (and event stream) back into
+ * Outbound: encodes omg's {@link AssistantMessage} (and event stream) back into
  * the documented `response.*` SSE taxonomy or the non-streaming JSON shape.
  *
  * Spec: https://platform.openai.com/docs/api-reference/responses
  * Inverse direction (source-of-truth for item shapes): ../../providers/openai-responses.ts
  */
 
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 import type { AuthGatewayParsedRequest as ParsedRequest } from "../auth-gateway/types";
 import type {
@@ -102,9 +102,9 @@ type InputBlockUnion =
 	| { type: "input_file"; file_id?: string; filename?: string; file_data?: string };
 
 /**
- * Walk an input message's content array and produce pi-ai's `TextContent[]`.
+ * Walk an input message's content array and produce gpt-ai's `TextContent[]`.
  * `input_image`/`input_file` blocks become bracketed text placeholders since
- * pi-ai's `ImageContent` only carries inline base64 data and we have no
+ * gpt-ai's `ImageContent` only carries inline base64 data and we have no
  * resolver for OpenAI `image_url` / `file_id` references. Logs once per kind.
  */
 function inputContentParts(blocks: OpenAIResponsesInputContent[] | string | undefined): string | TextContent[] {
@@ -118,7 +118,7 @@ function inputContentParts(blocks: OpenAIResponsesInputContent[] | string | unde
 		} else if (block.type === "input_image") {
 			if (!warnedImageNotSupported) {
 				warnedImageNotSupported = true;
-				logger.warn("openai-responses-server: input_image dropped (no pi-ai bridge for image_url/file_id)", {
+				logger.warn("openai-responses-server: input_image dropped (no gpt-ai bridge for image_url/file_id)", {
 					hasUrl: typeof block.image_url === "string",
 					hasFileId: typeof block.file_id === "string",
 				});
@@ -128,7 +128,7 @@ function inputContentParts(blocks: OpenAIResponsesInputContent[] | string | unde
 		} else if (block.type === "input_file") {
 			if (!warnedFileNotSupported) {
 				warnedFileNotSupported = true;
-				logger.warn("openai-responses-server: input_file dropped (no pi-ai bridge for file_id/file_data)", {
+				logger.warn("openai-responses-server: input_file dropped (no gpt-ai bridge for file_id/file_data)", {
 					hasFileId: typeof block.file_id === "string",
 					hasFileData: typeof block.file_data === "string",
 				});
@@ -185,10 +185,10 @@ function mapToolChoice(value: ParsedToolChoice | undefined): ParsedRequest["opti
 	if (value === "auto" || value === "none" || value === "required") return value;
 	if ("type" in value) {
 		// `custom` (codex apply_patch) and `function` both resolve to the same
-		// pi-ai shape: pi-ai's dispatcher matches `Tool.name` AND `customWireName`,
+		// gpt-ai shape: gpt-ai's dispatcher matches `Tool.name` AND `customWireName`,
 		// so passing the wire name works for either.
 		if (value.type === "function" || value.type === "custom") return { name: value.name };
-		// Hosted tools + allowed_tools — we don't surface these to pi-ai; fall
+		// Hosted tools + allowed_tools — we don't surface these to gpt-ai; fall
 		// back to letting the model pick a tool freely.
 		return "auto";
 	}
@@ -360,7 +360,7 @@ export function parseRequest(body: unknown, headers?: Headers): ParsedRequest {
 			if (effectiveType === "custom_tool_call") {
 				const call = item as { id?: string; call_id: string; name: string; input: string };
 				// Custom tools carry a raw input string. We stash it in `arguments.input`
-				// matching pi-ai's openai-responses-shared convention, and tag the call
+				// matching gpt-ai's openai-responses-shared convention, and tag the call
 				// with `customWireName` so encoders re-emit it as `custom_tool_call`.
 				const toolCall: ToolCall = {
 					type: "toolCall",
@@ -428,7 +428,7 @@ export function parseRequest(body: unknown, headers?: Headers): ParsedRequest {
 		options.reasoning = data.reasoning.effort;
 	}
 	// OpenAI summary: `none` → suppress; `auto`/`concise`/`detailed` → request
-	// visible summary. pi-ai has no per-level plumbing — log once and let the
+	// visible summary. gpt-ai has no per-level plumbing — log once and let the
 	// provider default kick in.
 	if (data.reasoning?.summary === "none") {
 		options.hideThinkingSummary = true;
@@ -455,7 +455,7 @@ export function parseRequest(body: unknown, headers?: Headers): ParsedRequest {
 	if (data.previous_response_id !== undefined) options.previousResponseId = data.previous_response_id;
 	if (data.user !== undefined) options.user = data.user;
 	if (isObj(data.metadata)) options.metadata = data.metadata;
-	// `store` is a stateful-storage hint that omp's gateway doesn't honour;
+	// `store` is a stateful-storage hint that omg's gateway doesn't honour;
 	// silently accepted by the schema. No typed slot — drop.
 
 	return {
@@ -773,7 +773,7 @@ export function encodeStream(
 				};
 				emit("response.output_item.added", { output_index: outputIndex, item });
 				// Open the summary part. Real OpenAI streams summary text in the
-				// canonical `reasoning_summary_*` lifecycle; pi-ai's own decoder
+				// canonical `reasoning_summary_*` lifecycle; gpt-ai's own decoder
 				// reads `summary[].text` from the eventual `output_item.done`.
 				emit("response.reasoning_summary_part.added", {
 					item_id: itemId,
@@ -964,7 +964,7 @@ export function encodeStream(
 								delta: ev.delta,
 								logprobs: [],
 							});
-							// TODO: when pi-ai surfaces output_text annotations
+							// TODO: when gpt-ai surfaces output_text annotations
 							// (web_search citations, …), emit
 							// `response.output_text.annotation.added` here.
 							break;
@@ -1076,7 +1076,7 @@ export function encodeStream(
 									name: cur.name,
 								});
 							} else {
-								// Standard JSON tool: arguments object on the omp side, the
+								// Standard JSON tool: arguments object on the omg side, the
 								// wire wants the JSON string the model emitted (= streamed deltas).
 								const argsJson = cur.argsText || JSON.stringify(tc.arguments ?? {});
 								cur.argsText = argsJson;

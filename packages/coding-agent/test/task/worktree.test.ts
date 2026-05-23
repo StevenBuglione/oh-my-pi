@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@oh-my-pi/pi-natives";
+import * as natives from "@oh-my-gpt/gpt-natives";
 import {
 	captureBaseline,
 	captureDeltaPatch,
@@ -33,7 +33,7 @@ async function runGit(repo: string, args: string[]): Promise<string> {
 }
 
 async function createGitRepo(): Promise<{ baseBranch: string; repo: string }> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-worktree-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omg-worktree-"));
 	tempDirs.push(repo);
 	await runGit(repo, ["init"]);
 	await runGit(repo, ["config", "user.email", "test@example.com"]);

@@ -7,7 +7,7 @@
  * surviving message's `TextContent` parts are joined with newlines.
  */
 
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@oh-my-gpt/gpt-ai";
 import type { SessionEntry } from "../session/session-manager";
 import type { HindsightMessage } from "./content";
 

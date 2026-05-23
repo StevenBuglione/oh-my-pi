@@ -40,7 +40,7 @@ describe("Observer overlay silent-abort regression", () => {
 	});
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overlay-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-overlay-test-"));
 	});
 
 	afterEach(() => {

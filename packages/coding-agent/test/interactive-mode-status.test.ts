@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Container } from "@oh-my-pi/pi-tui";
+import { initTheme } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@oh-my-gpt/gpt-coding-agent/modes/types";
+import { UiHelpers } from "@oh-my-gpt/gpt-coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { Container } from "@oh-my-gpt/gpt-tui";
 
 function renderLastLine(container: Container, width = 120): string {
 	const last = container.children[container.children.length - 1];

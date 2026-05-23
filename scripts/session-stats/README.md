@@ -1,15 +1,15 @@
 # session-stats
 
 Ad-hoc analyses over the local agent session corpus
-(`~/.omp/agent/sessions/`). SQLite-backed; data is synced once into the same
-`~/.omp/stats.db` that `packages/stats` uses, then queried by short Python
+(`~/.omg/agent/sessions/`). SQLite-backed; data is synced once into the same
+`~/.omg/stats.db` that `packages/stats` uses, then queried by short Python
 scripts.
 
 ## Layout
 
 ```
 scripts/session-stats/
-  sync.py       # walks ~/.omp/agent/sessions/ and populates ss_* tables
+  sync.py       # walks ~/.omg/agent/sessions/ and populates ss_* tables
   analyze.py    # tools | edits | followups subcommands over the synced db
 ```
 

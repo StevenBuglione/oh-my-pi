@@ -1,4 +1,4 @@
-import { $env, extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
+import { $env, extractHttpStatusFromError } from "@oh-my-gpt/gpt-utils";
 import { AzureOpenAI } from "openai";
 import type {
 	Tool as OpenAITool,

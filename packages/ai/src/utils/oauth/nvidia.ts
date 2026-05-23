@@ -13,7 +13,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://org.ngc.nvidia.com/setup/personal-keys";
-const API_BASE_URL = "https://integrate.api.nvidia.com/v1";
+const AOMG_BASE_URL = "https://integrate.api.nvidia.com/v1";
 const VALIDATION_MODEL = "nvidia/llama-3.1-nemotron-70b-instruct";
 const PROVIDER_ID = "nvidia";
 
@@ -52,7 +52,7 @@ export async function loginNvidia(options: OAuthController): Promise<string> {
 		await validateOpenAICompatibleApiKey({
 			provider: PROVIDER_ID,
 			apiKey: trimmed,
-			baseUrl: API_BASE_URL,
+			baseUrl: AOMG_BASE_URL,
 			model: VALIDATION_MODEL,
 			signal: options.signal,
 		});

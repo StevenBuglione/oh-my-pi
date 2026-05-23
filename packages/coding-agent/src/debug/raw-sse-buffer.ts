@@ -1,4 +1,4 @@
-import type { Model, ProviderResponseMetadata, RawSseEvent } from "@oh-my-pi/pi-ai";
+import type { Model, ProviderResponseMetadata, RawSseEvent } from "@oh-my-gpt/gpt-ai";
 
 const MAX_RAW_SSE_EVENTS = 1_000;
 const MAX_RAW_SSE_CHARS = 512_000;
@@ -77,7 +77,7 @@ function trimRawLines(raw: string[]): TrimResult {
 		chars += slice.length + 1;
 		remaining = 0;
 	}
-	const tail = `: omp-debug-truncated originalChars=${originalChars}`;
+	const tail = `: omg-debug-truncated originalChars=${originalChars}`;
 	trimmed.push(tail);
 	chars += tail.length + 1;
 	return { raw: trimmed, truncated: true, originalChars, chars };
@@ -89,7 +89,7 @@ export function formatRawSseIsoTime(timestamp: number): string {
 
 export function formatRawSseResponseComment(record: Extract<RawSseDebugRecord, { kind: "response" }>): string {
 	const fields = [
-		"omp-response",
+		"omg-response",
 		`ts=${formatRawSseIsoTime(record.timestamp)}`,
 		`status=${record.status}`,
 		record.provider ? `provider=${record.provider}` : undefined,

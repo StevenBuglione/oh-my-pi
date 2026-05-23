@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 /**
- * Parsed inbound OpenAI chat-completions request, ready to feed into pi-ai
+ * Parsed inbound OpenAI chat-completions request, ready to feed into gpt-ai
  * `stream(model, context, options)`.
  */
 import type { AuthGatewayParsedRequest as ParsedRequest } from "../auth-gateway/types";
@@ -178,7 +178,7 @@ function parseUserLikeContent(
 		}
 		if (part.type !== "image_url") continue;
 		// input_audio / file / refusal / unknown-type parts are accepted by the
-		// schema for forward-compat but dropped here — pi-ai's canonical user
+		// schema for forward-compat but dropped here — gpt-ai's canonical user
 		// content only models text and image today.
 		const url = typeof part.image_url === "string" ? part.image_url : part.image_url.url;
 		const decoded = decodeDataUri(url);
@@ -256,7 +256,7 @@ function buildAssistantMessage(
 
 /**
  * Walk a wire `tool` (or legacy `function`) message into canonical messages.
- * Tool-result content may carry images alongside text; pi-ai's
+ * Tool-result content may carry images alongside text; gpt-ai's
  * `ToolResultMessage` accepts both, but most downstream providers ignore
  * images on tool results. To mirror Rust's `encode_messages` behavior we
  * keep text inside the tool-result message and hoist any image parts into a
@@ -358,7 +358,7 @@ export function encodeResponse(message: AssistantMessage, requestedModelId: stri
 	const responseMessage: Record<string, unknown> = {
 		role: "assistant",
 		content: text.length > 0 ? text : null,
-		// pi-ai does not surface real refusals yet; emit `null` so SDKs that
+		// gpt-ai does not surface real refusals yet; emit `null` so SDKs that
 		// probe `.refusal` see the documented field shape rather than missing.
 		refusal: null,
 	};
@@ -457,7 +457,7 @@ function stringifyArgs(args: Record<string, unknown>): string {
 function mapFinishReason(reason: StopReason, hasToolCalls: boolean): string {
 	if (reason === "toolUse" || (hasToolCalls && reason === "stop")) return "tool_calls";
 	if (reason === "length") return "length";
-	// pi-ai's StopReason does not currently carry a content-filter signal;
+	// gpt-ai's StopReason does not currently carry a content-filter signal;
 	// when it does, map it to "content_filter" here.
 	return "stop";
 }
@@ -508,7 +508,7 @@ export function encodeStream(
 
 	return new ReadableStream<Uint8Array>({
 		async start(controller) {
-			// contentIndex (from pi-ai events) -> tool_calls index on the wire.
+			// contentIndex (from gpt-ai events) -> tool_calls index on the wire.
 			const toolIndexByContentIndex = new Map<number, number>();
 			let nextToolIndex = 0;
 			let hasToolCalls = false;

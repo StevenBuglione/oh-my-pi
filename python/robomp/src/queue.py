@@ -106,7 +106,7 @@ class WorkerPool:
 
         Cleanly interrupted tasks intentionally leave their DB row in
         `running` so the next `WorkerPool.start()` re-queues them via
-        `reset_stuck_running()`. The resumed omp session then picks up via
+        `reset_stuck_running()`. The resumed omg session then picks up via
         `--continue` from the persisted JSONL transcript.
         """
         self._shutting_down = True
@@ -128,7 +128,7 @@ class WorkerPool:
         if not still_running:
             return
         # 3. Time's up — for every still-running task: fire its cancel hook
-        #    if one was registered (kills the omp subprocess); otherwise
+        #    if one was registered (kills the omg subprocess); otherwise
         #    cancel the asyncio task itself so a worker stuck pre-hook
         #    (e.g. waiting on the slot pool or inside RpcClient.__enter__)
         #    cannot proceed to spawn a fresh subprocess after stop()
@@ -150,7 +150,7 @@ class WorkerPool:
                 except Exception:
                     log.exception("shutdown hook raised", extra={"delivery": delivery_id})
                 continue
-            # No hook armed yet — the worker hasn't reached the omp spawn
+            # No hook armed yet — the worker hasn't reached the omg spawn
             # point. Cancel the asyncio task directly so its body cannot
             # run past stop().
             task.cancel()
@@ -261,7 +261,7 @@ class WorkerPool:
         if hook is None:
             return False
         # `hook` typically kills a subprocess; run it off the loop so its wait()
-        # doesn't stall the event loop for up to the omp shutdown grace period.
+        # doesn't stall the event loop for up to the omg shutdown grace period.
         try:
             await asyncio.to_thread(hook)
         except Exception:
@@ -287,7 +287,7 @@ class WorkerPool:
                 # `stop()` deliberately interrupted this delivery —
                 # leave the row in `running` so `reset_stuck_running()`
                 # flips it back to `queued` on the next start and the
-                # resumed omp session picks up via `--continue`.
+                # resumed omg session picks up via `--continue`.
                 # Other exceptions during the drain window (which
                 # would also see `_shutting_down=True`) MUST still
                 # mark the row failed; otherwise a genuine bug gets

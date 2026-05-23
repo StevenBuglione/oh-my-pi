@@ -1,4 +1,4 @@
-import { THINKING_EFFORTS } from "@oh-my-pi/pi-ai";
+import { THINKING_EFFORTS } from "@oh-my-gpt/gpt-ai";
 import { TASK_SIMPLE_MODES } from "../task/simple-mode";
 import { getThinkingLevelMetadata } from "../thinking";
 import { EDIT_MODES } from "../utils/edit-mode";
@@ -234,9 +234,9 @@ export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
 	lastChangelogVersion: { type: "string", default: undefined },
 
-	// Auth broker — credentials proxied through a remote `omp auth-broker serve`
+	// Auth broker — credentials proxied through a remote `omg auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
-	// Env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) takes precedence so
+	// Env (`OMG_AUTH_BROKER_URL` / `OMG_AUTH_BROKER_TOKEN`) takes precedence so
 	// per-machine overrides remain trivial.
 	"auth.broker.url": { type: "string", default: undefined },
 	"auth.broker.token": { type: "string", default: undefined },
@@ -1399,7 +1399,7 @@ export const SETTINGS_SCHEMA = {
 	},
 	"hindsight.retainEveryNTurns": { type: "number", default: 3 },
 	"hindsight.retainOverlapTurns": { type: "number", default: 2 },
-	"hindsight.retainContext": { type: "string", default: "omp" },
+	"hindsight.retainContext": { type: "string", default: "omg" },
 
 	"hindsight.recallBudget": {
 		type: "enum",
@@ -1981,7 +1981,7 @@ export const SETTINGS_SCHEMA = {
 		ui: {
 			tab: "tools",
 			label: "GitHub view cache",
-			description: "Cache rendered issue/PR view output in ~/.omp/cache/github-cache.db so repeated reads are free",
+			description: "Cache rendered issue/PR view output in ~/.omg/cache/github-cache.db so repeated reads are free",
 		},
 	},
 
@@ -2698,14 +2698,14 @@ export const SETTINGS_SCHEMA = {
 
 	"dev.autoqaPush.endpoint": {
 		type: "string",
-		// Bundled QA collector — runs `/work/pi-www/autoqa` behind qa.omp.sh.
+		// Bundled QA collector — runs `/work/pi-www/autoqa` behind qa.omg.sh.
 		// Override via `PI_AUTO_QA_PUSH_URL` or `dev.autoqaPush.endpoint`
 		// in `config.yml` to point at a self-hosted instance.
-		default: "https://qa.omp.sh/v1/grievances" as const,
+		default: "https://qa.omg.sh/v1/grievances" as const,
 		ui: {
 			tab: "tools",
 			label: "Auto QA Push Endpoint",
-			description: "Full URL that receives the JSON payload (default ships to https://qa.omp.sh/v1/grievances)",
+			description: "Full URL that receives the JSON payload (default ships to https://qa.omg.sh/v1/grievances)",
 		},
 	},
 

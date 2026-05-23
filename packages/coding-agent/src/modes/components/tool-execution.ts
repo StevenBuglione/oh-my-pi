@@ -1,4 +1,4 @@
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@oh-my-gpt/gpt-agent-core";
 import {
 	Box,
 	type Component,
@@ -11,8 +11,8 @@ import {
 	TERMINAL,
 	Text,
 	type TUI,
-} from "@oh-my-pi/pi-tui";
-import { getProjectDir, logger, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-tui";
+import { getProjectDir, logger, sanitizeText } from "@oh-my-gpt/gpt-utils";
 import { EDIT_MODE_STRATEGIES, type EditMode, type PerFileDiffPreview } from "../../edit";
 import type { Theme } from "../../modes/theme/theme";
 import { theme } from "../../modes/theme/theme";

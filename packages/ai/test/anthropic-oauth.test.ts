@@ -196,7 +196,7 @@ describe("anthropic oauth alignment", () => {
 
 describe("anthropic auth resolution", () => {
 	it("prefers explicit Foundry env key over stored OAuth and normalizes Foundry base URL", async () => {
-		const tmpDir = path.join(os.tmpdir(), `pi-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const tmpDir = path.join(os.tmpdir(), `gpt-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		fs.mkdirSync(tmpDir, { recursive: true });
 		const dbPath = path.join(tmpDir, "agent.db");
 		const store = await SqliteAuthCredentialStore.open(dbPath);
@@ -228,7 +228,7 @@ describe("anthropic auth resolution", () => {
 	});
 
 	it("keeps non-Foundry OAuth precedence unchanged", async () => {
-		const tmpDir = path.join(os.tmpdir(), `pi-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const tmpDir = path.join(os.tmpdir(), `gpt-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		fs.mkdirSync(tmpDir, { recursive: true });
 		const dbPath = path.join(tmpDir, "agent.db");
 		const store = await SqliteAuthCredentialStore.open(dbPath);
@@ -258,7 +258,7 @@ describe("anthropic auth resolution", () => {
 	});
 
 	it("prefers stored API key over generic env fallback", async () => {
-		const tmpDir = path.join(os.tmpdir(), `pi-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const tmpDir = path.join(os.tmpdir(), `gpt-ai-auth-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		fs.mkdirSync(tmpDir, { recursive: true });
 		const dbPath = path.join(tmpDir, "agent.db");
 		const store = await SqliteAuthCredentialStore.open(dbPath);

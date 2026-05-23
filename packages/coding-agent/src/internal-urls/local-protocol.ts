@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 import { AgentRegistry } from "../registry/agent-registry";
 import { parseInternalUrl } from "./parse";
 import { validateRelativePath } from "./skill-protocol";
@@ -116,7 +116,7 @@ export function resolveLocalRoot(options: LocalProtocolOptions): string {
 
 	const sessionId = options.getSessionId?.() ?? "session";
 	const safeSessionId = sessionId.replace(/[^a-zA-Z0-9_.-]/g, "_");
-	return path.join(os.tmpdir(), "omp-local", safeSessionId);
+	return path.join(os.tmpdir(), "omg-local", safeSessionId);
 }
 
 export function resolveLocalUrlToPath(input: string | InternalUrl, options: LocalProtocolOptions): string {

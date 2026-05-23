@@ -1,16 +1,16 @@
 ---
 name: authoring-extensions
-description: Use when creating a new omp extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
+description: Use when creating a new omg extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
 ---
 
 # Authoring Extensions
 
-Extensions are the primary way to add capabilities to `oh-my-pi`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file.
+Extensions are the primary way to add capabilities to `oh-my-gpt`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file.
 
 ## Minimum viable extension
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@oh-my-gpt/gpt-coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
@@ -19,14 +19,14 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-That is a working extension. Drop it into `~/.omp/agent/extensions/hello.ts` and restart omp to see the notification.
+That is a working extension. Drop it into `~/.omg/agent/extensions/hello.ts` and restart omg to see the notification.
 
 ## Full example
 
 The following extension registers a slash command, a tool, and a session-start hook:
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@oh-my-gpt/gpt-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
   const z = pi.zod;
@@ -75,31 +75,31 @@ export default function myExtension(pi: ExtensionAPI) {
 
 ## Discovery path
 
-omp discovers extension modules in this order:
+omg discovers extension modules in this order:
 
-1. **Project-scoped auto-discovery** — `<cwd>/.omp/extensions/`
-2. **User-scoped auto-discovery** — `~/.omp/agent/extensions/`
-3. **Marketplace-installed plugins** — `~/.omp/plugins/node_modules/` (extensions shipped inside installed plugin packages)
-4. **CLI flag** — `omp --extension ./my-ext.ts` (also `-e`; `--hook` is treated as an alias)
-5. **Settings `extensions` array** — paths listed in `~/.omp/agent/config.yml` or `<cwd>/.omp/settings.json`
+1. **Project-scoped auto-discovery** — `<cwd>/.omg/extensions/`
+2. **User-scoped auto-discovery** — `~/.omg/agent/extensions/`
+3. **Marketplace-installed plugins** — `~/.omg/plugins/node_modules/` (extensions shipped inside installed plugin packages)
+4. **CLI flag** — `omg --extension ./my-ext.ts` (also `-e`; `--hook` is treated as an alias)
+5. **Settings `extensions` array** — paths listed in `~/.omg/agent/config.yml` or `<cwd>/.omg/settings.json`
 
 Within each scope, de-duplication is by resolved absolute path — first seen wins.
 
-When a path points to a directory, omp resolves the entry point in this order:
+When a path points to a directory, omg resolves the entry point in this order:
 
-1. `package.json` with `omp.extensions` (or legacy `pi.extensions`) field
+1. `package.json` with `omg.extensions` (or legacy `pi.extensions`) field
 2. `index.ts`
 3. `index.js`
 4. One-level scan for `*.ts` / `*.js` files and subdir `index.*` / `package.json` manifests
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `omp` field to `package.json`:
+To package an extension as an installable plugin, add an `omg` field to `package.json`:
 
 ```json
 {
-  "name": "my-omp-extension",
-  "omp": {
+  "name": "my-omg-extension",
+  "omg": {
     "extensions": ["./src/main.ts"]
   }
 }
@@ -119,7 +119,7 @@ Multiple entry points are supported:
 
 ```json
 {
-  "omp": {
+  "omg": {
     "extensions": ["./src/safety.ts", "./src/tools.ts"]
   }
 }
@@ -207,7 +207,7 @@ Full event catalog: see [hooks authoring guide](./authoring-hooks.md).
 |---|---|
 | Tools + commands + events in one module | **Extension** (`ExtensionAPI`) |
 | Pure event interception (policy, redaction) | **Extension** or **Hook** (both work; extension is preferred) |
-| Legacy hook module already exists | **Hook** (`HookAPI` from `@oh-my-pi/pi-coding-agent/extensibility/hooks`) |
+| Legacy hook module already exists | **Hook** (`HookAPI` from `@oh-my-gpt/gpt-coding-agent/extensibility/hooks`) |
 | Registering provider / custom message renderer | **Extension only** |
 | Shipping as a marketplace plugin | **Extension** (use `package.json` manifest) |
 
@@ -215,23 +215,23 @@ Extensions are a strict superset of hooks. New authoring should use `ExtensionAP
 
 ## Debugging
 
-Start omp with `--log-level debug` to see extension load messages:
+Start omg with `--log-level debug` to see extension load messages:
 
 ```
-omp --log-level debug
+omg --log-level debug
 ```
 
 Watch for lines like:
 
 ```
-[extension-loader] loading /home/you/.omp/agent/extensions/my-ext.ts
+[extension-loader] loading /home/you/.omg/agent/extensions/my-ext.ts
 [extension-loader] loaded: my-ext (1 tool, 1 command, 2 handlers)
 ```
 
 To temporarily disable a specific extension by name without removing the file:
 
 ```yaml
-# ~/.omp/agent/config.yml
+# ~/.omg/agent/config.yml
 disabledExtensions:
   - extension-module:my-ext
 ```

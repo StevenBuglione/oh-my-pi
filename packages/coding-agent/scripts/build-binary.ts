@@ -3,7 +3,7 @@
 import * as path from "node:path";
 
 const packageDir = path.join(import.meta.dir, "..");
-const outputPath = path.join(packageDir, "dist", "omp");
+const outputPath = path.join(packageDir, "dist", "omg");
 
 function shouldAdhocSignDarwinBinary(): boolean {
 	return process.platform === "darwin";
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
 					"--no-compile-autoload-package-json",
 					"--keep-names",
 					"--define",
-					'process.env.PI_COMPILED="true"',
+					'process.env.OMG_COMPILED="true"',
 					"--external",
 					"mupdf",
 					"--root",
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
 					"./src/tools/browser/tab-worker-entry.ts",
 					"./src/eval/js/worker-entry.ts",
 					"--outfile",
-					"dist/omp",
+					"dist/omg",
 				],
 				buildEnv,
 			);

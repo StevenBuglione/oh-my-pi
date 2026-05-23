@@ -3,8 +3,8 @@
  *
  * Subagents must call this tool to finish and return structured JSON output.
  */
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { TSchema } from "@oh-my-pi/pi-ai/types";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-gpt/gpt-agent-core";
+import type { TSchema } from "@oh-my-gpt/gpt-ai/types";
 import {
 	dereferenceJsonSchema,
 	isValidJsonSchema,
@@ -13,7 +13,7 @@ import {
 	sanitizeSchemaForStrictMode,
 	tryEnforceStrictSchema,
 	validateJsonSchemaValue,
-} from "@oh-my-pi/pi-ai/utils/schema";
+} from "@oh-my-gpt/gpt-ai/utils/schema";
 import { subprocessToolRegistry } from "../task/subprocess-tool-registry";
 import type { ToolSession } from ".";
 import { jtdToJsonSchema, normalizeSchema } from "./jtd-to-json-schema";

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
-import type { Model } from "@oh-my-pi/pi-ai";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { CustomToolContext } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools";
-import type { ReadonlySessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { imageGenTool, setPreferredImageProvider } from "@oh-my-pi/pi-coding-agent/tools/image-gen";
+import type { Model } from "@oh-my-gpt/gpt-ai";
+import type { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import type { CustomToolContext } from "@oh-my-gpt/gpt-coding-agent/extensibility/custom-tools";
+import type { ReadonlySessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { imageGenTool, setPreferredImageProvider } from "@oh-my-gpt/gpt-coding-agent/tools/image-gen";
 
 const originalFetch = global.fetch;
 const originalOpenRouterKey = Bun.env.OPENROUTER_API_KEY;

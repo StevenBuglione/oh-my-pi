@@ -6,13 +6,13 @@
  * - /swarm status             — Show current pipeline status
  *
  * Usage: Add this extension's directory to your extensions config,
- * then use /swarm in any oh-my-pi session.
+ * then use /swarm in any oh-my-gpt session.
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AuthStorage, ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-agent";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { AuthStorage, ExtensionAPI, ExtensionCommandContext } from "@oh-my-gpt/gpt-coding-agent";
+import { formatDuration } from "@oh-my-gpt/gpt-utils";
 import { buildDependencyGraph, buildExecutionWaves, detectCycles } from "./swarm/dag";
 import { PipelineController } from "./swarm/pipeline";
 import { renderSwarmProgress } from "./swarm/render";

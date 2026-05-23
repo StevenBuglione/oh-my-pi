@@ -1,4 +1,4 @@
-import type { UsageLimit, UsageReport } from "@oh-my-pi/pi-ai";
+import type { UsageLimit, UsageReport } from "@oh-my-gpt/gpt-ai";
 import type { SlashCommandRuntime } from "../types";
 import { formatDuration, renderAsciiBar } from "./format";
 

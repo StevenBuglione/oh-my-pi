@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { renderKernelDisplay } from "@oh-my-pi/pi-coding-agent/eval/py/display";
+import { renderKernelDisplay } from "@oh-my-gpt/gpt-coding-agent/eval/py/display";
 
 describe("renderKernelDisplay (raw bundle shape)", () => {
 	it("renders status events without text output", async () => {
 		const { text, outputs } = await renderKernelDisplay({
-			"application/x-omp-status": { op: "find", count: 12, pattern: "foo" },
+			"application/x-omg-status": { op: "find", count: 12, pattern: "foo" },
 		});
 		expect(text).toBe("");
 		expect(outputs).toEqual([{ type: "status", event: { op: "find", count: 12, pattern: "foo" } }]);

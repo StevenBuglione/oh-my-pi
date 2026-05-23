@@ -156,7 +156,7 @@ describe("openai-responses parseRequest", () => {
 		// case (only "none" toggles hideThinkingSummary).
 		expect(parsed.options.hideThinkingSummary).toBeUndefined();
 		// `store` and `previous_response_id` are accepted by the schema but not
-		// plumbed through pi-ai — they no longer leak into options.extra.
+		// plumbed through gpt-ai — they no longer leak into options.extra.
 		expect(parsed.options.extra).toBeUndefined();
 	});
 

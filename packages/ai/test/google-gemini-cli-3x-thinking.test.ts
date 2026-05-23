@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { enrichModelThinking } from "@oh-my-pi/pi-ai/model-thinking";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { Effort } from "@oh-my-gpt/gpt-ai";
+import { enrichModelThinking } from "@oh-my-gpt/gpt-ai/model-thinking";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 import { streamSimple } from "../src/stream";
 import type { Context, Model } from "../src/types";
 

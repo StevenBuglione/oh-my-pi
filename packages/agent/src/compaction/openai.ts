@@ -17,16 +17,16 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/constants";
-import { parseTextSignature } from "@oh-my-pi/pi-ai/providers/openai-responses-shared";
-import { transformMessages } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model } from "@oh-my-pi/pi-ai/types";
+} from "@oh-my-gpt/gpt-ai/providers/openai-codex/constants";
+import { parseTextSignature } from "@oh-my-gpt/gpt-ai/providers/openai-responses-shared";
+import { transformMessages } from "@oh-my-gpt/gpt-ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model } from "@oh-my-gpt/gpt-ai/types";
 import {
 	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeResponsesToolCallId,
-} from "@oh-my-pi/pi-ai/utils";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai/utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 
 // ============================================================================
 // Public types

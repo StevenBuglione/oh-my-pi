@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 
 export interface FileLockOptions {
 	staleMs?: number;

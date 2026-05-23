@@ -69,7 +69,7 @@ The tool returns a single text block plus structured `details`.
   - Stats the resolved base path, and in local multi-path mode stats every candidate base path up front.
   - Does not write files.
 - Subprocesses / native bindings
-  - Built-in local mode calls the native `@oh-my-pi/pi-natives` glob implementation.
+  - Built-in local mode calls the native `@oh-my-gpt/gpt-natives` glob implementation.
 - Session state (transcript, memory, jobs, checkpoints, registries)
   - Emits structured progress updates when `onUpdate` is provided.
   - Adds truncation / limit metadata to the tool result.

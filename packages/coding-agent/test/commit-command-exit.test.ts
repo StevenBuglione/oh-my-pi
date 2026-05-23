@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { postmortem } from "@oh-my-pi/pi-utils";
+import { postmortem } from "@oh-my-gpt/gpt-utils";
 import CommitCommand from "../src/commands/commit";
 import * as commitModule from "../src/commit";
 import * as themeModule from "../src/modes/theme/theme";
 
-describe("omp commit command lifecycle (issue #1041)", () => {
+describe("omg commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -19,7 +19,7 @@ describe("omp commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "omp",
+			bin: "omg",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import * as native from "@oh-my-pi/pi-natives";
+import { CommandController } from "@oh-my-gpt/gpt-coding-agent/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@oh-my-gpt/gpt-coding-agent/modes/types";
+import * as native from "@oh-my-gpt/gpt-natives";
 
 function createController(options: { assistantText?: string; hasAssistantMessage?: boolean; handoffText?: string }) {
 	const showStatus = vi.fn();

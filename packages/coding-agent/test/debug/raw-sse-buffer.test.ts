@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
+import type { Model } from "@oh-my-gpt/gpt-ai";
 import { RawSseDebugBuffer, rawSseRecordLines, resolveRawSseDebugBuffer } from "../../src/debug/raw-sse-buffer";
 
 const model: Model<"anthropic-messages"> = {

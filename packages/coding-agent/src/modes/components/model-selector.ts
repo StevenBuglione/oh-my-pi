@@ -1,5 +1,5 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { getSupportedEfforts, type Model, modelsAreEqual } from "@oh-my-pi/pi-ai";
+import { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import { getSupportedEfforts, type Model, modelsAreEqual } from "@oh-my-gpt/gpt-ai";
 import {
 	Container,
 	fuzzyFilter,
@@ -12,7 +12,7 @@ import {
 	Text,
 	type TUI,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@oh-my-gpt/gpt-tui";
 import type { ModelRegistry } from "../../config/model-registry";
 import { getKnownRoleIds, getRoleInfo, MODEL_ROLE_IDS, MODEL_ROLES } from "../../config/model-registry";
 import { resolveModelRoleValue } from "../../config/model-resolver";

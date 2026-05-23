@@ -33,67 +33,67 @@ class Settings(BaseSettings):
     # the PAT. Validated end-to-end in `_validate_proxy_or_pat` below.
     github_token: SecretStr | None = Field(None, alias="GITHUB_TOKEN")
     github_webhook_secret: SecretStr = Field(..., alias="GITHUB_WEBHOOK_SECRET")
-    bot_login: str = Field(..., alias="ROBOMP_BOT_LOGIN")
-    git_author_name: str | None = Field(None, alias="ROBOMP_GIT_AUTHOR_NAME")
-    git_author_email: str = Field(..., alias="ROBOMP_GIT_AUTHOR_EMAIL")
-    repo_allowlist_raw: str = Field("", alias="ROBOMP_REPO_ALLOWLIST")
+    bot_login: str = Field(..., alias="ROBOMG_BOT_LOGIN")
+    git_author_name: str | None = Field(None, alias="ROBOMG_GIT_AUTHOR_NAME")
+    git_author_email: str = Field(..., alias="ROBOMG_GIT_AUTHOR_EMAIL")
+    repo_allowlist_raw: str = Field("", alias="ROBOMG_REPO_ALLOWLIST")
 
     # gh-proxy. Set BOTH to route GitHub through the proxy; leave both empty
     # to keep PAT-on-orchestrator behavior. Mixing the two (PAT + proxy) is
     # rejected to prevent silent fallback to direct GitHub access.
-    gh_proxy_url: str | None = Field(None, alias="ROBOMP_GH_PROXY_URL")
-    gh_proxy_hmac_key: SecretStr | None = Field(None, alias="ROBOMP_GH_PROXY_HMAC_KEY")
+    gh_proxy_url: str | None = Field(None, alias="ROBOMG_GH_PROXY_URL")
+    gh_proxy_hmac_key: SecretStr | None = Field(None, alias="ROBOMG_GH_PROXY_HMAC_KEY")
     # Bind address for `python -m robomp.proxy serve`. Internal-only by
     # default; gh-proxy never exposes a host port.
-    gh_proxy_bind_host: str = Field("0.0.0.0", alias="ROBOMP_GH_PROXY_BIND_HOST")
-    gh_proxy_bind_port: int = Field(8081, alias="ROBOMP_GH_PROXY_BIND_PORT")
+    gh_proxy_bind_host: str = Field("0.0.0.0", alias="ROBOMG_GH_PROXY_BIND_HOST")
+    gh_proxy_bind_port: int = Field(8081, alias="ROBOMG_GH_PROXY_BIND_PORT")
 
     # gh-proxy: maximum request body size (bytes). Bodies larger than this
     # are rejected with 413 BEFORE the proxy reads them into memory. Tight
     # by design — every typed endpoint payload fits in a few KB.
-    gh_proxy_max_body_bytes: int = Field(1 << 20, alias="ROBOMP_GH_PROXY_MAX_BODY_BYTES")
+    gh_proxy_max_body_bytes: int = Field(1 << 20, alias="ROBOMG_GH_PROXY_MAX_BODY_BYTES")
     # Hard wall-clock budget (seconds) for a single git subprocess invoked
     # by gh-proxy. Bounds how long a hung git can pin a request handler.
-    gh_proxy_git_timeout_seconds: float = Field(60.0, alias="ROBOMP_GH_PROXY_GIT_TIMEOUT_SECONDS")
+    gh_proxy_git_timeout_seconds: float = Field(60.0, alias="ROBOMG_GH_PROXY_GIT_TIMEOUT_SECONDS")
 
     # Model selection
-    model: str = Field("anthropic/claude-sonnet-4-6", alias="ROBOMP_MODEL")
-    provider: str | None = Field(None, alias="ROBOMP_PROVIDER")
-    thinking_level: ThinkingLevel = Field("high", alias="ROBOMP_THINKING")
+    model: str = Field("anthropic/claude-sonnet-4-6", alias="ROBOMG_MODEL")
+    provider: str | None = Field(None, alias="ROBOMG_PROVIDER")
+    thinking_level: ThinkingLevel = Field("high", alias="ROBOMG_THINKING")
 
     # Runtime
-    max_concurrency: int = Field(8, alias="ROBOMP_MAX_CONCURRENCY")
-    task_timeout_seconds: float = Field(2400.0, alias="ROBOMP_TASK_TIMEOUT_SECONDS")
-    task_timeout_hard_grace_seconds: float = Field(60.0, alias="ROBOMP_TASK_TIMEOUT_HARD_GRACE_SECONDS")
-    request_timeout_seconds: float = Field(120.0, alias="ROBOMP_REQUEST_TIMEOUT_SECONDS")
+    max_concurrency: int = Field(8, alias="ROBOMG_MAX_CONCURRENCY")
+    task_timeout_seconds: float = Field(2400.0, alias="ROBOMG_TASK_TIMEOUT_SECONDS")
+    task_timeout_hard_grace_seconds: float = Field(60.0, alias="ROBOMG_TASK_TIMEOUT_HARD_GRACE_SECONDS")
+    request_timeout_seconds: float = Field(120.0, alias="ROBOMG_REQUEST_TIMEOUT_SECONDS")
     # Premature-end reminder. When a `triage_issue` turn ends without the
     # agent having reached a terminal tool (`gh_open_pr`,
     # `mark_unable_to_reproduce`, `abort_task`) for a `bug`/`documentation`
     # classification, the driver sends up to this many "you stopped before
-    # opening a PR — continue" reminder prompts into the same omp session.
+    # opening a PR — continue" reminder prompts into the same omg session.
     # Set to 0 to disable.
-    task_completion_max_reminders: int = Field(2, alias="ROBOMP_TASK_COMPLETION_MAX_REMINDERS")
-    omp_command: str = Field("omp", alias="ROBOMP_OMP_COMMAND")
+    task_completion_max_reminders: int = Field(2, alias="ROBOMG_TASK_COMPLETION_MAX_REMINDERS")
+    omp_command: str = Field("omg", alias="ROBOMG_OMG_COMMAND")
 
     # Graceful shutdown (Phase B). On SIGTERM the dispatcher stops claiming
     # new work, then waits up to `drain` seconds for in-flight events to
-    # complete cleanly; any still running after that get their omp
+    # complete cleanly; any still running after that get their omg
     # subprocess killed and the row left in `running` so it requeues on
     # next start. Sum of both MUST stay below the compose `stop_grace_period`.
-    shutdown_drain_timeout_seconds: float = Field(25.0, alias="ROBOMP_SHUTDOWN_DRAIN_TIMEOUT_SECONDS")
-    shutdown_kill_timeout_seconds: float = Field(5.0, alias="ROBOMP_SHUTDOWN_KILL_TIMEOUT_SECONDS")
+    shutdown_drain_timeout_seconds: float = Field(25.0, alias="ROBOMG_SHUTDOWN_DRAIN_TIMEOUT_SECONDS")
+    shutdown_kill_timeout_seconds: float = Field(5.0, alias="ROBOMG_SHUTDOWN_KILL_TIMEOUT_SECONDS")
 
     # Paths
-    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMP_WORKSPACE_ROOT")
-    sqlite_path: Path = Field(Path("./data/robomp.sqlite"), alias="ROBOMP_SQLITE_PATH")
-    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMP_LOG_DIR")
+    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMG_WORKSPACE_ROOT")
+    sqlite_path: Path = Field(Path("./data/robomp.sqlite"), alias="ROBOMG_SQLITE_PATH")
+    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMG_LOG_DIR")
 
     # Server
-    bind_host: str = Field("0.0.0.0", alias="ROBOMP_BIND_HOST")
-    bind_port: int = Field(8080, alias="ROBOMP_BIND_PORT")
+    bind_host: str = Field("0.0.0.0", alias="ROBOMG_BIND_HOST")
+    bind_port: int = Field(8080, alias="ROBOMG_BIND_PORT")
 
     # Dev-only replay header value; if empty, /replay is disabled
-    replay_token: SecretStr | None = Field(None, alias="ROBOMP_REPLAY_TOKEN")
+    replay_token: SecretStr | None = Field(None, alias="ROBOMG_REPLAY_TOKEN")
 
     # Per-submitter rate limiting. `window_seconds` defines the rolling window;
     # `default` is the per-window cap for unknown/first-time submitters;
@@ -101,18 +101,18 @@ class Settings(BaseSettings):
     # `CONTRIBUTOR` (i.e. already has a merged PR). `unlimited_raw` is a
     # comma-separated allowlist of logins that bypass the limiter entirely;
     # accounts with author_association OWNER/MEMBER/COLLABORATOR also bypass.
-    rate_limit_window_seconds: float = Field(3600.0, alias="ROBOMP_RATE_LIMIT_WINDOW_SECONDS")
-    rate_limit_default: int = Field(3, alias="ROBOMP_RATE_LIMIT_DEFAULT")
-    rate_limit_contributor: int = Field(10, alias="ROBOMP_RATE_LIMIT_CONTRIBUTOR")
-    rate_limit_unlimited_raw: str = Field("", alias="ROBOMP_RATE_LIMIT_UNLIMITED")
+    rate_limit_window_seconds: float = Field(3600.0, alias="ROBOMG_RATE_LIMIT_WINDOW_SECONDS")
+    rate_limit_default: int = Field(3, alias="ROBOMG_RATE_LIMIT_DEFAULT")
+    rate_limit_contributor: int = Field(10, alias="ROBOMG_RATE_LIMIT_CONTRIBUTOR")
+    rate_limit_unlimited_raw: str = Field("", alias="ROBOMG_RATE_LIMIT_UNLIMITED")
     # Logins (comma-separated, `@` prefix optional) whose `@bot_login`
     # mentions are treated as authoritative directives. These accounts also
     # bypass rate limiting regardless of `author_association`.
-    maintainer_logins_raw: str = Field("", alias="ROBOMP_MAINTAINER_LOGINS")
+    maintainer_logins_raw: str = Field("", alias="ROBOMG_MAINTAINER_LOGINS")
     # Bot logins (e.g. chatgpt-codex-connector) whose comments/reviews are
     # treated as authoritative directives without requiring an `@bot` mention.
     # Comma-separated; `@` prefix optional.
-    reviewer_bots_raw: str = Field("", alias="ROBOMP_REVIEWER_BOTS")
+    reviewer_bots_raw: str = Field("", alias="ROBOMG_REVIEWER_BOTS")
 
     # Question auto-close. When the bot answers an issue classified as
     # `question`, the comment is suffixed with a 👎-to-keep-open prompt and a
@@ -120,35 +120,35 @@ class Settings(BaseSettings):
     # after `question_autoclose_hours` unless the issue author downvoted the
     # comment, a human follow-up arrived, or the issue was closed externally.
     # Set `question_autoclose_enabled=False` (or hours <= 0) to disable.
-    question_autoclose_enabled: bool = Field(True, alias="ROBOMP_QUESTION_AUTOCLOSE_ENABLED")
-    question_autoclose_hours: float = Field(4.0, alias="ROBOMP_QUESTION_AUTOCLOSE_HOURS")
-    question_autoclose_scan_seconds: float = Field(60.0, alias="ROBOMP_QUESTION_AUTOCLOSE_SCAN_SECONDS")
+    question_autoclose_enabled: bool = Field(True, alias="ROBOMG_QUESTION_AUTOCLOSE_ENABLED")
+    question_autoclose_hours: float = Field(4.0, alias="ROBOMG_QUESTION_AUTOCLOSE_HOURS")
+    question_autoclose_scan_seconds: float = Field(60.0, alias="ROBOMG_QUESTION_AUTOCLOSE_SCAN_SECONDS")
 
-    # pi-natives build-output cache. Hardlinks pre-built
+    # gpt-natives build-output cache. Hardlinks pre-built
     # `packages/natives/native/*.node` (and its companions) into new
     # workspaces keyed by the git tree-hashes of inputs that determine the
     # build output. Misses are captured automatically when a task that
     # finishes successfully has fresh artifacts. Disable to fall back to
     # per-workspace builds.
-    natives_cache_enabled: bool = Field(True, alias="ROBOMP_NATIVES_CACHE_ENABLED")
-    natives_cache_root: Path = Field(Path("/data/cache/pi-natives"), alias="ROBOMP_NATIVES_CACHE_ROOT")
-    natives_cache_max_entries_per_repo: int = Field(8, alias="ROBOMP_NATIVES_CACHE_MAX_ENTRIES_PER_REPO")
-    natives_cache_max_bytes: int = Field(4 * 1024**3, alias="ROBOMP_NATIVES_CACHE_MAX_BYTES")
-    natives_cache_gc_interval_seconds: float = Field(3600.0, alias="ROBOMP_NATIVES_CACHE_GC_INTERVAL_SECONDS")
+    natives_cache_enabled: bool = Field(True, alias="ROBOMG_NATIVES_CACHE_ENABLED")
+    natives_cache_root: Path = Field(Path("/data/cache/gpt-natives"), alias="ROBOMG_NATIVES_CACHE_ROOT")
+    natives_cache_max_entries_per_repo: int = Field(8, alias="ROBOMG_NATIVES_CACHE_MAX_ENTRIES_PER_REPO")
+    natives_cache_max_bytes: int = Field(4 * 1024**3, alias="ROBOMG_NATIVES_CACHE_MAX_BYTES")
+    natives_cache_gc_interval_seconds: float = Field(3600.0, alias="ROBOMG_NATIVES_CACHE_GC_INTERVAL_SECONDS")
 
     @field_validator("bot_login", mode="after")
     @classmethod
     def _require_bot_login(cls, value: str) -> str:
         cleaned = value.strip()
         if not cleaned:
-            raise ValueError("ROBOMP_BOT_LOGIN must be a non-empty GitHub login")
+            raise ValueError("ROBOMG_BOT_LOGIN must be a non-empty GitHub login")
         return cleaned
 
     @field_validator("replay_token", mode="before")
     @classmethod
     def _blank_replay_disables(cls, value: object) -> object:
         # Treat empty/whitespace strings as 'disabled'. Without this, an empty
-        # ROBOMP_REPLAY_TOKEN becomes SecretStr("") which the server would
+        # ROBOMG_REPLAY_TOKEN becomes SecretStr("") which the server would
         # happily compare against an empty X-Robomp-Replay-Token header.
         if isinstance(value, str) and not value.strip():
             return None
@@ -204,17 +204,17 @@ class Settings(BaseSettings):
         has_key = self.gh_proxy_hmac_key is not None
         if has_token and has_url:
             raise ValueError(
-                "GITHUB_TOKEN and ROBOMP_GH_PROXY_URL are mutually exclusive — "
+                "GITHUB_TOKEN and ROBOMG_GH_PROXY_URL are mutually exclusive — "
                 "set ONE to choose between direct-PAT and gh-proxy modes."
             )
         if has_url != has_key:
             raise ValueError(
-                "ROBOMP_GH_PROXY_URL and ROBOMP_GH_PROXY_HMAC_KEY must both be set together (or both empty)."
+                "ROBOMG_GH_PROXY_URL and ROBOMG_GH_PROXY_HMAC_KEY must both be set together (or both empty)."
             )
         if not has_token and not has_url:
             raise ValueError(
                 "no GitHub access configured: set GITHUB_TOKEN, or set "
-                "ROBOMP_GH_PROXY_URL + ROBOMP_GH_PROXY_HMAC_KEY to use gh-proxy."
+                "ROBOMG_GH_PROXY_URL + ROBOMG_GH_PROXY_HMAC_KEY to use gh-proxy."
             )
         return self
 
@@ -287,7 +287,7 @@ class Settings(BaseSettings):
 
     @property
     def model_pool(self) -> tuple[str, ...]:
-        """ROBOMP_MODEL may be a single id or a comma-separated list; this
+        """ROBOMG_MODEL may be a single id or a comma-separated list; this
         returns the parsed pool (always non-empty)."""
         items = [piece.strip() for piece in self.model.split(",") if piece.strip()]
         return tuple(items) or (self.model,)
@@ -298,7 +298,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_author_name(self) -> str:
-        """Falls back to bot_login if ROBOMP_GIT_AUTHOR_NAME isn't set."""
+        """Falls back to bot_login if ROBOMG_GIT_AUTHOR_NAME isn't set."""
         return (self.git_author_name or self.bot_login).strip()
 
     def ensure_paths(self) -> None:
@@ -335,13 +335,13 @@ class _ProxyEnvLoader(BaseSettings):
     )
 
     github_token: SecretStr = Field(..., alias="GITHUB_TOKEN")
-    gh_proxy_hmac_key: SecretStr = Field(..., alias="ROBOMP_GH_PROXY_HMAC_KEY")
-    gh_proxy_bind_host: str = Field("0.0.0.0", alias="ROBOMP_GH_PROXY_BIND_HOST")
-    gh_proxy_bind_port: int = Field(8081, alias="ROBOMP_GH_PROXY_BIND_PORT")
-    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMP_WORKSPACE_ROOT")
-    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMP_LOG_DIR")
-    gh_proxy_max_body_bytes: int = Field(1 << 20, alias="ROBOMP_GH_PROXY_MAX_BODY_BYTES")
-    gh_proxy_git_timeout_seconds: float = Field(60.0, alias="ROBOMP_GH_PROXY_GIT_TIMEOUT_SECONDS")
+    gh_proxy_hmac_key: SecretStr = Field(..., alias="ROBOMG_GH_PROXY_HMAC_KEY")
+    gh_proxy_bind_host: str = Field("0.0.0.0", alias="ROBOMG_GH_PROXY_BIND_HOST")
+    gh_proxy_bind_port: int = Field(8081, alias="ROBOMG_GH_PROXY_BIND_PORT")
+    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMG_WORKSPACE_ROOT")
+    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMG_LOG_DIR")
+    gh_proxy_max_body_bytes: int = Field(1 << 20, alias="ROBOMG_GH_PROXY_MAX_BODY_BYTES")
+    gh_proxy_git_timeout_seconds: float = Field(60.0, alias="ROBOMG_GH_PROXY_GIT_TIMEOUT_SECONDS")
 
     @field_validator("github_token", "gh_proxy_hmac_key", mode="before")
     @classmethod

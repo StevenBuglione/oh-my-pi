@@ -22,13 +22,13 @@ from robomp.natives_cache import compute_key as natives_compute_key
 from robomp.sandbox import LocalGitTransport, SandboxManager, Workspace
 
 pytestmark = pytest.mark.skipif(
-    os.environ.get("ROBOMP_PERMISSION_E2E") != "1",
-    reason="set ROBOMP_PERMISSION_E2E=1 to run slot-permission e2e tests",
+    os.environ.get("ROBOMG_PERMISSION_E2E") != "1",
+    reason="set ROBOMG_PERMISSION_E2E=1 to run slot-permission e2e tests",
 )
 
 _SLOT_ONE = 2001
 _SLOT_TWO = 2002
-_SHARED_OMP_GID = 2000
+_SHARED_OMG_GID = 2000
 _AUTHOR_NAME = "robomp-bot"
 _AUTHOR_EMAIL = "robomp-bot@example.invalid"
 _REPO = "octo/permission-e2e"
@@ -36,7 +36,7 @@ _REPO = "octo/permission-e2e"
 
 def _require_linux_root_toolchain() -> None:
     if platform.system() != "Linux" or os.geteuid() != 0:
-        pytest.skip("slot permission e2e tests require Linux root so subprocesses can drop to omp-N UIDs")
+        pytest.skip("slot permission e2e tests require Linux root so subprocesses can drop to omg-N UIDs")
     missing = [cmd for cmd in ("git", "bun", "cargo", "python3") if shutil.which(cmd) is None]
     if missing:
         pytest.skip(f"slot permission e2e tests require tools on PATH: {', '.join(missing)}")
@@ -107,16 +107,16 @@ def slot_tmp_path() -> Iterator[Path]:
 def _share_tree_with_slots(path: Path) -> None:
     for root, dirs, files in os.walk(path):
         root_path = Path(root)
-        os.chown(root_path, 0, _SHARED_OMP_GID)
+        os.chown(root_path, 0, _SHARED_OMG_GID)
         root_path.chmod(0o2770)
         for dirname in dirs:
             child = root_path / dirname
-            os.chown(child, 0, _SHARED_OMP_GID)
+            os.chown(child, 0, _SHARED_OMG_GID)
             child.chmod(0o2770)
         for filename in files:
             child = root_path / filename
             executable = child.stat().st_mode & 0o111
-            os.chown(child, 0, _SHARED_OMP_GID)
+            os.chown(child, 0, _SHARED_OMG_GID)
             child.chmod(0o770 if executable else 0o660)
 
 
@@ -241,7 +241,7 @@ def _prepare_shared_cargo_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     cargo_target = tmp_path / "shared-cache" / "cargo-target"
     for path in (cargo_home, cargo_target):
         path.mkdir(parents=True)
-        os.chown(path, 0, _SHARED_OMP_GID)
+        os.chown(path, 0, _SHARED_OMG_GID)
         path.chmod(0o2770)
     monkeypatch.setenv("CARGO_HOME", str(cargo_home))
     monkeypatch.setenv("CARGO_TARGET_DIR", str(cargo_target))
@@ -260,7 +260,7 @@ def test_slot_workspace_runs_bun_biome_cargo_and_git_after_root_reentry(
     workspaces = slot_tmp_path / "workspaces"
 
     first = _ensure_workspace(workspaces, upstream_repo, number=101, slot_uid=_SLOT_ONE)
-    stale_bun_cache = first.root / ".omp-xdg" / "cache" / "bun-install" / "root-owned-stale"
+    stale_bun_cache = first.root / ".omg-xdg" / "cache" / "bun-install" / "root-owned-stale"
     stale_bun_cache.mkdir(parents=True, exist_ok=True)
     stale_marker = stale_bun_cache / "marker.txt"
     stale_marker.write_text("root-owned\n", encoding="utf-8")
@@ -287,7 +287,7 @@ def test_slot_workspace_runs_bun_biome_cargo_and_git_after_root_reentry(
     assert bun_cache.stat().st_uid == _SLOT_ONE
     assert stale_marker.stat().st_uid == _SLOT_ONE
     assert (cargo_target / "debug").is_dir()
-    assert (cargo_target / "debug").stat().st_gid == _SHARED_OMP_GID
+    assert (cargo_target / "debug").stat().st_gid == _SHARED_OMG_GID
 
     _write_as_slot(bindings, "src/slot-generated.ts", "export const generatedBySlot = true;\n")
     _run_ok(bindings, ["git", "add", "src/slot-generated.ts", "Cargo.lock", "bun.lock"])
@@ -338,10 +338,10 @@ def test_git_pool_metadata_survives_root_push_and_retry_slot(
 
 
 def _prepare_shared_natives_cache(slot_tmp_path: Path) -> NativesCache:
-    """Provision `/data/cache/pi-natives` shape (root:omp, setgid 2770)."""
-    cache_root = slot_tmp_path / "cache" / "pi-natives"
+    """Provision `/data/cache/gpt-natives` shape (root:omg, setgid 2770)."""
+    cache_root = slot_tmp_path / "cache" / "gpt-natives"
     cache_root.mkdir(parents=True)
-    os.chown(cache_root, 0, _SHARED_OMP_GID)
+    os.chown(cache_root, 0, _SHARED_OMG_GID)
     cache_root.chmod(0o2770)
     return NativesCache(cache_root)
 
@@ -371,7 +371,7 @@ def test_natives_cache_shares_artifacts_across_slot_workspaces(
     """End-to-end: capture under slot 1, populate under slot 2, prove that:
 
     1. A capture from a slot-owned workspace lands in the shared cache with
-       group `omp` setgid inheritance so any other slot can read it.
+       group `omg` setgid inheritance so any other slot can read it.
     2. ensure_workspace under a different slot UID auto-populates the cached
        `.node` (hardlink, inode shared) and copies the companions.
     3. Slot 2 can read the populated `.node`, and a temp-rename rebuild
@@ -409,10 +409,10 @@ def test_natives_cache_shares_artifacts_across_slot_workspaces(
     assert stored is not None
     cached_node = stored / "pi_natives.linux-arm64.node"
     cached_companion = stored / "index.d.ts"
-    # Cache root is setgid `omp`; new files inherit gid `omp` so any slot
-    # with `extra_groups=[omp]` can read them.
-    assert cached_node.stat().st_gid == _SHARED_OMP_GID
-    assert cached_companion.stat().st_gid == _SHARED_OMP_GID
+    # Cache root is setgid `omg`; new files inherit gid `omg` so any slot
+    # with `extra_groups=[omg]` can read them.
+    assert cached_node.stat().st_gid == _SHARED_OMG_GID
+    assert cached_companion.stat().st_gid == _SHARED_OMG_GID
 
     # --- Workspace 2: a different slot UID gets auto-populated on ensure. ---
     ws2 = manager.ensure_workspace(
@@ -438,7 +438,7 @@ def test_natives_cache_shares_artifacts_across_slot_workspaces(
     # The companion is COPIED: independent inode.
     assert ws2_companion.stat().st_ino != cached_companion.stat().st_ino
 
-    # Slot 2 must be able to read the populated artifacts (group omp + 0660
+    # Slot 2 must be able to read the populated artifacts (group omg + 0660
     # via setgid inheritance from the cache root).
     _run_ok(bindings2, ["test", "-r", "packages/natives/native/pi_natives.linux-arm64.node"])
     _run_ok(bindings2, ["test", "-r", "packages/natives/native/index.d.ts"])

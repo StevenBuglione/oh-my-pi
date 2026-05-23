@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as ai from "@oh-my-pi/pi-ai";
-import { Effort, getBundledModel } from "@oh-my-pi/pi-ai";
+import * as ai from "@oh-my-gpt/gpt-ai";
+import { Effort, getBundledModel } from "@oh-my-gpt/gpt-ai";
 import { generateCommitMessage } from "../src/utils/commit-message-generator";
 import { generateSessionTitle } from "../src/utils/title-generator";
 

@@ -44,7 +44,7 @@ No image path, SVG, PNG, or binary payload is returned. Stored artifacts are pla
 ## Flow
 1. `RenderMermaidTool.execute()` in `packages/coding-agent/src/tools/render-mermaid.ts` receives `mermaid` and optional `config`.
 2. `sanitizeRenderConfig()` normalizes `paddingX`, `paddingY`, and `boxBorderPadding` to non-negative integers; `useAscii` is passed through.
-3. The tool calls `renderMermaidAscii()` from `@oh-my-pi/pi-utils`.
+3. The tool calls `renderMermaidAscii()` from `@oh-my-gpt/gpt-utils`.
 4. `packages/utils/src/mermaid-ascii.ts` forwards directly to `renderMermaidASCII()` from the `beautiful-mermaid` package.
 5. The tool optionally asks the session for an artifact slot with `allocateOutputArtifact("render_mermaid")`.
 6. If a path is returned, `Bun.write()` persists the full rendered text to that file.

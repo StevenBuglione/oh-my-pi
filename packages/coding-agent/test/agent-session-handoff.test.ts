@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, ToolCall } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRunner, loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@oh-my-gpt/gpt-agent-core";
+import * as compactionModule from "@oh-my-gpt/gpt-agent-core/compaction";
+import type { AssistantMessage, ToolCall } from "@oh-my-gpt/gpt-ai";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
+import { createMockModel } from "@oh-my-gpt/gpt-ai/providers/mock";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { ExtensionRunner, loadExtensions } from "@oh-my-gpt/gpt-coding-agent/extensibility/extensions";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 
 describe("AgentSession handoff", () => {
 	let tempDir: TempDir;

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { getThemeByName } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
 import {
 	dedupeParseErrors,
 	formatCodeFrameLine,
 	formatDiagnostics,
 	formatParseErrors,
 	formatScreenshot,
-} from "@oh-my-pi/pi-coding-agent/tools/render-utils";
+} from "@oh-my-gpt/gpt-coding-agent/tools/render-utils";
 
 describe("parse error formatting", () => {
 	it("deduplicates parse errors while preserving order", () => {
@@ -121,7 +121,7 @@ describe("formatScreenshot", () => {
 				saveFullRes: false,
 				savedMimeType: "image/webp",
 				savedByteLength: 3072,
-				dest: "/tmp/omp-sshots-123.png",
+				dest: "/tmp/omg-sshots-123.png",
 				resized,
 			}),
 		).toEqual(["Screenshot captured", "Format: image/webp (3.00 KB)", "Dimensions: 800x600"]);

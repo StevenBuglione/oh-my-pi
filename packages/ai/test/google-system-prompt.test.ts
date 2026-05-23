@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamGoogle } from "@oh-my-pi/pi-ai/providers/google";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+import { streamGoogle } from "@oh-my-gpt/gpt-ai/providers/google";
+import type { Context, Model } from "@oh-my-gpt/gpt-ai/types";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 
 const model: Model<"google-generative-ai"> = {
 	id: "gemini-3-pro-preview",

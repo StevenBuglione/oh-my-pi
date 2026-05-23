@@ -2,10 +2,10 @@
  * Agent discovery from filesystem.
  *
  * Discovers agent definitions from:
- *   - ~/.omp/agent/agents/*.md (user-level, primary)
+ *   - ~/.omg/agent/agents/*.md (user-level, primary)
  *   - ~/.pi/agent/agents/*.md (user-level, legacy)
  *   - ~/.claude/agents/*.md (user-level, legacy)
- *   - .omp/agents/*.md (project-level, primary)
+ *   - .omg/agents/*.md (project-level, primary)
  *   - .pi/agents/*.md (project-level, legacy)
  *   - .claude/agents/*.md (project-level, legacy)
  *
@@ -14,7 +14,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import { isProviderEnabled } from "../capability";
 import { findAllNearestProjectConfigDirs, getConfigDirs } from "../config";
 import { listClaudePluginRoots } from "../discovery/helpers";
@@ -52,7 +52,7 @@ async function loadAgentsFromDir(dir: string, source: AgentSource): Promise<Agen
 /**
  * Discover agents from filesystem and merge with bundled agents.
  *
- * Precedence (highest wins): .omp > .pi > .claude (project before user), then bundled
+ * Precedence (highest wins): .omg > .pi > .claude (project before user), then bundled
  *
  * @param cwd - Current working directory for project agent discovery
  */
@@ -60,7 +60,7 @@ export async function discoverAgents(cwd: string, home: string = os.homedir()): 
 	const resolvedCwd = path.resolve(cwd);
 	const agentSources = Array.from(new Set(getConfigDirs("", { project: false }).map(entry => entry.source)));
 
-	// Get user directories (priority order: .omp, .pi, .claude, ...)
+	// Get user directories (priority order: .omg, .pi, .claude, ...)
 	const userDirs = getConfigDirs("agents", { project: false })
 		.filter(entry => agentSources.includes(entry.source))
 		.map(entry => ({

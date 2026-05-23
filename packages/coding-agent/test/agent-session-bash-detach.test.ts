@@ -5,9 +5,9 @@
  * Target commit: b0950f7ed
  *
  * The fix lives in `crates/brush-core-vendored/src/commands.rs` and is
- * verified at the unit level by `pi-natives::shell::tests::child_session_action`
+ * verified at the unit level by `gpt-natives::shell::tests::child_session_action`
  * (truth-table) and `embedded_external_command_runs_in_its_own_session` (real
- * brush spawn). This test pulls the fix end-to-end through the OMP coding
+ * brush spawn). This test pulls the fix end-to-end through the OMG coding
  * agent stack:
  *
  *   AgentSession.prompt
@@ -15,7 +15,7 @@
  *       → Agent loop dispatches a tool call
  *         → BashTool.execute
  *           → executeBash
- *             → pi-natives `Shell.run` (real native binding)
+ *             → gpt-natives `Shell.run` (real native binding)
  *               → brush-core::execute_external_command (the patched code)
  *                 → spawned child reports getsid()/getpid()
  *
@@ -34,24 +34,24 @@
  *
  * If this test ever starts failing on macOS/Linux, the embedded-host bug is
  * back and `BashTool` invocations that touch `/dev/tty` or `tcsetpgrp` can
- * SIGTTIN/SIGTTOU the OMP host process.
+ * SIGTTIN/SIGTTOU the OMG host process.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { BashTool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai";
+import { createMockModel, type MockResponse } from "@oh-my-gpt/gpt-ai/providers/mock";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-gpt/gpt-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { BashTool, type ToolSession } from "@oh-my-gpt/gpt-coding-agent/tools";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 
 /** Scripted assistant turn that issues a single `bash` tool call. */
 function bashCall(command: string, callId: string): MockResponse {

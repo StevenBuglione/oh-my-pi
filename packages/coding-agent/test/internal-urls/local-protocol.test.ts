@@ -7,7 +7,7 @@ import {
 	LocalProtocolHandler,
 	resolveLocalRoot,
 	resolveLocalUrlToPath,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
+} from "@oh-my-gpt/gpt-coding-agent/internal-urls";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "local-protocol-"));
@@ -84,7 +84,7 @@ describe("LocalProtocolHandler", () => {
 
 	it("uses session id fallback root when artifacts dir is unavailable", async () => {
 		const root = resolveLocalRoot({ getSessionId: () => "session-fallback", getArtifactsDir: () => null });
-		expect(root).toContain(path.join("omp-local", "session-fallback"));
+		expect(root).toContain(path.join("omg-local", "session-fallback"));
 		expect(resolveLocalUrlToPath("local://memo.txt", { getSessionId: () => "session-fallback" })).toBe(
 			path.join(root, "memo.txt"),
 		);

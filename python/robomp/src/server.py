@@ -222,8 +222,8 @@ def _require_proxy_mode(cfg: Settings) -> tuple[str, bytes]:
         )
     if cfg.gh_proxy_url is None or cfg.gh_proxy_hmac_key is None:
         raise SystemExit(
-            "robomp orchestrator requires ROBOMP_GH_PROXY_URL and "
-            "ROBOMP_GH_PROXY_HMAC_KEY (run gh-proxy in a sibling container)."
+            "robomp orchestrator requires ROBOMG_GH_PROXY_URL and "
+            "ROBOMG_GH_PROXY_HMAC_KEY (run gh-proxy in a sibling container)."
         )
     return cfg.gh_proxy_url, cfg.gh_proxy_hmac_key.get_secret_value().encode("utf-8")
 
@@ -482,7 +482,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def _require_trigger_token(cfg: Settings, token: str | None) -> None:
         if cfg.replay_token is None:
-            raise HTTPException(404, "trigger disabled (set ROBOMP_REPLAY_TOKEN to enable)")
+            raise HTTPException(404, "trigger disabled (set ROBOMG_REPLAY_TOKEN to enable)")
         if token != cfg.replay_token.get_secret_value():
             raise HTTPException(401, "invalid replay token")
 
@@ -494,7 +494,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         refresh: bool = False,
         x_robomp_token: str | None = Header(None, alias="X-Robomp-Replay-Token"),
     ) -> dict[str, Any]:
-        """Browse issues across `ROBOMP_REPO_ALLOWLIST` for the trigger picker.
+        """Browse issues across `ROBOMG_REPO_ALLOWLIST` for the trigger picker.
 
         Token-gated identically to `/api/trigger`: this can expose titles from
         private repos. Normal dashboard loads use the server cache; only cache
@@ -579,7 +579,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except InvalidIssueRef as exc:
                 raise HTTPException(400, str(exc)) from exc
             if not cfg.allows(repo_full):
-                raise HTTPException(403, f"{repo_full} not in ROBOMP_REPO_ALLOWLIST")
+                raise HTTPException(403, f"{repo_full} not in ROBOMG_REPO_ALLOWLIST")
             try:
                 delivery = await enqueue_manual_triage(
                     db=db,
@@ -609,7 +609,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except InvalidIssueRef as exc:
                 raise HTTPException(400, str(exc)) from exc
             if not cfg.allows(repo_full):
-                raise HTTPException(403, f"{repo_full} not in ROBOMP_REPO_ALLOWLIST")
+                raise HTTPException(403, f"{repo_full} not in ROBOMG_REPO_ALLOWLIST")
             row = db.latest_event_for_issue(make_issue_key(repo_full, number))
             if row is None:
                 raise HTTPException(404, f"no retryable stored event for {repo_full}#{number}")
@@ -635,7 +635,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: dict[str, Any] = Body(...),
         x_robomp_token: str | None = Header(None, alias="X-Robomp-Replay-Token"),
     ) -> JSONResponse:
-        """Stop a running event. The omp subprocess is killed; the row lands in
+        """Stop a running event. The omg subprocess is killed; the row lands in
         `failed` with `cancelled by operator` as the error.
         """
         bag = request.app.state.bag

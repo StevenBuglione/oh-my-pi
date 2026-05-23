@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, peekFile, toError } from "@oh-my-pi/pi-utils";
+import { isEnoent, peekFile, toError } from "@oh-my-gpt/gpt-utils";
 
 const utf8Decoder = new TextDecoder("utf-8");
 

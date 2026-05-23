@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@oh-my-gpt/gpt-utils";
 import { captureRequestHeaders, resolvePromptCacheKey } from "../auth-gateway/http";
 import type {
 	AssistantMessage,
@@ -25,9 +25,9 @@ import {
 } from "./anthropic-messages-server-schema";
 
 /**
- * Anthropic Messages API (https://docs.anthropic.com/en/api/messages) ↔ pi-ai
- * gateway translation. Inbound: foreign HTTP body → omp Context. Outbound:
- * omp AssistantMessage[Stream] → Anthropic-shaped JSON / SSE.
+ * Anthropic Messages API (https://docs.anthropic.com/en/api/messages) ↔ gpt-ai
+ * gateway translation. Inbound: foreign HTTP body → omg Context. Outbound:
+ * omg AssistantMessage[Stream] → Anthropic-shaped JSON / SSE.
  */
 
 import type { AuthGatewayParsedRequest as ParsedRequest } from "../auth-gateway/types";
@@ -53,16 +53,19 @@ function warnUnknownBlockType(category: "user" | "assistant", blockType: string)
 	});
 }
 
-// pi-ai's `ImageContent` only carries base64 + mimeType. When the inbound
+// gpt-ai's `ImageContent` only carries base64 + mimeType. When the inbound
 // uses `url` or `file_id` sources we surface a text placeholder so the
 // downstream provider still sees a sane history; warn once per source kind.
 const WARNED_NON_BASE64_IMAGE_SOURCES = new Set<string>();
 function warnNonBase64ImageSource(sourceType: string): void {
 	if (WARNED_NON_BASE64_IMAGE_SOURCES.has(sourceType)) return;
 	WARNED_NON_BASE64_IMAGE_SOURCES.add(sourceType);
-	logger.warn("anthropic-messages: image source surfaced as text placeholder (pi-ai ImageContent lacks URL channel)", {
-		sourceType,
-	});
+	logger.warn(
+		"anthropic-messages: image source surfaced as text placeholder (gpt-ai ImageContent lacks URL channel)",
+		{
+			sourceType,
+		},
+	);
 }
 
 // Compact, log-safe stringification for unknown content blocks. Keeps the
@@ -150,7 +153,7 @@ function walkUserContent(
 			}
 		} else if (block.type === "tool_result") {
 			// Anthropic permits tool_result blocks to follow plain text/image
-			// siblings in the same user message. pi-ai's history is a flat
+			// siblings in the same user message. gpt-ai's history is a flat
 			// sequence of typed messages, so flush the accumulated parts as a
 			// separate UserMessage before emitting the ToolResultMessage.
 			flush();
@@ -254,7 +257,7 @@ function readCacheControl(value: unknown): AnthropicCacheControl | undefined {
 
 /**
  * Anthropic clients annotate caching breakpoints per block via
- * `cache_control: { type: "ephemeral", ttl?: "1h"|"5m" }`. pi-ai's
+ * `cache_control: { type: "ephemeral", ttl?: "1h"|"5m" }`. gpt-ai's
  * `cacheRetention` is per-request, not per-block, and its anthropic provider
  * re-applies breakpoints itself on the rebuilt outbound wire. Scan every
  * block once and return the strongest retention requested: any `ttl: "1h"`
@@ -323,7 +326,7 @@ export function parseRequest(body: unknown, headers?: Headers): ParsedRequest {
 	const toolChoice = mapToolChoice(data.tool_choice as AnthropicToolChoice | undefined);
 	if (toolChoice !== undefined) options.toolChoice = toolChoice;
 	// `disable_parallel_tool_use === true` means the client wants the model to
-	// emit at most one tool call per turn; map to pi-ai's negated boolean.
+	// emit at most one tool call per turn; map to gpt-ai's negated boolean.
 	// Leave undefined when the field is absent or explicitly `false` so we
 	// don't override provider defaults.
 	if (data.tool_choice?.disable_parallel_tool_use === true) {
@@ -460,7 +463,7 @@ export function encodeResponse(message: AssistantMessage, requestedModelId: stri
 		model: requestedModelId,
 		content: encodeContentBlocks(message),
 		stop_reason: mapStopReasonOut(message.stopReason),
-		// TODO: surface the matched stop sequence once pi-ai's
+		// TODO: surface the matched stop sequence once gpt-ai's
 		// `AssistantMessage.stopReason` carries the matched string. Intentionally
 		// `null` for now (Anthropic schema allows it).
 		stop_sequence: null,
@@ -509,7 +512,7 @@ export function encodeStream(
 							content: [],
 							stop_reason: null,
 							// TODO: same as encodeResponse — surface matched stop sequence
-							// once pi-ai propagates it.
+							// once gpt-ai propagates it.
 							stop_sequence: null,
 							usage: encodeUsage(partial),
 						},
@@ -623,7 +626,7 @@ export function encodeStream(
 							controller.enqueue(
 								sseFrame("message_delta", {
 									type: "message_delta",
-									// TODO: surface matched stop sequence once pi-ai
+									// TODO: surface matched stop sequence once gpt-ai
 									// propagates it on the `done` event.
 									delta: { stop_reason: mapStopReasonOut(ev.reason), stop_sequence: null },
 									usage: encodeUsage(ev.message),

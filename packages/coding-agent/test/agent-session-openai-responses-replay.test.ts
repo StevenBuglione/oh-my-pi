@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
-import type { AssistantMessage, Message, ProviderPayload, ProviderSessionState, Usage } from "@oh-my-pi/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@oh-my-pi/pi-ai/utils";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
+import type { AssistantMessage, Message, ProviderPayload, ProviderSessionState, Usage } from "@oh-my-gpt/gpt-ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@oh-my-gpt/gpt-ai/utils";
+import type { AgentSession } from "@oh-my-gpt/gpt-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-gpt/gpt-coding-agent/session/auth-storage";
 import {
 	type SessionEntry,
 	SessionManager,
 	type SessionMessageEntry,
-} from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 
 function createUsage(): Usage {
 	return {
@@ -170,9 +170,9 @@ async function createSessionHarness(
 ): Promise<{ session: AgentSession; authStorage: AuthStorage }> {
 	const { provider = "openai", modelId = "gpt-5-mini" } = options;
 	const [{ createAgentSession }, { Settings }, { AuthStorage }] = await Promise.all([
-		import("@oh-my-pi/pi-coding-agent/sdk"),
-		import("@oh-my-pi/pi-coding-agent/config/settings"),
-		import("@oh-my-pi/pi-coding-agent/session/auth-storage"),
+		import("@oh-my-gpt/gpt-coding-agent/sdk"),
+		import("@oh-my-gpt/gpt-coding-agent/config/settings"),
+		import("@oh-my-gpt/gpt-coding-agent/session/auth-storage"),
 	]);
 	const authStorage = await AuthStorage.create(path.join(tempDir, `testauth-${Snowflake.next()}.db`));
 	authStorage.setRuntimeApiKey("openai", "test-key");

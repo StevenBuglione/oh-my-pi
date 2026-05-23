@@ -1,4 +1,4 @@
-import { getEnvApiKey } from "@oh-my-pi/pi-ai";
+import { getEnvApiKey } from "@oh-my-gpt/gpt-ai";
 import { findCredential, withHardTimeout } from "./search/providers/utils";
 
 const PARALLEL_API_URL = "https://api.parallel.ai";
@@ -289,7 +289,7 @@ export async function searchWithParallel(
 	const apiKey = await findParallelApiKey();
 	if (!apiKey) {
 		throw new ParallelApiError(
-			"Parallel credentials not found. Set PARALLEL_API_KEY or login with 'omp /login parallel'.",
+			"Parallel credentials not found. Set PARALLEL_API_KEY or login with 'omg /login parallel'.",
 		);
 	}
 
@@ -321,7 +321,7 @@ export async function extractWithParallel(
 	const apiKey = await findParallelApiKey();
 	if (!apiKey) {
 		throw new ParallelApiError(
-			"Parallel credentials not found. Set PARALLEL_API_KEY or login with 'omp /login parallel'.",
+			"Parallel credentials not found. Set PARALLEL_API_KEY or login with 'omg /login parallel'.",
 		);
 	}
 

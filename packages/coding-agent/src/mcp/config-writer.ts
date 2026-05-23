@@ -1,11 +1,11 @@
 /**
  * MCP Configuration File Writer
  *
- * Utilities for reading/writing .omp/mcp.json files at user or project level.
+ * Utilities for reading/writing .omg/mcp.json files at user or project level.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 import { invalidate as invalidateFsCache } from "../capability/fs";
 
 import { validateServerConfig } from "./config";

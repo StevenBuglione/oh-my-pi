@@ -1273,6 +1273,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpt-natives"
+version = "15.2.4"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "ast-grep-core",
+ "clap",
+ "dashmap",
+ "globset",
+ "grep-matcher",
+ "grep-regex",
+ "grep-searcher",
+ "html-to-markdown-rs",
+ "icy_sixel",
+ "ignore",
+ "image",
+ "inferno",
+ "libc",
+ "memmap2",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "parking_lot",
+ "phf 0.13.1",
+ "pi-ast",
+ "pi-iso",
+ "pi-shell",
+ "portable-pty",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "similar 3.1.0",
+ "smallvec",
+ "syntect",
+ "tiktoken-rs",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "unicode-segmentation",
+ "unicode-width",
+ "winreg 0.56.0",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "grep-matcher"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2407,52 +2453,6 @@ dependencies = [
  "similar 3.1.0",
  "tokio",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "pi-natives"
-version = "15.2.4"
-dependencies = [
- "anyhow",
- "arboard",
- "ast-grep-core",
- "clap",
- "dashmap",
- "globset",
- "grep-matcher",
- "grep-regex",
- "grep-searcher",
- "html-to-markdown-rs",
- "icy_sixel",
- "ignore",
- "image",
- "inferno",
- "libc",
- "memmap2",
- "napi",
- "napi-build",
- "napi-derive",
- "parking_lot",
- "phf 0.13.1",
- "pi-ast",
- "pi-iso",
- "pi-shell",
- "portable-pty",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "similar 3.1.0",
- "smallvec",
- "syntect",
- "tiktoken-rs",
- "tokio",
- "tokio-util",
- "toml",
- "unicode-segmentation",
- "unicode-width",
- "winreg 0.56.0",
- "xxhash-rust",
 ]
 
 [[package]]

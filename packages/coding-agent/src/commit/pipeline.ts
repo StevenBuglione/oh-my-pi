@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import { getProjectDir, logger, prompt } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { Api, Model } from "@oh-my-gpt/gpt-ai";
+import { getProjectDir, logger, prompt } from "@oh-my-gpt/gpt-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage } from "../sdk";
@@ -29,7 +29,7 @@ let typesDescription: string | undefined;
 const TYPES_DESCRIPTION = (): string => (typesDescription ??= prompt.render(typesDescriptionPrompt));
 
 /**
- * Execute the omp commit pipeline for staged changes.
+ * Execute the omg commit pipeline for staged changes.
  */
 export async function runCommitCommand(args: CommitCommandArgs): Promise<void> {
 	if (args.legacy) {

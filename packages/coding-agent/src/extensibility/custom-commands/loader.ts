@@ -1,12 +1,12 @@
 /**
  * Custom command loader - loads TypeScript command modules using native Bun import.
  *
- * Dependencies (the zod-backed typebox shim and pi-coding-agent) are injected via the
+ * Dependencies (the zod-backed typebox shim and gpt-coding-agent) are injected via the
  * CustomCommandAPI to avoid import resolution issues with custom commands loaded from user directories.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, getProjectDir, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { getAgentDir, getProjectDir, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import * as zod from "zod/v4";
 import { getConfigDirs } from "../../config";
 import { execCommand } from "../../exec/exec";
@@ -143,7 +143,7 @@ export interface LoadCustomCommandsOptions {
 }
 
 /**
- * Load bundled commands (shipped with pi-coding-agent).
+ * Load bundled commands (shipped with gpt-coding-agent).
  */
 function loadBundledCommands(sharedApi: CustomCommandAPI): LoadedCustomCommand[] {
 	const bundled: LoadedCustomCommand[] = [];
@@ -185,7 +185,7 @@ export async function loadCustomCommands(options: LoadCustomCommandsOptions = {}
 			execCommand(command, args, execOptions?.cwd ?? cwd, execOptions),
 		typebox,
 		zod,
-		pi: await import("@oh-my-pi/pi-coding-agent"),
+		pi: await import("@oh-my-gpt/gpt-coding-agent"),
 	};
 
 	// 1. Load bundled commands first (lowest priority - can be overridden)

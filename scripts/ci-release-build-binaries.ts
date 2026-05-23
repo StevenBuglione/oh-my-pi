@@ -35,35 +35,35 @@ const targets: BinaryTarget[] = [
 		platform: "darwin",
 		arch: "arm64",
 		target: "bun-darwin-arm64",
-		outfile: "packages/coding-agent/binaries/omp-darwin-arm64",
+		outfile: "packages/coding-agent/binaries/omg-darwin-arm64",
 	},
 	{
 		id: "darwin-x64",
 		platform: "darwin",
 		arch: "x64",
 		target: "bun-darwin-x64",
-		outfile: "packages/coding-agent/binaries/omp-darwin-x64",
+		outfile: "packages/coding-agent/binaries/omg-darwin-x64",
 	},
 	{
 		id: "linux-x64",
 		platform: "linux",
 		arch: "x64",
 		target: "bun-linux-x64-baseline",
-		outfile: "packages/coding-agent/binaries/omp-linux-x64",
+		outfile: "packages/coding-agent/binaries/omg-linux-x64",
 	},
 	{
 		id: "linux-arm64",
 		platform: "linux",
 		arch: "arm64",
 		target: "bun-linux-arm64",
-		outfile: "packages/coding-agent/binaries/omp-linux-arm64",
+		outfile: "packages/coding-agent/binaries/omg-linux-arm64",
 	},
 	{
 		id: "win32-x64",
 		platform: "win32",
 		arch: "x64",
 		target: "bun-windows-x64-modern",
-		outfile: "packages/coding-agent/binaries/omp-windows-x64.exe",
+		outfile: "packages/coding-agent/binaries/omg-windows-x64.exe",
 	},
 ];
 
@@ -120,7 +120,7 @@ async function buildBinary(target: BinaryTarget): Promise<void> {
 	console.log(`Building ${target.outfile}...`);
 	await embedNative(target);
 	if (isDryRun) {
-		console.log(`DRY RUN bun build --compile --no-compile-autoload-bunfig --no-compile-autoload-dotenv --no-compile-autoload-tsconfig --no-compile-autoload-package-json --keep-names --define process.env.PI_COMPILED="true" --root . --external mupdf --target=${target.target} ${entrypoint} ${workerEntrypoints.join(" ")} --outfile ${target.outfile}`);
+		console.log(`DRY RUN bun build --compile --no-compile-autoload-bunfig --no-compile-autoload-dotenv --no-compile-autoload-tsconfig --no-compile-autoload-package-json --keep-names --define process.env.OMG_COMPILED="true" --root . --external mupdf --target=${target.target} ${entrypoint} ${workerEntrypoints.join(" ")} --outfile ${target.outfile}`);
 		return;
 	}
 
@@ -138,7 +138,7 @@ async function buildBinary(target: BinaryTarget): Promise<void> {
 			"--no-compile-autoload-package-json",
 			"--keep-names",
 			"--define",
-			'process.env.PI_COMPILED="true"',
+			'process.env.OMG_COMPILED="true"',
 			"--root",
 			".",
 			"--external",

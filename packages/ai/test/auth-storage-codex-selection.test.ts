@@ -119,7 +119,7 @@ describe("AuthStorage codex oauth ranking", () => {
 	};
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-codex-selection-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-codex-selection-"));
 		store = await SqliteAuthCredentialStore.open(path.join(tempDir, "agent.db"));
 		authStorage = new AuthStorage(store, {
 			usageProviderResolver: provider => (provider === "openai-codex" ? usageProvider : undefined),
@@ -589,7 +589,7 @@ describe("AuthStorage claude oauth ranking", () => {
 	};
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-claude-selection-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-claude-selection-"));
 		store = await SqliteAuthCredentialStore.open(path.join(tempDir, "agent.db"));
 		authStorage = new AuthStorage(store, {
 			usageProviderResolver: provider => (provider === "anthropic" ? usageProvider : undefined),

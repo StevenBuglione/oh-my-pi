@@ -9,7 +9,7 @@ import {
 	getProjectPluginOverridesPath,
 	isEnoent,
 	logger,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import { extractPackageName, parsePluginSpec } from "./parser";
 import type {
 	DoctorCheck,
@@ -113,7 +113,7 @@ export class PluginManager {
 					pkgJsonPath,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "omg-plugins",
 							private: true,
 							dependencies: {},
 						},
@@ -174,7 +174,7 @@ export class PluginManager {
 		const actualName = extractPackageName(spec.packageName);
 		const pkgPath = path.join(getPluginsNodeModules(), actualName, "package.json");
 
-		let pkg: { name: string; version: string; omp?: PluginManifest; pi?: PluginManifest };
+		let pkg: { name: string; version: string; omg?: PluginManifest; pi?: PluginManifest };
 		try {
 			pkg = await Bun.file(pkgPath).json();
 		} catch (err) {
@@ -183,7 +183,7 @@ export class PluginManager {
 			}
 			throw err;
 		}
-		const manifest: PluginManifest = pkg.omp || pkg.pi || { version: pkg.version };
+		const manifest: PluginManifest = pkg.omg || pkg.pi || { version: pkg.version };
 		manifest.version = pkg.version;
 
 		// Resolve enabled features
@@ -277,14 +277,14 @@ export class PluginManager {
 
 		for (const [name] of Object.entries(deps)) {
 			const pluginPkgPath = path.join(getPluginsNodeModules(), name, "package.json");
-			let pluginPkg: { version: string; omp?: PluginManifest; pi?: PluginManifest };
+			let pluginPkg: { version: string; omg?: PluginManifest; pi?: PluginManifest };
 			try {
 				pluginPkg = await Bun.file(pluginPkgPath).json();
 			} catch (err) {
 				if (isEnoent(err)) continue;
 				throw err;
 			}
-			const manifest: PluginManifest = pluginPkg.omp || pluginPkg.pi || { version: pluginPkg.version };
+			const manifest: PluginManifest = pluginPkg.omg || pluginPkg.pi || { version: pluginPkg.version };
 			manifest.version = pluginPkg.version;
 
 			const runtimeState = config.plugins[name] || {
@@ -317,7 +317,7 @@ export class PluginManager {
 		const absolutePath = path.resolve(this.#cwd, localPath);
 
 		const pkgFilePath = path.join(absolutePath, "package.json");
-		let pkg: { name?: string; version: string; omp?: PluginManifest; pi?: PluginManifest };
+		let pkg: { name?: string; version: string; omg?: PluginManifest; pi?: PluginManifest };
 		try {
 			pkg = await Bun.file(pkgFilePath).json();
 		} catch (err) {
@@ -350,7 +350,7 @@ export class PluginManager {
 
 		await fs.promises.symlink(absolutePath, linkPath);
 
-		const manifest: PluginManifest = pkg.omp || pkg.pi || { version: pkg.version };
+		const manifest: PluginManifest = pkg.omg || pkg.pi || { version: pkg.version };
 		manifest.version = pkg.version;
 
 		// Add to runtime config
@@ -526,7 +526,7 @@ export class PluginManager {
 			const pluginPath = path.join(nodeModulesPath, name);
 			const pluginPkgPath = path.join(pluginPath, "package.json");
 
-			let pluginPkg: { version: string; description?: string; omp?: PluginManifest; pi?: PluginManifest };
+			let pluginPkg: { version: string; description?: string; omg?: PluginManifest; pi?: PluginManifest };
 			try {
 				pluginPkg = await Bun.file(pluginPkgPath).json();
 			} catch (err) {
@@ -550,15 +550,15 @@ export class PluginManager {
 				}
 				throw err;
 			}
-			const hasManifest = !!(pluginPkg.omp || pluginPkg.pi);
-			const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
+			const hasManifest = !!(pluginPkg.omg || pluginPkg.pi);
+			const manifest: PluginManifest | undefined = pluginPkg.omg || pluginPkg.pi;
 
 			checks.push({
 				name: `plugin:${name}`,
 				status: hasManifest ? "ok" : "warning",
 				message: hasManifest
 					? `v${pluginPkg.version}${pluginPkg.description ? ` - ${pluginPkg.description}` : ""}`
-					: `v${pluginPkg.version} - No omp/pi manifest (not an omp plugin)`,
+					: `v${pluginPkg.version} - No omg/pi manifest (not an omg plugin)`,
 			});
 
 			// Check tools path exists if specified

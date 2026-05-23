@@ -1,4 +1,4 @@
-const SMITHERY_API_BASE_URL = (process.env.SMITHERY_API_URL || "https://api.smithery.ai").replace(/\/+$/, "");
+const SMITHERY_AOMG_BASE_URL = (process.env.SMITHERY_API_URL || "https://api.smithery.ai").replace(/\/+$/, "");
 
 export class SmitheryConnectError extends Error {
 	status: number;
@@ -45,7 +45,7 @@ function buildAuthHeaders(apiKey: string): Headers {
 }
 
 function toApiUrl(path: string): string {
-	return `${SMITHERY_API_BASE_URL}${path}`;
+	return `${SMITHERY_AOMG_BASE_URL}${path}`;
 }
 
 async function expectOk(response: Response, context: string): Promise<void> {
@@ -56,7 +56,7 @@ async function expectOk(response: Response, context: string): Promise<void> {
 }
 
 export function getSmitheryApiBaseUrl(): string {
-	return SMITHERY_API_BASE_URL;
+	return SMITHERY_AOMG_BASE_URL;
 }
 
 export async function listSmitheryNamespaces(apiKey: string): Promise<SmitheryNamespace[]> {

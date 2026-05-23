@@ -1,7 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { fileHyperlink, isHyperlinkEnabled, tryResolveInternalUrlSync } from "@oh-my-pi/pi-coding-agent/tui/hyperlink";
-import * as terminalCaps from "@oh-my-pi/pi-tui";
+import { resetSettingsForTest, Settings, settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import {
+	fileHyperlink,
+	isHyperlinkEnabled,
+	tryResolveInternalUrlSync,
+} from "@oh-my-gpt/gpt-coding-agent/tui/hyperlink";
+import * as terminalCaps from "@oh-my-gpt/gpt-tui";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";
@@ -180,7 +184,7 @@ describe("tryResolveInternalUrlSync", () => {
 		expect(tryResolveInternalUrlSync("artifact://123")).toBeUndefined();
 		expect(tryResolveInternalUrlSync("agent://abc")).toBeUndefined();
 		expect(tryResolveInternalUrlSync("skill://foo")).toBeUndefined();
-		expect(tryResolveInternalUrlSync("omp://docs.md")).toBeUndefined();
+		expect(tryResolveInternalUrlSync("omg://docs.md")).toBeUndefined();
 	});
 
 	it("returns undefined when local:// resolution has no session options", () => {

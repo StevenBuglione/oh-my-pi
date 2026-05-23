@@ -99,9 +99,9 @@ describe("readArgsTargetInternalUrl", () => {
 	it.each([
 		["skill://my-skill"],
 		["skill://my-skill/file.md"],
-		["omp://docs/tools/read.md"],
+		["omg://docs/tools/read.md"],
 		["issue://123"],
-		["pr://can1357/oh-my-pi/456"],
+		["pr://can1357/oh-my-gpt/456"],
 		["agent://abc"],
 		["artifact://abc"],
 		["memory://root"],

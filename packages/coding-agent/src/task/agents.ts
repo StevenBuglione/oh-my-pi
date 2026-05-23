@@ -3,14 +3,20 @@
  *
  * Agents are embedded at build time via Bun's import with { type: "text" }.
  */
-import { Effort } from "@oh-my-pi/pi-ai";
-import { parseFrontmatter, prompt } from "@oh-my-pi/pi-utils";
+import { Effort } from "@oh-my-gpt/gpt-ai";
+import { parseFrontmatter, prompt } from "@oh-my-gpt/gpt-utils";
 import { parseAgentFields } from "../discovery/helpers";
+import chatgptBuilderMd from "../prompts/agents/chatgpt_builder.md" with { type: "text" };
+import chatgptCriticMd from "../prompts/agents/chatgpt_critic.md" with { type: "text" };
+import chatgptResearcherMd from "../prompts/agents/chatgpt_researcher.md" with { type: "text" };
 import designerMd from "../prompts/agents/designer.md" with { type: "text" };
 import exploreMd from "../prompts/agents/explore.md" with { type: "text" };
 // Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
+import harnessOrchestratorMd from "../prompts/agents/harness_orchestrator.md" with { type: "text" };
 import librarianMd from "../prompts/agents/librarian.md" with { type: "text" };
+import localImplementerMd from "../prompts/agents/local_implementer.md" with { type: "text" };
+import localReviewerMd from "../prompts/agents/local_reviewer.md" with { type: "text" };
 import oracleMd from "../prompts/agents/oracle.md" with { type: "text" };
 
 import planMd from "../prompts/agents/plan.md" with { type: "text" };
@@ -48,6 +54,12 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "reviewer.md", template: reviewerMd },
 	{ fileName: "librarian.md", template: librarianMd },
 	{ fileName: "oracle.md", template: oracleMd },
+	{ fileName: "harness_orchestrator.md", template: harnessOrchestratorMd },
+	{ fileName: "local_implementer.md", template: localImplementerMd },
+	{ fileName: "local_reviewer.md", template: localReviewerMd },
+	{ fileName: "chatgpt_researcher.md", template: chatgptResearcherMd },
+	{ fileName: "chatgpt_builder.md", template: chatgptBuilderMd },
+	{ fileName: "chatgpt_critic.md", template: chatgptCriticMd },
 	{
 		fileName: "task.md",
 		frontmatter: {

@@ -1,4 +1,4 @@
-import { tryParseJson } from "@oh-my-pi/pi-utils";
+import { tryParseJson } from "@oh-my-gpt/gpt-utils";
 import {
 	buildResult,
 	formatIsoDate,

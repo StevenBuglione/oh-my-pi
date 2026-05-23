@@ -20,8 +20,8 @@ def test_settings_missing_required(monkeypatch: pytest.MonkeyPatch, env: dict[st
     'no GitHub access configured' branch. The `env` fixture keeps the other
     required fields satisfied so we isolate the credential-validator path."""
     monkeypatch.setenv("GITHUB_TOKEN", "")
-    monkeypatch.setenv("ROBOMP_GH_PROXY_URL", "")
-    monkeypatch.setenv("ROBOMP_GH_PROXY_HMAC_KEY", "")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_URL", "")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_HMAC_KEY", "")
     reset_settings_cache()
     with pytest.raises(ValidationError, match="no GitHub access configured"):
         Settings()  # type: ignore[call-arg]
@@ -43,7 +43,7 @@ def test_rejects_token_and_proxy_together(monkeypatch: pytest.MonkeyPatch, env: 
 
 
 def test_rejects_proxy_url_without_key(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_GH_PROXY_HMAC_KEY", "")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_HMAC_KEY", "")
     reset_settings_cache()
     with pytest.raises(ValidationError):
         Settings()  # type: ignore[call-arg]
@@ -58,28 +58,28 @@ def test_proxy_mode_loads_pat(proxy_env: dict[str, str]) -> None:
 
 
 def test_allowlist_csv_parsing(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_REPO_ALLOWLIST", "  alpha/one ,beta/two, ,gamma/three ")
+    monkeypatch.setenv("ROBOMG_REPO_ALLOWLIST", "  alpha/one ,beta/two, ,gamma/three ")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.repo_allowlist == frozenset({"alpha/one", "beta/two", "gamma/three"})
 
 
 def test_blank_replay_token_treated_as_disabled(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "")
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.replay_token is None
 
 
 def test_whitespace_replay_token_treated_as_disabled(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "   ")
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "   ")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.replay_token is None
 
 
 def test_real_replay_token_preserved(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_REPLAY_TOKEN", "abc")
+    monkeypatch.setenv("ROBOMG_REPLAY_TOKEN", "abc")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.replay_token is not None
@@ -87,7 +87,7 @@ def test_real_replay_token_preserved(monkeypatch: pytest.MonkeyPatch, env: dict[
 
 
 def test_blank_bot_login_rejected(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_BOT_LOGIN", "   ")
+    monkeypatch.setenv("ROBOMG_BOT_LOGIN", "   ")
     reset_settings_cache()
     with pytest.raises(ValidationError):
         Settings()  # type: ignore[call-arg]
@@ -101,7 +101,7 @@ def test_model_pool_single(env: dict[str, str]) -> None:
 
 def test_model_pool_csv_parses(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
     monkeypatch.setenv(
-        "ROBOMP_MODEL",
+        "ROBOMG_MODEL",
         " codex/gpt-5.4 , anthropic/claude-sonnet-4-6 ,, anthropic/claude-opus-4-7 ",
     )
     reset_settings_cache()
@@ -115,7 +115,7 @@ def test_model_pool_csv_parses(monkeypatch: pytest.MonkeyPatch, env: dict[str, s
 
 def test_pick_model_covers_full_pool(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
     """With a 3-item pool and 500 picks, each option appears at least once."""
-    monkeypatch.setenv("ROBOMP_MODEL", "a,b,c")
+    monkeypatch.setenv("ROBOMG_MODEL", "a,b,c")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     seen = {cfg.pick_model() for _ in range(500)}
@@ -128,7 +128,7 @@ def test_max_concurrency_default_is_8(env: dict[str, str]) -> None:
 
 
 def test_task_timeout_hard_grace_env_parses(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
-    monkeypatch.setenv("ROBOMP_TASK_TIMEOUT_HARD_GRACE_SECONDS", "12.5")
+    monkeypatch.setenv("ROBOMG_TASK_TIMEOUT_HARD_GRACE_SECONDS", "12.5")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.task_timeout_hard_grace_seconds == 12.5

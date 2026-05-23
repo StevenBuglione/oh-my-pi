@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@oh-my-pi/pi-agent-core";
-import { LspTool } from "@oh-my-pi/pi-coding-agent/lsp";
-import * as lspClient from "@oh-my-pi/pi-coding-agent/lsp/client";
-import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
-import { getServersForFile, loadConfig } from "@oh-my-pi/pi-coding-agent/lsp/config";
-import { renderCall, renderResult } from "@oh-my-pi/pi-coding-agent/lsp/render";
+import type { RenderResultOptions } from "@oh-my-gpt/gpt-agent-core";
+import { LspTool } from "@oh-my-gpt/gpt-coding-agent/lsp";
+import * as lspClient from "@oh-my-gpt/gpt-coding-agent/lsp/client";
+import * as lspConfig from "@oh-my-gpt/gpt-coding-agent/lsp/config";
+import { getServersForFile, loadConfig } from "@oh-my-gpt/gpt-coding-agent/lsp/config";
+import { renderCall, renderResult } from "@oh-my-gpt/gpt-coding-agent/lsp/render";
 import type {
 	CodeAction,
 	Diagnostic,
 	LspClient,
 	ServerConfig,
 	SymbolInformation,
-} from "@oh-my-pi/pi-coding-agent/lsp/types";
+} from "@oh-my-gpt/gpt-coding-agent/lsp/types";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -24,12 +24,12 @@ import {
 	hasGlobPattern,
 	resolveDiagnosticTargets,
 	resolveSymbolColumn,
-} from "@oh-my-pi/pi-coding-agent/lsp/utils";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { clampTimeout } from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { sanitizeText, TempDir } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/lsp/utils";
+import { getThemeByName } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import type { ToolSession } from "@oh-my-gpt/gpt-coding-agent/tools";
+import { clampTimeout } from "@oh-my-gpt/gpt-coding-agent/tools/tool-timeouts";
+import * as piUtils from "@oh-my-gpt/gpt-utils";
+import { sanitizeText, TempDir } from "@oh-my-gpt/gpt-utils";
 
 describe("lsp regressions", () => {
 	afterEach(() => {
@@ -49,7 +49,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("limits glob collection to avoid large diagnostic stalls", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-glob-");
+		const tempDir = TempDir.createSync("@omg-lsp-glob-");
 		try {
 			await Promise.all([
 				Bun.write(`${tempDir.path()}/a.ts`, "export const a = 1;\n"),
@@ -65,7 +65,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("treats existing bracket paths as literal diagnostic targets", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-bracket-path-");
+		const tempDir = TempDir.createSync("@omg-lsp-bracket-path-");
 		try {
 			const filePath = `${tempDir.path()}/apps/frontend/src/app/runs/[runId]/public/opengraph-image.tsx`;
 			await Bun.write(filePath, "export default function OpenGraphImage() {}\n");
@@ -86,7 +86,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("resolves the requested symbol occurrence on a line", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-regression-");
+		const tempDir = TempDir.createSync("@omg-lsp-regression-");
 		try {
 			const filePath = `${tempDir.path()}/symbol.ts`;
 			await Bun.write(filePath, "foo(bar(foo));\n");
@@ -99,7 +99,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("throws when symbol does not exist on the target line", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-missing-symbol-");
+		const tempDir = TempDir.createSync("@omg-lsp-missing-symbol-");
 		try {
 			const filePath = `${tempDir.path()}/symbol.ts`;
 			await Bun.write(filePath, "winston.info('x');\n");
@@ -113,7 +113,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("throws when occurrence is out of bounds", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-occurrence-");
+		const tempDir = TempDir.createSync("@omg-lsp-occurrence-");
 		try {
 			const filePath = `${tempDir.path()}/symbol.ts`;
 			await Bun.write(filePath, "foo();\n");
@@ -289,7 +289,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("does not reuse stale file diagnostics after another URI publishes", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-stale-diags-");
+		const tempDir = TempDir.createSync("@omg-lsp-stale-diags-");
 		try {
 			const targetFile = path.join(tempDir.path(), "target.ts");
 			const otherFile = path.join(tempDir.path(), "other.ts");
@@ -378,7 +378,7 @@ describe("lsp regressions", () => {
 			return;
 		}
 
-		const tempDir = TempDir.createSync("@omp-lsp-win32-bin-");
+		const tempDir = TempDir.createSync("@omg-lsp-win32-bin-");
 		const whichSpy = vi.spyOn(Bun, "which").mockReturnValue(null);
 
 		try {
@@ -398,7 +398,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("detects tlaplus files for LSP startup and language ids", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-tlaplus-");
+		const tempDir = TempDir.createSync("@omg-lsp-tlaplus-");
 		const specPath = path.join(tempDir.path(), "Spec.tla");
 		const aliasPath = path.join(tempDir.path(), "Spec.tlaplus");
 
@@ -423,7 +423,7 @@ describe("lsp regressions", () => {
 		}
 	});
 	it("rename_file applies LSP willRenameFiles edits and renames the file", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-rename-file-");
+		const tempDir = TempDir.createSync("@omg-lsp-rename-file-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "src", "old.ts");
 			const destFile = path.join(tempDir.path(), "src", "new.ts");
@@ -530,7 +530,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file with apply:false previews edits without filesystem changes", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-rename-file-preview-");
+		const tempDir = TempDir.createSync("@omg-lsp-rename-file-preview-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "old.ts");
 			const destFile = path.join(tempDir.path(), "new.ts");
@@ -587,7 +587,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file enumerates every file inside a directory rename", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-rename-dir-");
+		const tempDir = TempDir.createSync("@omg-lsp-rename-dir-");
 		try {
 			const srcDir = path.join(tempDir.path(), "old");
 			const dstDir = path.join(tempDir.path(), "new");
@@ -660,7 +660,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("request action sends raw LSP method with auto-built textDocument/position params", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-request-");
+		const tempDir = TempDir.createSync("@omg-lsp-request-");
 		try {
 			const filePath = path.join(tempDir.path(), "src", "lib.rs");
 			await Bun.write(filePath, 'fn main() {\n    println!("hi");\n}\n');
@@ -732,7 +732,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("request action forwards explicit JSON payload verbatim", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-request-payload-");
+		const tempDir = TempDir.createSync("@omg-lsp-request-payload-");
 		try {
 			const server: ServerConfig = { command: "test-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			const client: LspClient = {
@@ -789,7 +789,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("capabilities action dumps server capabilities", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-caps-");
+		const tempDir = TempDir.createSync("@omg-lsp-caps-");
 		try {
 			const server: ServerConfig = { command: "test-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			const client: LspClient = {

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import type { AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { editToolRenderer } from "@oh-my-gpt/gpt-coding-agent/edit/renderer";
+import { ToolExecutionComponent } from "@oh-my-gpt/gpt-coding-agent/modes/components/tool-execution";
+import * as themeModule from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import type { TUI } from "@oh-my-gpt/gpt-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();
@@ -56,7 +56,7 @@ describe("editToolRenderer", () => {
 		const component = new ToolExecutionComponent(
 			"edit",
 			{
-				input: ["*** Begin Patch", "§crates/pi-natives/src/shell.rs", "»EOF", "pub fn streaming_preview() {"].join(
+				input: ["*** Begin Patch", "§crates/gpt-natives/src/shell.rs", "»EOF", "pub fn streaming_preview() {"].join(
 					"\n",
 				),
 			},
@@ -66,7 +66,7 @@ describe("editToolRenderer", () => {
 		);
 
 		const rendered = Bun.stripANSI(component.render(160).join("\n"));
-		expect(rendered).toContain("crates/pi-natives/src/shell.rs");
+		expect(rendered).toContain("crates/gpt-natives/src/shell.rs");
 		expect(rendered).toContain("»EOF");
 		expect(rendered).toContain("pub fn streaming_preview() {");
 		expect(rendered).not.toContain("*** Begin Patch");

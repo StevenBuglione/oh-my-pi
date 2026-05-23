@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { discoverAndLoadExtensions } from "@oh-my-gpt/gpt-coding-agent/extensibility/extensions/loader";
 
 const TOOL_NAME = "legacy-multi-file-tool";
 
@@ -14,7 +14,7 @@ describe("issue #983: multi-file legacy Pi extensions", () => {
 	});
 
 	it("loads legacy Pi extensions whose sibling TypeScript files import each other via relative paths", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-issue-983-project-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omg-issue-983-project-"));
 		tempDirs.push(projectDir);
 		const extensionDir = path.join(projectDir, "legacy-pi-multi-file-extension");
 

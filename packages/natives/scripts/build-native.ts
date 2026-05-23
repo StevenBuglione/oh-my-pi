@@ -5,7 +5,7 @@ import { detectHostAvx2Support } from "../../../scripts/host-detect";
 import { generateEnumExports } from "./gen-enums";
 
 const repoRoot = path.join(import.meta.dir, "../../..");
-const rustDir = path.join(repoRoot, "crates/pi-natives");
+const rustDir = path.join(repoRoot, "crates/gpt-natives");
 const nativeDir = path.join(import.meta.dir, "../native");
 const packageJsonPath = path.join(import.meta.dir, "../package.json");
 
@@ -174,7 +174,7 @@ if (crossTarget) napiArgs.push("--target", crossTarget);
 const canonicalAddonFilename = `pi_natives.${targetPlatform}-${targetArch}${variantSuffix}.node`;
 const canonicalAddonPath = path.join(nativeDir, canonicalAddonFilename);
 
-console.log(`Building pi-natives for ${targetPlatform}-${targetArch}${variantSuffix}${profileSuffix}…`);
+console.log(`Building gpt-natives for ${targetPlatform}-${targetArch}${variantSuffix}${profileSuffix}…`);
 
 await fs.mkdir(nativeDir, { recursive: true });
 await cleanupStaleTemps(nativeDir);

@@ -1,7 +1,7 @@
 /**
  * Install dependencies for optional features.
  */
-import { Args, Command, Flags, renderCommandHelp } from "@oh-my-pi/pi-utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@oh-my-gpt/gpt-utils/cli";
 import { runSetupCommand, type SetupCommandArgs, type SetupComponent } from "../cli/setup-cli";
 import { initTheme } from "../modes/theme/theme";
 
@@ -26,7 +26,7 @@ export default class Setup extends Command {
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Setup);
 		if (!args.component) {
-			renderCommandHelp("omp", "setup", Setup);
+			renderCommandHelp("omg", "setup", Setup);
 			return;
 		}
 		const cmd: SetupCommandArgs = {

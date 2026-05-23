@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as native from "@oh-my-pi/pi-natives";
+import * as native from "@oh-my-gpt/gpt-natives";
 import type { Subprocess } from "bun";
 import { readImageFromClipboard } from "../../src/utils/clipboard";
 

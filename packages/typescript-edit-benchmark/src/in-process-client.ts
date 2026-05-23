@@ -5,9 +5,9 @@
  * Eliminates ~2-3s CLI startup overhead per task by creating sessions
  * in-process and sharing auth/model infrastructure across tasks.
  */
-import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@oh-my-pi/pi-coding-agent";
+import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { Model } from "@oh-my-gpt/gpt-ai";
+import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@oh-my-gpt/gpt-coding-agent";
 import {
 	type CreateAgentSessionResult,
 	createAgentSession,
@@ -15,7 +15,7 @@ import {
 	type ModelRegistry,
 	SessionManager,
 	Settings,
-} from "@oh-my-pi/pi-coding-agent";
+} from "@oh-my-gpt/gpt-coding-agent";
 
 export type InProcessEventListener = (event: AgentEvent) => void;
 
@@ -49,7 +49,7 @@ export interface DiscoverSharedInfraOptions {
 
 /** Discover shared infrastructure once for the entire benchmark run. */
 export async function discoverSharedInfra(options: DiscoverSharedInfraOptions = {}): Promise<SharedInfra> {
-	const { ModelRegistry: MR } = await import("@oh-my-pi/pi-coding-agent");
+	const { ModelRegistry: MR } = await import("@oh-my-gpt/gpt-coding-agent");
 	const authStorage = await discoverAuthStorage();
 	const modelRegistry = new MR(authStorage);
 

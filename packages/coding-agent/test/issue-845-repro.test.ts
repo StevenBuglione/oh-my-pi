@@ -5,12 +5,12 @@ import * as path from "node:path";
 import { resolveUpdateMethodForTest } from "../src/cli/update-cli";
 
 // Issue #845: on Windows with Bun installed via Scoop, ~/.bun is a junction
-// to scoop\persist\Oven-sh.Bun\.bun. `bun pm bin -g` and the omp path that
+// to scoop\persist\Oven-sh.Bun\.bun. `bun pm bin -g` and the omg path that
 // $which finds may end up referring to the same directory through different
 // path strings (one through the junction, one through the real target).
 // `isPathInDirectory` did purely lexical comparison via path.resolve, which
-// does not follow filesystem links, so it misclassified Bun-installed omp
-// as "binary" and tried to swap omp.exe in place – which fails on Windows
+// does not follow filesystem links, so it misclassified Bun-installed omg
+// as "binary" and tried to swap omg.exe in place – which fails on Windows
 // because Bun has the file open (EPERM on unlink of .bak).
 //
 // We reproduce the realpath-resolution bug with a symlink (works on macOS /
@@ -23,29 +23,29 @@ describe("issue-845: resolveUpdateMethod follows symlinks/junctions", () => {
 	let ompPathViaLink: string;
 
 	beforeAll(() => {
-		tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omp-issue-845-"));
+		tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omg-issue-845-"));
 		realBinDir = path.join(tmpRoot, "real", "bin");
 		fs.mkdirSync(realBinDir, { recursive: true });
-		fs.writeFileSync(path.join(realBinDir, "omp"), "#!/bin/sh\n", { mode: 0o755 });
+		fs.writeFileSync(path.join(realBinDir, "omg"), "#!/bin/sh\n", { mode: 0o755 });
 
 		linkedBinDir = path.join(tmpRoot, "link-bin");
 		fs.symlinkSync(realBinDir, linkedBinDir, "dir");
-		ompPathViaLink = path.join(linkedBinDir, "omp");
+		ompPathViaLink = path.join(linkedBinDir, "omg");
 	});
 
 	afterAll(() => {
 		fs.rmSync(tmpRoot, { recursive: true, force: true });
 	});
 
-	it("classifies omp reached through a symlinked bin dir as bun-managed", () => {
+	it("classifies omg reached through a symlinked bin dir as bun-managed", () => {
 		// $which resolves through the symlink, `bun pm bin -g` returns the real path
 		// (or vice versa). Either direction must be recognized.
 		const method = resolveUpdateMethodForTest(ompPathViaLink, realBinDir);
 		expect(method).toBe("bun");
 	});
 
-	it("classifies omp at the real bin dir as bun-managed when bunBinDir is symlinked", () => {
-		const ompAtReal = path.join(realBinDir, "omp");
+	it("classifies omg at the real bin dir as bun-managed when bunBinDir is symlinked", () => {
+		const ompAtReal = path.join(realBinDir, "omg");
 		const method = resolveUpdateMethodForTest(ompAtReal, linkedBinDir);
 		expect(method).toBe("bun");
 	});

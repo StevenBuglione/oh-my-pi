@@ -1,4 +1,4 @@
-import type { ptree } from "@oh-my-pi/pi-utils";
+import type { ptree } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 
 // =============================================================================

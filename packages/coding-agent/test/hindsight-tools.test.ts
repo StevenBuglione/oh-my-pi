@@ -8,14 +8,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
-import { HindsightRecallTool } from "@oh-my-pi/pi-coding-agent/tools/hindsight-recall";
-import { HindsightReflectTool } from "@oh-my-pi/pi-coding-agent/tools/hindsight-reflect";
-import { HindsightRetainTool } from "@oh-my-pi/pi-coding-agent/tools/hindsight-retain";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { HindsightApi } from "@oh-my-gpt/gpt-coding-agent/hindsight/client";
+import type { HindsightConfig } from "@oh-my-gpt/gpt-coding-agent/hindsight/config";
+import { HindsightSessionState } from "@oh-my-gpt/gpt-coding-agent/hindsight/state";
+import { HindsightRecallTool } from "@oh-my-gpt/gpt-coding-agent/tools/hindsight-recall";
+import { HindsightReflectTool } from "@oh-my-gpt/gpt-coding-agent/tools/hindsight-reflect";
+import { HindsightRetainTool } from "@oh-my-gpt/gpt-coding-agent/tools/hindsight-retain";
+import type { ToolSession } from "@oh-my-gpt/gpt-coding-agent/tools/index";
 
 const TEST_SESSION_ID = "test-session-id";
 let registeredState: HindsightSessionState | undefined;
@@ -34,7 +34,7 @@ function makeConfig(overrides: Partial<HindsightConfig> = {}): HindsightConfig {
 		retainMode: "full-session",
 		retainEveryNTurns: 3,
 		retainOverlapTurns: 2,
-		retainContext: "omp",
+		retainContext: "omg",
 		recallBudget: "mid",
 		recallMaxTokens: 1024,
 		recallTypes: ["world", "experience"],

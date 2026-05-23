@@ -1,5 +1,5 @@
 import { scheduler } from "node:timers/promises";
-import { extractHttpStatusFromError, isRetryableError } from "@oh-my-pi/pi-utils";
+import { extractHttpStatusFromError, isRetryableError } from "@oh-my-gpt/gpt-utils";
 
 /**
  * GitHub Copilot intermittently rejects preview models (gpt-5.3-codex,

@@ -27,7 +27,7 @@ export const textPartSchema = z.object({
 /**
  * OpenAI documents `image_url` as either `{ url: string, detail?: ... }` or —
  * older clients — a bare string. Accept both shapes; downstream we extract a
- * URL. `detail` is accepted for forward-compat but currently dropped (pi-ai's
+ * URL. `detail` is accepted for forward-compat but currently dropped (gpt-ai's
  * `ImageContent` has no detail field — TODO: plumb through if/when added).
  */
 export const imagePartSchema = z.object({

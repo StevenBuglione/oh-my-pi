@@ -33,7 +33,7 @@ afterEach(async () => {
 
 describe("CLI help load order", () => {
 	it("loads the root help command without tripping config/model-registry cycles", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-help-load-order-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omg-help-load-order-"));
 		cleanupRoot = root;
 		const home = path.join(root, "home");
 		const xdg = path.join(root, "xdg");
@@ -51,7 +51,7 @@ describe("CLI help load order", () => {
 				HOME: home,
 				XDG_CONFIG_HOME: xdg,
 				XDG_DATA_HOME: xdg,
-				PI_CODING_AGENT_DIR: agentDir,
+				OMG_CODING_AGENT_DIR: agentDir,
 				PI_NO_TITLE: "1",
 				NO_COLOR: "1",
 			},

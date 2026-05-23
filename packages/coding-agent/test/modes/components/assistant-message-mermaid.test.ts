@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { clearMermaidCache } from "@oh-my-pi/pi-coding-agent/modes/theme/mermaid-cache";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@oh-my-gpt/gpt-ai";
+import { resetSettingsForTest, Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@oh-my-gpt/gpt-coding-agent/modes/components/assistant-message";
+import { clearMermaidCache } from "@oh-my-gpt/gpt-coding-agent/modes/theme/mermaid-cache";
+import { initTheme } from "@oh-my-gpt/gpt-coding-agent/modes/theme/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-gpt/gpt-tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

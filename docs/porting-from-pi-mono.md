@@ -43,10 +43,10 @@ Upstream uses different package scopes. Replace them consistently.
 
 - Replace old scopes with the local scope used here.
 - Examples (adjust to match the actual packages you are porting):
-  - `@mariozechner/pi-coding-agent` → `@oh-my-pi/pi-coding-agent`
-  - `@mariozechner/pi-agent-core` → `@oh-my-pi/pi-agent-core`
-  - `@mariozechner/pi-tui` → `@oh-my-pi/pi-tui`
-  - `@mariozechner/pi-ai` → `@oh-my-pi/pi-ai`
+  - `@mariozechner/gpt-coding-agent` → `@oh-my-gpt/gpt-coding-agent`
+  - `@mariozechner/gpt-agent-core` → `@oh-my-gpt/gpt-agent-core`
+  - `@mariozechner/gpt-tui` → `@oh-my-gpt/gpt-tui`
+  - `@mariozechner/gpt-ai` → `@oh-my-gpt/gpt-ai`
 
 ## 4) Use Bun APIs where they improve on Node
 
@@ -126,7 +126,7 @@ Treat `package.json` as a contract. Merge intentionally.
 - Do not introduce `any` unless required.
 - Avoid dynamic imports unless they are required for optional dependencies, startup cost, or runtime-only modules; prefer top-level imports otherwise.
 - Never build prompts in code; prompts are static `.md` files rendered with Handlebars.
-- In `packages/coding-agent`, use `logger` from `@oh-my-pi/pi-utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
+- In `packages/coding-agent`, use `logger` from `@oh-my-gpt/gpt-utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
 - Use `Promise.withResolvers()` instead of `new Promise((resolve, reject) => ...)`.
 - Prefer ES `#` private fields for new encapsulated state. Constructor parameter properties already exist in current code and are acceptable; do not churn unrelated access modifiers while porting.
 - Prefer existing helpers and utilities over new ad-hoc code.
@@ -136,7 +136,7 @@ Treat `package.json` as a contract. Merge intentionally.
   - Heavy Node APIs should not be introduced casually; current source still uses selected Node APIs (`node:crypto`, `node:readline`, synchronous `node:fs`, and `child_process`) where they fit provider, CLI, or process-control semantics.
   - Lightweight Node APIs (`os.homedir`, `os.tmpdir`, `fs.mkdtempSync`, `path.*`) are kept.
   - CLI shebangs use `bun` (not `node`, not `tsx`).
-  - TypeScript packages generally use source files directly; `@oh-my-pi/pi-natives` exports generated native bindings from `packages/natives/native`.
+  - TypeScript packages generally use source files directly; `@oh-my-gpt/gpt-natives` exports generated native bindings from `packages/natives/native`.
   - CI workflows run Bun for install/check/test.
 
 ## 8) Remove old compatibility layers
@@ -327,7 +327,7 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 | Upstream                                           | Our Fork                                                  | Reason                                        |
 | -------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `clipboard.ts` + `clipboard-image.ts` (tool files) | `src/utils/clipboard.ts` backed by `@oh-my-pi/pi-natives` | Native implementation with a small TS wrapper |
+| `clipboard.ts` + `clipboard-image.ts` (tool files) | `src/utils/clipboard.ts` backed by `@oh-my-gpt/gpt-natives` | Native implementation with a small TS wrapper |
 
 ### Test Framework
 
@@ -356,14 +356,14 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 | Upstream                      | Our Fork                                          |
 | ----------------------------- | ------------------------------------------------- |
 | `jiti` for TypeScript loading | Native Bun `import()`                             |
-| `pkg.pi` manifest field       | `pkg.omp` preferred; fallback to `pkg.pi` remains |
+| `pkg.pi` manifest field       | `pkg.omg` preferred; fallback to `pkg.pi` remains |
 
 ### Skip These Upstream Features
 
 When porting, **skip** these files/features entirely:
 
 - `footer-data-provider.ts` — we use StatusLineComponent
-- `clipboard-image.ts` — image clipboard support is exposed through `src/utils/clipboard.ts` backed by `@oh-my-pi/pi-natives`
+- `clipboard-image.ts` — image clipboard support is exposed through `src/utils/clipboard.ts` backed by `@oh-my-gpt/gpt-natives`
 - GitHub workflow files — we have our own CI
 - `models.generated.ts` — auto-generated, regenerate locally (as models.json instead)
 

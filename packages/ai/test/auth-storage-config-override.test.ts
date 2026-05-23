@@ -16,7 +16,7 @@ describe("AuthStorage config-override apiKey", () => {
 	let authStorage: AuthStorage | null = null;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-ai-auth-config-override-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-ai-auth-config-override-"));
 		store = await SqliteAuthCredentialStore.open(path.join(tempDir, "agent.db"));
 		authStorage = new AuthStorage(store);
 	});

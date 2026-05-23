@@ -1,5 +1,5 @@
-import type { Component } from "@oh-my-pi/pi-tui";
-import { Box, Container, Spacer } from "@oh-my-pi/pi-tui";
+import type { Component } from "@oh-my-gpt/gpt-tui";
+import { Box, Container, Spacer } from "@oh-my-gpt/gpt-tui";
 import type { HookMessageRenderer } from "../../extensibility/hooks/types";
 import { theme } from "../../modes/theme/theme";
 import type { HookMessage } from "../../session/messages";

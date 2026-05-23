@@ -20,7 +20,7 @@
  * Idempotent.
  */
 
-const installed: unique symbol = Symbol.for("oh-my-pi.h2fetch.installed");
+const installed: unique symbol = Symbol.for("oh-my-gpt.h2fetch.installed");
 
 interface PatchedFetch {
 	[installed]?: true;

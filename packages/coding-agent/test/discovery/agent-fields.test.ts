@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@oh-my-pi/pi-ai";
+import { Effort } from "@oh-my-gpt/gpt-ai";
 import { parseAgentFields } from "../../src/discovery/helpers";
 
 describe("parseAgentFields", () => {

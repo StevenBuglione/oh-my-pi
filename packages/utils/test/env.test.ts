@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 function writeTempEnv(content: string): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-utils-env-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gpt-utils-env-"));
 	tempDirs.push(dir);
 	const filePath = path.join(dir, ".env");
 	fs.writeFileSync(filePath, content);
@@ -41,11 +41,11 @@ describe("parseEnvFile", () => {
 		});
 	});
 
-	it("mirrors valid OMP_ variables to PI_ variables", () => {
-		const filePath = writeTempEnv("OMP_FEATURE=enabled\nOMP_BAD=before\0after\n");
+	it("mirrors valid OMG_ variables to PI_ variables", () => {
+		const filePath = writeTempEnv("OMG_FEATURE=enabled\nOMG_BAD=before\0after\n");
 
 		expect(parseEnvFile(filePath)).toEqual({
-			OMP_FEATURE: "enabled",
+			OMG_FEATURE: "enabled",
 			PI_FEATURE: "enabled",
 		});
 	});

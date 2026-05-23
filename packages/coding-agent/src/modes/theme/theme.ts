@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Effort } from "@oh-my-pi/pi-ai";
+import type { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { Effort } from "@oh-my-gpt/gpt-ai";
 import {
 	detectMacOSAppearance,
 	MacAppearanceObserver,
 	type HighlightColors as NativeHighlightColors,
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
-} from "@oh-my-pi/pi-natives";
-import type { EditorTheme, MarkdownTheme, SelectListTheme, SymbolTheme } from "@oh-my-pi/pi-tui";
-import { adjustHsv, getCustomThemesDir, isEnoent, logger } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-natives";
+import type { EditorTheme, MarkdownTheme, SelectListTheme, SymbolTheme } from "@oh-my-gpt/gpt-tui";
+import { adjustHsv, getCustomThemesDir, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import chalk from "chalk";
 import * as z from "zod/v4";
 // Embed theme JSON files at build time
@@ -2402,7 +2402,7 @@ export function getEditorTheme(): EditorTheme {
 	};
 }
 
-export function getSettingsListTheme(): import("@oh-my-pi/pi-tui").SettingsListTheme {
+export function getSettingsListTheme(): import("@oh-my-gpt/gpt-tui").SettingsListTheme {
 	return {
 		label: (text: string, selected: boolean) => (selected ? theme.fg("accent", text) : text),
 		value: (text: string, selected: boolean) => (selected ? theme.fg("accent", text) : theme.fg("muted", text)),

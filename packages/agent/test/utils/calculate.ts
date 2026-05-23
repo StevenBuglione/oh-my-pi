@@ -1,4 +1,4 @@
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core/types";
+import type { AgentTool, AgentToolResult } from "@oh-my-gpt/gpt-agent-core/types";
 import * as z from "zod/v4";
 
 export interface CalculateResult extends AgentToolResult<undefined> {

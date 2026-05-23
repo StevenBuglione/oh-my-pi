@@ -1,4 +1,4 @@
-import { $env, extractHttpStatusFromError, structuredCloneJSON } from "@oh-my-pi/pi-utils";
+import { $env, extractHttpStatusFromError, structuredCloneJSON } from "@oh-my-gpt/gpt-utils";
 import OpenAI from "openai";
 import type {
 	Tool as OpenAITool,

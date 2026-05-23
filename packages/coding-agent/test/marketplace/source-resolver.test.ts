@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import type { MarketplacePluginEntry } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { resolvePluginSource } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+import type { MarketplacePluginEntry } from "@oh-my-gpt/gpt-coding-agent/extensibility/plugins/marketplace";
+import { resolvePluginSource } from "@oh-my-gpt/gpt-coding-agent/extensibility/plugins/marketplace";
 
 // Fixture: a cloned marketplace with a single plugin at ./plugins/hello-plugin
 const FIXTURE_DIR = path.resolve(import.meta.dir, "fixtures/valid-marketplace");
@@ -18,7 +18,7 @@ describe("resolvePluginSource", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-src-res-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omg-src-res-test-"));
 	});
 
 	afterEach(() => {

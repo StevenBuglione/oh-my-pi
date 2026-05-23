@@ -7,9 +7,9 @@ import {
 	loadEntriesFromFile,
 	type SessionHeader,
 	SessionManager,
-} from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { stripOuterDoubleQuotes } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { stripOuterDoubleQuotes } from "@oh-my-gpt/gpt-coding-agent/tools/path-utils";
+import { getConfigRootDir, setAgentDir } from "@oh-my-gpt/gpt-utils";
 
 // -- helpers ----------------------------------------------------------------
 
@@ -65,11 +65,11 @@ describe("SessionManager.moveTo", () => {
 	let testAgentDir: string;
 	let cwdA: string;
 	let cwdB: string;
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.OMG_CODING_AGENT_DIR;
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 	beforeEach(async () => {
-		testAgentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-move-test-"));
+		testAgentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omg-move-test-"));
 		setAgentDir(testAgentDir);
 		cwdA = path.join(testAgentDir, "cwd-a");
 		cwdB = path.join(testAgentDir, "cwd-b");
@@ -82,7 +82,7 @@ describe("SessionManager.moveTo", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.OMG_CODING_AGENT_DIR;
 		}
 		await fsp.rm(testAgentDir, { recursive: true, force: true });
 	});

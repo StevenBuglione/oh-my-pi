@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import { createAutoresearchExtension } from "../src/autoresearch/index";
 import {
 	buildExperimentState,
@@ -518,12 +518,12 @@ describe("autoresearch slash command", () => {
 	beforeEach(() => {
 		dbOverride = path.join(os.tmpdir(), `pi-autoresearch-cmd-${Snowflake.next()}`);
 		fs.mkdirSync(dbOverride, { recursive: true });
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 		cleanups.push(dbOverride);
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		for (const dir of cleanups.splice(0)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
@@ -585,12 +585,12 @@ describe("autoresearch tool-call hook", () => {
 	beforeEach(() => {
 		dbOverride = path.join(os.tmpdir(), `pi-autoresearch-hook-${Snowflake.next()}`);
 		fs.mkdirSync(dbOverride, { recursive: true });
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 		cleanups.push(dbOverride);
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		for (const dir of cleanups.splice(0)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

@@ -6,7 +6,7 @@
  * lifecycle hook dispatch.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { agentLoop } from "@oh-my-pi/pi-agent-core/agent-loop";
+import { agentLoop } from "@oh-my-gpt/gpt-agent-core/agent-loop";
 import {
 	type AgentTelemetryConfig,
 	type ChatUsageEvent,
@@ -19,12 +19,18 @@ import {
 	recordManualChatTelemetry,
 	resolveTelemetry,
 	type TelemetryHookContext,
-} from "@oh-my-pi/pi-agent-core/telemetry";
-import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core/types";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { z } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import type { EventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+} from "@oh-my-gpt/gpt-agent-core/telemetry";
+import type {
+	AgentContext,
+	AgentEvent,
+	AgentLoopConfig,
+	AgentMessage,
+	AgentTool,
+} from "@oh-my-gpt/gpt-agent-core/types";
+import type { Message } from "@oh-my-gpt/gpt-ai";
+import { z } from "@oh-my-gpt/gpt-ai";
+import { createMockModel } from "@oh-my-gpt/gpt-ai/providers/mock";
+import type { EventStream } from "@oh-my-gpt/gpt-ai/utils/event-stream";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {

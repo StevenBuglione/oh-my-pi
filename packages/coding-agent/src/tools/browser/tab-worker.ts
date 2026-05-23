@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { Snowflake, untilAborted } from "@oh-my-gpt/gpt-utils";
 import type { HTMLElement } from "linkedom";
 import type {
 	Browser,
@@ -821,7 +821,7 @@ export class WorkerCore {
 						session.browserScreenshotDir,
 						`screenshot-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, -1)}.png`,
 					)
-				: path.join(os.tmpdir(), `omp-sshots-${Snowflake.next()}.png`));
+				: path.join(os.tmpdir(), `omg-sshots-${Snowflake.next()}.png`));
 		await fs.promises.mkdir(path.dirname(dest), { recursive: true });
 		const saveFullRes = !!(explicitPath || session.browserScreenshotDir);
 		const savedBuffer = saveFullRes ? buffer : resized.buffer;

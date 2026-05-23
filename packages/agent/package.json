@@ -1,9 +1,9 @@
 {
 	"type": "module",
-	"name": "@oh-my-pi/pi-agent-core",
+	"name": "@oh-my-gpt/gpt-agent-core",
 	"version": "15.2.4",
 	"description": "General-purpose agent with transport abstraction, state management, and attachment support",
-	"homepage": "https://omp.sh",
+	"homepage": "https://omg.sh",
 	"author": "Can Boluk",
 	"contributors": [
 		"Mario Zechner"
@@ -11,11 +11,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/can1357/oh-my-gpt.git",
 		"directory": "packages/agent"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/can1357/oh-my-gpt/issues"
 	},
 	"keywords": [
 		"ai",
@@ -35,9 +35,9 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@oh-my-pi/pi-ai": "catalog:",
-		"@oh-my-pi/pi-natives": "catalog:",
-		"@oh-my-pi/pi-utils": "catalog:",
+		"@oh-my-gpt/gpt-ai": "catalog:",
+		"@oh-my-gpt/gpt-natives": "catalog:",
+		"@oh-my-gpt/gpt-utils": "catalog:",
 		"@opentelemetry/api": "catalog:"
 	},
 	"devDependencies": {

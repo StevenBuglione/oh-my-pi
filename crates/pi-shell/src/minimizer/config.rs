@@ -95,7 +95,7 @@ impl MinimizerConfig {
 					let actual_hex = format!("{actual:016x}");
 					if !actual_hex.eq_ignore_ascii_case(expected) {
 						eprintln!(
-							"[pi-natives minimizer] settings_hash mismatch for {} (expected {}, got {}); \
+							"[gpt-natives minimizer] settings_hash mismatch for {} (expected {}, got {}); \
 							 ignoring file",
 							expanded.display(),
 							expected,
@@ -114,7 +114,7 @@ impl MinimizerConfig {
 						}
 					},
 					Err(err) => {
-						eprintln!("[pi-natives minimizer] user filters: {err}");
+						eprintln!("[gpt-natives minimizer] user filters: {err}");
 					},
 				}
 			}
@@ -161,7 +161,7 @@ impl SettingsFile {
 			&& v != SUPPORTED_SCHEMA_VERSION
 		{
 			eprintln!(
-				"[pi-natives minimizer] unsupported schema_version {v} in settings file (expected \
+				"[gpt-natives minimizer] unsupported schema_version {v} in settings file (expected \
 				 {SUPPORTED_SCHEMA_VERSION})"
 			);
 			return;

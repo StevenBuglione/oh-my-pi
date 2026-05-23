@@ -552,7 +552,7 @@ async fn create_session(config: &ShellConfig) -> Result<ShellSessionCore> {
 
 async fn source_snapshot(shell: &mut BrushShell, snapshot_path: &str) -> Result<()> {
 	let mut params = shell.default_exec_params();
-	let source_info = SourceInfo::from("pi-natives:snapshot");
+	let source_info = SourceInfo::from("gpt-natives:snapshot");
 	params.set_fd(OpenFiles::STDIN_FD, null_file()?);
 	params.set_fd(OpenFiles::STDOUT_FD, null_file()?);
 	params.set_fd(OpenFiles::STDERR_FD, null_file()?);
@@ -679,7 +679,7 @@ async fn run_shell_command(
 			}
 		}
 	});
-	let source_info = SourceInfo::from("pi-natives:command");
+	let source_info = SourceInfo::from("gpt-natives:command");
 	let result = session
 		.shell
 		.run_string(options.command.clone(), &source_info, &params)
@@ -1125,7 +1125,7 @@ fn should_skip_env_var(key: &str) -> bool {
 			| "SHELLOPTS"
 			| "SHLVL"
 			| "SHELL"
-			| "COMP_WORDBREAKS"
+			| "COMG_WORDBREAKS"
 			| "DIRSTACK"
 			| "EPOCHREALTIME"
 			| "EPOCHSECONDS"
@@ -1557,7 +1557,7 @@ impl builtins::Command for TimeoutCommand {
 			}
 
 			let cancel_token = context.cancel_token();
-			let source_info = SourceInfo::from("pi-natives:timeout");
+			let source_info = SourceInfo::from("gpt-natives:timeout");
 			let run_future = context
 				.shell
 				.run_string(command_line, &source_info, &params);
@@ -1635,7 +1635,7 @@ mod tests {
 
 	/// Truth-table coverage for `brush_core::commands::child_session_action`.
 	///
-	/// Lives in `pi-natives` because the brush-core crate is excluded from the
+	/// Lives in `gpt-natives` because the brush-core crate is excluded from the
 	/// workspace (vendored upstream) and cannot be tested standalone — its tokio
 	/// dependency only resolves the `net` feature via feature-unification with
 	/// other workspace members.
@@ -1717,7 +1717,7 @@ mod tests {
 		let host_sid = unsafe { libc::getsid(0) };
 		assert!(host_sid > 0, "getsid(0) failed: {}", std::io::Error::last_os_error());
 
-		// Build the same kind of session pi-natives uses in production.
+		// Build the same kind of session gpt-natives uses in production.
 		let config = ShellConfig { session_env: None, snapshot_path: None, minimizer: None };
 		let mut session = create_session(&config).await.expect("create_session");
 
@@ -1761,7 +1761,7 @@ mod tests {
 		// Run brush in the background so we can call `getsid(child_pid)` while
 		// the child is still alive.
 		let shell_handle = tokio::spawn(async move {
-			let source_info = SourceInfo::from("pi-natives:test");
+			let source_info = SourceInfo::from("gpt-natives:test");
 			// `printf '%d\n' "$$"` then `sleep 0.5`. Long enough for our `getsid`.
 			let exec = session
 				.shell

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import { createAgentSession } from "@oh-my-gpt/gpt-coding-agent/sdk";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 
 function textContent(result: { content?: Array<{ type: string; text?: string }> }): string {
 	return (

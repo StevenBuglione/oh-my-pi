@@ -1,4 +1,4 @@
-import { renderMermaidAsciiSafe } from "@oh-my-pi/pi-utils";
+import { renderMermaidAsciiSafe } from "@oh-my-gpt/gpt-utils";
 
 const cache = new Map<string, string | null>();
 

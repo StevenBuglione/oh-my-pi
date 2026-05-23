@@ -235,7 +235,7 @@ Notable current limitation from implementation: `#handleLine()` handles `RpcResp
 ### ASCII overview
 
 ```text
-@oh-my-pi/pi-agent-core Agent
+@oh-my-gpt/gpt-agent-core Agent
             │ events/messages
             ▼
        AgentSession
@@ -566,7 +566,7 @@ Path normalization and filtering:
 Directory entry resolution:
 
 - `resolveExtensionEntries(dir)` checks, in order:
-  - `package.json` manifest (`omp` or `pi`) with `extensions[]` entries,
+  - `package.json` manifest (`omg` or `pi`) with `extensions[]` entries,
   - `index.ts`, then `index.js` fallback.
 - `discoverExtensionsInDir(dir)` applies one-level rules when the directory itself has no root entry:
   - direct `*.ts`/`*.js` files,
@@ -763,7 +763,7 @@ This subsystem is split into two layers:
 #### Bash executor (`src/exec/bash-executor.ts`)
 
 - Entry point: `executeBash(command, options)`.
-- Uses `Settings.getShellConfig()` and `Shell` from `@oh-my-pi/pi-natives`.
+- Uses `Settings.getShellConfig()` and `Shell` from `@oh-my-gpt/gpt-natives`.
 - Reuses shell sessions via `shellSessions: Map<string, Shell>` keyed by `buildSessionKey(...)` (shell, prefix, snapshot path, env, optional `sessionKey`).
 - Applies shell snapshot support via `getOrCreateSnapshot(...)` when using bash.
 - Streams output into `OutputSink` (`onChunk`, artifact path/id support).
@@ -909,7 +909,7 @@ What _is_ isolated is execution context and artifacts, not process memory:
   - **fuse-projfs**: `ensureProjfsOverlay(...)`, `captureDeltaPatch(...)`, `cleanupProjfsOverlay(...)` using ProjFS on Windows. Missing ProjFS prerequisites fall back to `worktree` with a system notification; non-prerequisite startup errors still fail the task.
 - The `task.isolation.merge` setting controls how isolated changes are integrated back:
   - **patch** (default): captures a diff via `captureDeltaPatch(...)`, combines patches, and applies with `git apply`.
-  - **branch**: each task commits to a temp branch (`omp/task/<id>`) via `commitToBranch(...)`, then `mergeTaskBranches(...)` cherry-picks them sequentially onto HEAD. If `git apply` fails inside `commitToBranch`, the error is non-fatal — the agent result is preserved with a `merge failed` status.
+  - **branch**: each task commits to a temp branch (`omg/task/<id>`) via `commitToBranch(...)`, then `mergeTaskBranches(...)` cherry-picks them sequentially onto HEAD. If `git apply` fails inside `commitToBranch`, the error is non-fatal — the agent result is preserved with a `merge failed` status.
 - The `task.isolation.commits` setting (`generic` or `ai`) controls commit messages for branch commits and nested repo patches. `ai` mode uses a smol model to generate conventional commit messages from diffs.
 - Nested repo patches are applied via `applyNestedPatches(...)` after the parent merge, grouped by repo with one commit per repo.
 - Child session JSONL/markdown outputs are written under the task artifacts directory (`<id>.jsonl`, `<id>.md`, and in isolated mode `<id>.patch`).
@@ -1112,7 +1112,7 @@ Use only script names that exist in `packages/coding-agent/package.json`:
   - `bun --cwd=packages/coding-agent run generate-docs-index`
 - Regenerate template artifacts:
   - `bun --cwd=packages/coding-agent run generate-template`
-- Build compiled binary artifact (`dist/omp`):
+- Build compiled binary artifact (`dist/omg`):
   - `bun --cwd=packages/coding-agent run build`
 
 `packages/coding-agent/README.md` intentionally delegates install/config/CLI docs to the monorepo root README (`../../README.md`) and keeps package-specific references to `CHANGELOG.md`, `docs/`, and `DEVELOPMENT.md`.

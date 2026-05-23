@@ -1,11 +1,11 @@
 """Gated end-to-end smoke test.
 
-Runs only when ROBOMP_INTEGRATION=1 and `omp` is available on PATH (or via
-ROBOMP_OMP_COMMAND). Spins up:
+Runs only when ROBOMG_INTEGRATION=1 and `omg` is available on PATH (or via
+ROBOMG_OMG_COMMAND). Spins up:
 
 - a local bare git repo with a trivial failing test,
 - a fake GitHub API via httpx.MockTransport that records comments + PRs,
-- a real `omp --mode rpc` subprocess driven by `worker.run_task`.
+- a real `omg --mode rpc` subprocess driven by `worker.run_task`.
 
 Asserts that triage_issue produces:
 - at least one issue comment,
@@ -26,11 +26,11 @@ from typing import Any
 import httpx
 import pytest
 
-INTEGRATION = os.environ.get("ROBOMP_INTEGRATION") == "1"
+INTEGRATION = os.environ.get("ROBOMG_INTEGRATION") == "1"
 
 pytestmark = pytest.mark.skipif(
     not INTEGRATION,
-    reason="ROBOMP_INTEGRATION=1 required to run the omp-backed smoke test",
+    reason="ROBOMG_INTEGRATION=1 required to run the omg-backed smoke test",
 )
 
 
@@ -73,16 +73,16 @@ def test_triage_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
     bare = _seed_failing_repo(tmp_path)
 
-    monkeypatch.setenv("ROBOMP_GH_PROXY_URL", "http://gh-proxy.invalid:8081")
-    monkeypatch.setenv("ROBOMP_GH_PROXY_HMAC_KEY", "test-hmac-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_URL", "http://gh-proxy.invalid:8081")
+    monkeypatch.setenv("ROBOMG_GH_PROXY_HMAC_KEY", "test-hmac-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
     monkeypatch.setenv("GITHUB_TOKEN", "")
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "secret")
-    monkeypatch.setenv("ROBOMP_BOT_LOGIN", "robomp-bot")
-    monkeypatch.setenv("ROBOMP_REPO_ALLOWLIST", "octo/widget")
-    monkeypatch.setenv("ROBOMP_WORKSPACE_ROOT", str(tmp_path / "workspaces"))
-    monkeypatch.setenv("ROBOMP_SQLITE_PATH", str(tmp_path / "robomp.sqlite"))
-    monkeypatch.setenv("ROBOMP_LOG_DIR", str(tmp_path / "logs"))
-    monkeypatch.setenv("ROBOMP_TASK_TIMEOUT_SECONDS", "300")
+    monkeypatch.setenv("ROBOMG_BOT_LOGIN", "robomp-bot")
+    monkeypatch.setenv("ROBOMG_REPO_ALLOWLIST", "octo/widget")
+    monkeypatch.setenv("ROBOMG_WORKSPACE_ROOT", str(tmp_path / "workspaces"))
+    monkeypatch.setenv("ROBOMG_SQLITE_PATH", str(tmp_path / "robomp.sqlite"))
+    monkeypatch.setenv("ROBOMG_LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("ROBOMG_TASK_TIMEOUT_SECONDS", "300")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     cfg.ensure_paths()

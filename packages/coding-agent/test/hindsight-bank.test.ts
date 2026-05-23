@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { computeBankScope, deriveBankId, ensureBankMission } from "@oh-my-pi/pi-coding-agent/hindsight/bank";
-import { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
+import { computeBankScope, deriveBankId, ensureBankMission } from "@oh-my-gpt/gpt-coding-agent/hindsight/bank";
+import { HindsightApi } from "@oh-my-gpt/gpt-coding-agent/hindsight/client";
+import type { HindsightConfig } from "@oh-my-gpt/gpt-coding-agent/hindsight/config";
 
 const baseConfig = (overrides: Partial<HindsightConfig> = {}): HindsightConfig => ({
 	hindsightApiUrl: "http://localhost:8888",
@@ -16,7 +16,7 @@ const baseConfig = (overrides: Partial<HindsightConfig> = {}): HindsightConfig =
 	retainMode: "full-session",
 	retainEveryNTurns: 3,
 	retainOverlapTurns: 2,
-	retainContext: "omp",
+	retainContext: "omg",
 	recallBudget: "mid",
 	recallMaxTokens: 1024,
 	recallTypes: ["world", "experience"],
@@ -40,7 +40,7 @@ describe("computeBankScope", () => {
 		});
 
 		it("falls back to the default bank name when bankId is unset", () => {
-			expect(computeBankScope(baseConfig(), "/whatever")).toEqual({ bankId: "omp" });
+			expect(computeBankScope(baseConfig(), "/whatever")).toEqual({ bankId: "omg" });
 		});
 
 		it("applies the configured prefix", () => {
@@ -60,13 +60,13 @@ describe("computeBankScope", () => {
 	describe("scoping=per-project", () => {
 		it("appends the cwd basename to the base bank id", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), "/work/proj")).toEqual({
-				bankId: "omp-proj",
+				bankId: "omg-proj",
 			});
 		});
 
 		it("appends `unknown` for an empty cwd", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), "")).toEqual({
-				bankId: "omp-unknown",
+				bankId: "omg-unknown",
 			});
 		});
 
@@ -88,7 +88,7 @@ describe("computeBankScope", () => {
 	describe("scoping=per-project-tagged", () => {
 		it("keeps the base bank id and emits project tags with `any` match", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project-tagged" }), "/work/proj")).toEqual({
-				bankId: "omp",
+				bankId: "omg",
 				retainTags: ["project:proj"],
 				recallTags: ["project:proj"],
 				recallTagsMatch: "any",
@@ -112,8 +112,8 @@ describe("computeBankScope", () => {
 describe("deriveBankId (legacy wrapper)", () => {
 	it("returns the bankId field of the resolved scope", () => {
 		expect(deriveBankId(baseConfig({ bankId: "team", bankIdPrefix: "prod" }), "/cwd")).toBe("prod-team");
-		expect(deriveBankId(baseConfig({ scoping: "per-project" }), "/work/proj")).toBe("omp-proj");
-		expect(deriveBankId(baseConfig({ scoping: "per-project-tagged" }), "/work/proj")).toBe("omp");
+		expect(deriveBankId(baseConfig({ scoping: "per-project" }), "/work/proj")).toBe("omg-proj");
+		expect(deriveBankId(baseConfig({ scoping: "per-project-tagged" }), "/work/proj")).toBe("omg");
 	});
 });
 

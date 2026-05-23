@@ -68,7 +68,7 @@ Because bundled parsing uses `level: "fatal"`, malformed bundled frontmatter thr
 
 Source-family order comes from `getConfigDirs("", { project: false })`, which is derived from `priorityList` in `src/config.ts`:
 
-1. `.omp`
+1. `.omg`
 2. `.claude`
 3. `.codex`
 4. `.gemini`
@@ -84,7 +84,7 @@ Bundled agents are appended last.
 
 ### Important caveat: stale comments vs current code
 
-`discovery.ts` header comments still mention `.pi` and do not mention `.codex`/`.gemini`. Actual runtime order is driven by `src/config.ts` and currently uses `.omp`, `.claude`, `.codex`, `.gemini`.
+`discovery.ts` header comments still mention `.pi` and do not mention `.codex`/`.gemini`. Actual runtime order is driven by `src/config.ts` and currently uses `.omg`, `.claude`, `.codex`, `.gemini`.
 
 ## Merge and collision rules
 
@@ -97,7 +97,7 @@ Discovery uses first-wins dedup by exact `agent.name`:
 Implications:
 
 - Project overrides user for same source family.
-- Higher-priority source family overrides lower (`.omp` before `.claude`, etc.).
+- Higher-priority source family overrides lower (`.omg` before `.claude`, etc.).
 - Non-bundled agents override bundled agents with the same name.
 - Name matching is case-sensitive (`Task` and `task` are distinct).
 - Within one directory, markdown files are read in lexicographic filename order before dedup.

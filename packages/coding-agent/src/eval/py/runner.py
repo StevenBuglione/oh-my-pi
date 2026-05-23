@@ -1,4 +1,4 @@
-"""OMP Python runner — subprocess wrapper used by the coding-agent host.
+"""OMG Python runner — subprocess wrapper used by the coding-agent host.
 
 NDJSON protocol over stdin/stdout. Host writes one JSON object per line;
 wrapper writes typed frames back.
@@ -283,7 +283,7 @@ def cell_magic(name: str) -> Callable[[Callable[[str, str], Any]], Callable[[str
 
 
 def _emit_status(op: str, **data: Any) -> None:
-    bundle = {"application/x-omp-status": {"op": op, **data}}
+    bundle = {"application/x-omg-status": {"op": op, **data}}
     rid = _STATE.current_id
     if rid is None:
         return
@@ -793,7 +793,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="omg-parent-watchdog", daemon=True)
     thread.start()
 
 

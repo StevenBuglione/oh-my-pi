@@ -22,7 +22,7 @@ import {
 	logger,
 	procmgr,
 	setDefaultTabWidth,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import { YAML } from "bun";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-registry";
@@ -712,7 +712,7 @@ export class Settings {
 					!("bankId" in hindsightObj) &&
 					typeof agentName === "string" &&
 					agentName.trim().length > 0 &&
-					agentName !== "omp"
+					agentName !== "omg"
 				) {
 					hindsightObj.bankId = agentName;
 				}

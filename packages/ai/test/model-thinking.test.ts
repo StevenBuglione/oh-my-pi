@@ -8,8 +8,8 @@ import {
 	mapEffortToAnthropicAdaptiveEffort,
 	mapEffortToGoogleThinkingLevel,
 	requireSupportedEffort,
-} from "@oh-my-pi/pi-ai/model-thinking";
-import type { Api, Model, Provider } from "@oh-my-pi/pi-ai/types";
+} from "@oh-my-gpt/gpt-ai/model-thinking";
+import type { Api, Model, Provider } from "@oh-my-gpt/gpt-ai/types";
 
 function createModel<TApi extends Api>(overrides: {
 	id: string;
@@ -121,7 +121,7 @@ describe("model thinking metadata", () => {
 			minLevel: Effort.Minimal,
 			maxLevel: Effort.High,
 		});
-		// Opus 4.6 has no real xhigh level — pi-ai aliases XHigh to Anthropic's "max".
+		// Opus 4.6 has no real xhigh level — gpt-ai aliases XHigh to Anthropic's "max".
 		expect(mapEffortToAnthropicAdaptiveEffort(opus46, Effort.XHigh)).toBe("max");
 		// Opus 4.7 on Messages API sends the new literal "xhigh" level.
 		expect(mapEffortToAnthropicAdaptiveEffort(opus47, Effort.XHigh)).toBe("xhigh");

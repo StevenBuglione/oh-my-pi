@@ -1,6 +1,6 @@
-import type { AgentTelemetryConfig, AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { ToolChoice } from "@oh-my-pi/pi-ai";
-import { $env, $flag, logger } from "@oh-my-pi/pi-utils";
+import type { AgentTelemetryConfig, AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import type { ToolChoice } from "@oh-my-gpt/gpt-ai";
+import { $env, $flag, logger } from "@oh-my-gpt/gpt-utils";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -28,6 +28,7 @@ import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import { CalculatorTool } from "./calculator";
+import { ChatGptWorkerTool } from "./chatgpt-worker";
 import { type CheckpointState, CheckpointTool, RewindTool } from "./checkpoint";
 import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
@@ -69,6 +70,7 @@ export * from "./ast-grep";
 export * from "./bash";
 export * from "./browser";
 export * from "./calculator";
+export * from "./chatgpt-worker";
 export * from "./checkpoint";
 export * from "./debug";
 export * from "./eval";
@@ -95,7 +97,7 @@ export * from "./vim";
 export * from "./write";
 export * from "./yield";
 
-/** Tool type (AgentTool from pi-ai) */
+/** Tool type (AgentTool from gpt-ai) */
 export type Tool = AgentTool<any, any, any>;
 
 export type ContextFileEntry = {
@@ -298,6 +300,7 @@ export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
 	lsp: LspTool.createIf,
 	inspect_image: s => new InspectImageTool(s),
 	browser: s => new BrowserTool(s),
+	chatgpt_worker: () => new ChatGptWorkerTool(),
 	checkpoint: CheckpointTool.createIf,
 	rewind: RewindTool.createIf,
 	task: s => TaskTool.create(s),

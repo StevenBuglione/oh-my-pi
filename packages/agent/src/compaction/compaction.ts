@@ -12,9 +12,9 @@ import {
 	type MessageAttribution,
 	type Model,
 	type Usage,
-} from "@oh-my-pi/pi-ai";
-import { countTokens } from "@oh-my-pi/pi-natives";
-import { logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai";
+import { countTokens } from "@oh-my-gpt/gpt-natives";
+import { logger, prompt } from "@oh-my-gpt/gpt-utils";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import type { AgentMessage, AgentTool } from "../types";
 import type { CompactionEntry, SessionEntry } from "./entries";

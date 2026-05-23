@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "python/omp-rpc/src"))
+sys.path.insert(0, str(REPO_ROOT / "python/omg-rpc/src"))
 
-from omp_rpc import MessageEndEvent, MessageStartEvent, MessageUpdateEvent, RpcClient, ToolExecutionStartEvent  # noqa: E402
+from omg_rpc import MessageEndEvent, MessageStartEvent, MessageUpdateEvent, RpcClient, ToolExecutionStartEvent  # noqa: E402
 
 MODELS = [
     "openrouter/moonshotai/kimi-k2.5",
@@ -622,9 +622,9 @@ def resolve_omp_bin(raw: str | None) -> str:
     repo_bin = resolve_repo_omp_bin()
     if repo_bin:
         return repo_bin
-    found = shutil.which("omp")
+    found = shutil.which("omg")
     if not found:
-        raise SystemExit("Could not find `omp` on PATH and could not resolve the repo CLI. Set --omp-bin or OMP_BIN.")
+        raise SystemExit("Could not find `omg` on PATH and could not resolve the repo CLI. Set --omg-bin or OMG_BIN.")
     return found
 
 
@@ -817,7 +817,7 @@ def run_benchmark_for_model(
 
 
 async def run_all(spec: BenchmarkSpec, args: argparse.Namespace) -> dict[str, dict[str, Any]]:
-    omp_bin = resolve_omp_bin(args.omp_bin)
+    omp_bin = resolve_omp_bin(args.omg_bin)
 
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     workspace_root = Path(tempfile.gettempdir()) / f"{spec.workspace_prefix}-{timestamp}"
@@ -882,9 +882,9 @@ async def run_all(spec: BenchmarkSpec, args: argparse.Namespace) -> dict[str, di
 def parse_args(description: str) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-        "--omp-bin",
-        default=os.environ.get("OMP_BIN"),
-        help="Executable to launch. Defaults to the repo checkout CLI, then falls back to `omp` on PATH.",
+        "--omg-bin",
+        default=os.environ.get("OMG_BIN"),
+        help="Executable to launch. Defaults to the repo checkout CLI, then falls back to `omg` on PATH.",
     )
     parser.add_argument(
         "--timeout", type=float, default=60.0, help="Per-turn timeout in seconds."

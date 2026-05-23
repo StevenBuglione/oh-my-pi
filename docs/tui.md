@@ -19,7 +19,7 @@ The runtime has two layers:
 
 If your extension/tool can run in non-interactive mode, guard with `ctx.hasUI` / `pi.hasUI`.
 
-## Core component contract (`@oh-my-pi/pi-tui`)
+## Core component contract (`@oh-my-gpt/gpt-tui`)
 
 `packages/tui/src/tui.ts` defines:
 
@@ -54,7 +54,7 @@ Your `render(width)` output must be terminal-safe:
 Minimal pattern:
 
 ```ts
-import { replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
+import { replaceTabs, truncateToWidth } from "@oh-my-gpt/gpt-tui";
 
 render(width: number): string[] {
   return this.lines.map(line => truncateToWidth(replaceTabs(line), width));
@@ -181,17 +181,17 @@ return loader;
 ## Realistic custom component example (extension command)
 
 ```ts
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { Component } from "@oh-my-gpt/gpt-tui";
 import {
   SelectList,
   matchesKey,
   replaceTabs,
   truncateToWidth,
-} from "@oh-my-pi/pi-tui";
+} from "@oh-my-gpt/gpt-tui";
 import {
   getSelectListTheme,
   type ExtensionAPI,
-} from "@oh-my-pi/pi-coding-agent";
+} from "@oh-my-gpt/gpt-coding-agent";
 
 class Picker implements Component {
   list: SelectList;

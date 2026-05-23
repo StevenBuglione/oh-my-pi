@@ -7,7 +7,7 @@
  * hashline DSL form. Other tools and surfaces fall through to
  * abort-and-retry handled by the agent loop.
  */
-import type { AssistantMessage, Model, ToolCall } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, Model, ToolCall } from "@oh-my-gpt/gpt-ai";
 
 // Single source of truth for the marker pattern. `M` in the errata.
 // Use a fresh non-global instance for `.test()` to avoid lastIndex pitfalls.
@@ -298,7 +298,7 @@ export function createHarmonyAuditEvent(params: {
 		removedLen: params.removed.length,
 		removedSha8: sha8(params.removed),
 		removedPreview: redactedJunkPreview(params.removed),
-		removedBlob: Bun.env.OMP_HARMONY_DEBUG === "1" ? params.removed : undefined,
+		removedBlob: Bun.env.OMG_HARMONY_DEBUG === "1" ? params.removed : undefined,
 	};
 }
 

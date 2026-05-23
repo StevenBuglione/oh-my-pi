@@ -16,7 +16,7 @@ import {
 	SettingsList,
 	Spacer,
 	Text,
-} from "@oh-my-pi/pi-tui";
+} from "@oh-my-gpt/gpt-tui";
 import { PluginManager } from "../../extensibility/plugins/manager";
 import type { InstalledPlugin, PluginSettingSchema } from "../../extensibility/plugins/types";
 import { getSelectListTheme, getSettingsListTheme, theme } from "../../modes/theme/theme";
@@ -67,7 +67,7 @@ export class PluginListComponent extends Container {
 		if (plugins.length === 0) {
 			this.addChild(new Text(theme.fg("muted", "  No plugins installed"), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", "  Install with: omp plugin install <package>"), 0, 0));
+			this.addChild(new Text(theme.fg("dim", "  Install with: omg plugin install <package>"), 0, 0));
 			this.addChild(new Spacer(1));
 			this.addChild(new DynamicBorder());
 

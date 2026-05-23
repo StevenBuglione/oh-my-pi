@@ -12,7 +12,7 @@ describe("spacing", () => {
 
 	beforeEach(async () => {
 		previousProjectDir = getProjectDir();
-		tempDir = path.join(os.tmpdir(), "pi-utils-spacing", Snowflake.next());
+		tempDir = path.join(os.tmpdir(), "gpt-utils-spacing", Snowflake.next());
 		await fs.mkdir(tempDir, { recursive: true });
 		setProjectDir(tempDir);
 		setDefaultTabWidth(3);

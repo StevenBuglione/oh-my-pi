@@ -1,12 +1,12 @@
 /**
- * Centralized logger for omp.
+ * Centralized logger for omg.
  *
- * Default: rotating `~/.omp/logs/omp.<DATE>.log`, no console output (writing
+ * Default: rotating `~/.omg/logs/omg.<DATE>.log`, no console output (writing
  * to stdout/stderr would corrupt the TUI). Long-running headless services
  * (the auth broker, etc.) call {@link setTransports} to swap in a console
  * transport so a process supervisor (pm2, journald, k8s) captures the logs.
  *
- * Each entry includes `process.pid` so concurrent omp instances stay
+ * Each entry includes `process.pid` so concurrent omg instances stay
  * traceable.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -47,7 +47,7 @@ const logFormat = winston.format.combine(
 function makeFileTransport(dir?: string): winston.transport {
 	return new DailyRotateFile({
 		dirname: ensureDir(dir ?? getLogsDir()),
-		filename: "omp.%DATE%.log",
+		filename: "omg.%DATE%.log",
 		datePattern: "YYYY-MM-DD",
 		maxSize: "10m",
 		maxFiles: 5,

@@ -9,7 +9,7 @@ import {
 	logger,
 	readSseJson,
 	structuredCloneJSON,
-} from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-utils";
 import type OpenAI from "openai";
 import type {
 	ResponseCustomToolCall,

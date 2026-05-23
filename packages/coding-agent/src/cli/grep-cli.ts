@@ -1,11 +1,11 @@
 /**
  * Grep CLI command handlers.
  *
- * Handles `omp grep` subcommand for testing grep tool on Windows.
+ * Handles `omg grep` subcommand for testing grep tool on Windows.
  */
 import * as path from "node:path";
-import { GrepOutputMode, grep } from "@oh-my-pi/pi-natives";
-import { APP_NAME } from "@oh-my-pi/pi-utils";
+import { GrepOutputMode, grep } from "@oh-my-gpt/gpt-natives";
+import { APP_NAME } from "@oh-my-gpt/gpt-utils";
 import chalk from "chalk";
 
 export interface GrepCommandArgs {

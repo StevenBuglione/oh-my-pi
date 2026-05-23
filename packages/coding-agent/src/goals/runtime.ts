@@ -1,4 +1,4 @@
-import { prompt, Snowflake } from "@oh-my-pi/pi-utils";
+import { prompt, Snowflake } from "@oh-my-gpt/gpt-utils";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
 import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };

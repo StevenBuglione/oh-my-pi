@@ -12,8 +12,8 @@
  * `__`-prefixed fields not in the allowlist) is preserved verbatim.
  */
 import { describe, expect, it } from "bun:test";
-import { type SkillPromptDetails, stripInternalDetailsFields } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { type CustomMessageEntry, SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { type SkillPromptDetails, stripInternalDetailsFields } from "@oh-my-gpt/gpt-coding-agent/session/messages";
+import { type CustomMessageEntry, SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
 
 const SKILL_TYPE = "skill-prompt";
 
@@ -38,7 +38,7 @@ describe("SessionManager.appendCustomMessageEntry (allowlist strip + persistence
 				path: "/s.md",
 				args: "bar",
 				lineCount: 10,
-				__pendingDisplayTag: "omp-cmd-1-0",
+				__pendingDisplayTag: "omg-cmd-1-0",
 			},
 			"user",
 		);

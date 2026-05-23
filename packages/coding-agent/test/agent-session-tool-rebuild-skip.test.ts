@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
+import { Agent, type AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import type { Model } from "@oh-my-gpt/gpt-ai";
 import * as z from "zod/v4";
 import { Settings } from "../src/config/settings";
 import type { CustomTool } from "../src/extensibility/custom-tools/types";

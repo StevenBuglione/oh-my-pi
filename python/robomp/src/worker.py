@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from omp_rpc import (
+from omg_rpc import (
     MessageUpdateEvent,
     RpcClient,
     RpcError,
@@ -112,8 +112,8 @@ _SCRUBBED_ENV_KEYS: tuple[str, ...] = (
     # `bash` tool could otherwise `printenv` them out of roboomp's env.
     "GITHUB_TOKEN",
     "GITHUB_WEBHOOK_SECRET",
-    "ROBOMP_REPLAY_TOKEN",
-    "ROBOMP_GH_PROXY_HMAC_KEY",
+    "ROBOMG_REPLAY_TOKEN",
+    "ROBOMG_GH_PROXY_HMAC_KEY",
 )
 
 _AGENT_HOME = Path("/srv/agent-home")
@@ -125,7 +125,7 @@ def _stage_agent_home() -> None:
     if not _AGENT_HOME_STAGE.exists():
         return
 
-    for rel in (Path(".agent"), Path(".omp/agent")):
+    for rel in (Path(".agent"), Path(".omg/agent")):
         src = _AGENT_HOME_STAGE / rel
         if not src.exists():
             continue
@@ -175,9 +175,9 @@ def _stage_agent_home() -> None:
 
 
 def _build_extra_env(settings: Settings) -> dict[str, str]:
-    """Build the env overlay passed to the omp subprocess.
+    """Build the env overlay passed to the omg subprocess.
 
-    `omp_rpc` merges this dict on top of `os.environ`, so overlaying empty
+    `omg_rpc` merges this dict on top of `os.environ`, so overlaying empty
     strings for the sensitive keys is what actually masks them in the
     child — `del` on the parent's env would not help us here.
     """
@@ -348,7 +348,7 @@ def _drive_turn(
 
 
 def _has_prior_session(session_dir: Path) -> bool:
-    """Return True iff `session_dir` already contains an omp JSONL transcript.
+    """Return True iff `session_dir` already contains an omg JSONL transcript.
 
     pi's `coding-agent` writes one `*.jsonl` per session into `--session-dir`.
     The presence of any such file is the signal that `--continue` will pick
@@ -503,7 +503,7 @@ def _run_rpc_blocking(
     inputs.db.set_event_model(inputs.delivery_id, chosen_model)
 
     with RpcClient(
-        executable=settings.omp_command,
+        executable=settings.omg_command,
         cwd=bindings.workspace.repo_dir,
         session_dir=bindings.workspace.session_dir,
         env=rpc_env,
@@ -520,14 +520,14 @@ def _run_rpc_blocking(
         extra_args=extra_args,
         user=inputs.slot_uid,
         group=inputs.slot_uid if inputs.slot_uid is not None else None,
-        extra_groups=["omp"] if inputs.slot_uid is not None else None,
+        extra_groups=["omg"] if inputs.slot_uid is not None else None,
     ) as client:
-        # Arm cancellation: from this point the API can kill the omp subprocess
+        # Arm cancellation: from this point the API can kill the omg subprocess
         # out from under us, which makes `prompt_and_wait` raise an `RpcError`
         # we'll let propagate. The `with` exit calls `client.stop()` again, but
         # it's idempotent.
         #
-        # NOTE: omp_rpc.RpcClient.stop() has a bug where it sets `_stopping=True`
+        # NOTE: omg_rpc.RpcClient.stop() has a bug where it sets `_stopping=True`
         # before the stdout reader loop notices the closed pipe, so the reader's
         # `if not self._stopping` guard skips `_mark_closed()` entirely.
         # `_wait_for_agent_end` then blocks on `_event_condition` until the hard
@@ -629,7 +629,7 @@ def _run_rpc_blocking(
             finally:
                 hard_timer.cancel()
             if hard_timeout_fired.is_set():
-                raise TimeoutError("omp task exceeded hard timeout")
+                raise TimeoutError("omg task exceeded hard timeout")
             log.info(
                 "rpc_done",
                 extra={

@@ -13,7 +13,7 @@
   - `packages/coding-agent/src/session/streaming-output.ts` — line truncation and final byte truncation.
   - `packages/coding-agent/src/config/settings-schema.ts` — default context lines.
   - `packages/natives/native/index.d.ts` — native `grep()` types exposed to TS.
-  - `crates/pi-natives/src/grep.rs` — native regex/file search implementation.
+  - `crates/gpt-natives/src/grep.rs` — native regex/file search implementation.
   - `docs/natives-text-search-pipeline.md` — native search pipeline overview.
 
 ## Inputs
@@ -60,14 +60,14 @@ The tool returns a single text block in `content[0].text` plus structured `detai
    - one entry: `parseSearchPath()` splits `basePath` and optional glob;
    - multiple entries: `resolveExplicitSearchPaths()` computes a common base directory, brace-union glob, exact-file list, or degenerate-root target list.
 6. `search.ts` stats the resolved base path to decide file vs directory behavior.
-7. It calls native `grep()` from `@oh-my-pi/pi-natives` with:
+7. It calls native `grep()` from `@oh-my-gpt/gpt-natives` with:
    - `pattern`, `ignoreCase`, `multiline`, `gitignore`;
    - `hidden: true`;
    - `cache: false`;
    - `contextBefore` / `contextAfter` from settings;
    - `maxColumns: 1024`;
    - `mode: content`.
-8. Native execution happens in `crates/pi-natives/src/grep.rs`:
+8. Native execution happens in `crates/gpt-natives/src/grep.rs`:
    - `build_matcher()` sanitizes non-quantifier braces before regex compile;
    - if compile fails with unopened/unclosed-group errors, it retries after escaping previously unescaped parentheses;
    - directory scans use the grep pipeline described in `docs/natives-text-search-pipeline.md`.

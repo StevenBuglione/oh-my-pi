@@ -9,7 +9,7 @@ import {
 	DEFAULT_FUZZY_THRESHOLD,
 	findMatch,
 	formatLineHash,
-} from "@oh-my-pi/pi-coding-agent/edit";
+} from "@oh-my-gpt/gpt-coding-agent/edit";
 
 describe("findMatch", () => {
 	describe("exact matching", () => {

@@ -4,10 +4,10 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, Model, TextContent } from "@oh-my-pi/pi-ai";
-import type { KeyId } from "@oh-my-pi/pi-tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { ImageContent, Model, TextContent } from "@oh-my-gpt/gpt-ai";
+import type { KeyId } from "@oh-my-gpt/gpt-tui";
+import { hasFsCode, isEacces, isEnoent, logger } from "@oh-my-gpt/gpt-utils";
 import * as Zod from "zod/v4";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { loadCapability } from "../../discovery";
@@ -128,7 +128,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	}> = [];
 
 	constructor(
-		public readonly pi: typeof import("@oh-my-pi/pi-coding-agent"),
+		public readonly pi: typeof import("@oh-my-gpt/gpt-coding-agent"),
 		private readonly extension: Extension,
 		private readonly runtime: IExtensionRuntime,
 		private readonly cwd: string,
@@ -142,7 +142,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	}
 
 	registerTool<
-		TParams extends import("@oh-my-pi/pi-ai").TSchema = import("@oh-my-pi/pi-ai").TSchema,
+		TParams extends import("@oh-my-gpt/gpt-ai").TSchema = import("@oh-my-gpt/gpt-ai").TSchema,
 		TDetails = unknown,
 	>(tool: ToolDefinition<TParams, TDetails>): void {
 		this.extension.tools.set(tool.name, {
@@ -294,7 +294,7 @@ async function loadExtension(
 
 		const extension = createExtension(extensionPath, resolvedPath);
 		const api = new ConcreteExtensionAPI(
-			await import("@oh-my-pi/pi-coding-agent"),
+			await import("@oh-my-gpt/gpt-coding-agent"),
 			extension,
 			runtime,
 			cwd,
@@ -320,7 +320,7 @@ export async function loadExtensionFromFactory(
 	name = "<inline>",
 ): Promise<Extension> {
 	const extension = createExtension(name, name);
-	const api = new ConcreteExtensionAPI(await import("@oh-my-pi/pi-coding-agent"), extension, runtime, cwd, eventBus);
+	const api = new ConcreteExtensionAPI(await import("@oh-my-gpt/gpt-coding-agent"), extension, runtime, cwd, eventBus);
 	await factory(api);
 	return extension;
 }
@@ -362,8 +362,8 @@ interface ExtensionManifest {
 
 async function readExtensionManifest(packageJsonPath: string): Promise<ExtensionManifest | null> {
 	try {
-		const pkg = (await Bun.file(packageJsonPath).json()) as { omp?: ExtensionManifest; pi?: ExtensionManifest };
-		const manifest = pkg.omp ?? pkg.pi;
+		const pkg = (await Bun.file(packageJsonPath).json()) as { omg?: ExtensionManifest; pi?: ExtensionManifest };
+		const manifest = pkg.omg ?? pkg.pi;
 		if (manifest && typeof manifest === "object") {
 			return manifest;
 		}
@@ -436,7 +436,7 @@ async function resolveExtensionEntries(dir: string): Promise<string[] | null> {
  * Discovery rules:
  * 1. Direct files: `extensions/*.ts` or `*.js` → load
  * 2. Subdirectory with index: `extensions/<ext>/index.ts` or `index.js` → load
- * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with "omp"/"pi" field → load declared paths
+ * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with "omg"/"pi" field → load declared paths
  *
  * No recursion beyond one level. Complex packages must use package.json manifest.
  */
@@ -508,7 +508,7 @@ export async function discoverAndLoadExtensions(
 		}
 	};
 
-	// 1. Discover extension modules via capability API (native .omp/.pi only)
+	// 1. Discover extension modules via capability API (native .omg/.pi only)
 	const discovered = await loadCapability<ExtensionModule>(extensionModuleCapability.id, { cwd });
 	for (const ext of discovered.items) {
 		if (ext._source.provider !== "native") continue;

@@ -3,7 +3,7 @@
  *
  * CRUD operations for websets, items, searches, enrichments, and monitoring.
  */
-import type { TSchema } from "@oh-my-pi/pi-ai";
+import type { TSchema } from "@oh-my-gpt/gpt-ai";
 import * as z from "zod/v4";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import { callWebsetsTool, findApiKey } from "./mcp-client";

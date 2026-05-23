@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 import { InternalUrlRouter } from "../internal-urls";
 import { ToolError } from "./tool-errors";
 
@@ -24,7 +24,7 @@ const INTERNAL_SCHEMES_WITH_SELECTORS: Record<string, true> = {
 	issue: true,
 	local: true,
 	memory: true,
-	omp: true,
+	omg: true,
 	pr: true,
 	rule: true,
 	skill: true,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { JsRuntime } from "@oh-my-pi/pi-coding-agent/eval/js/shared/runtime";
-import type { JsDisplayOutput } from "@oh-my-pi/pi-coding-agent/eval/js/shared/types";
+import { JsRuntime } from "@oh-my-gpt/gpt-coding-agent/eval/js/shared/runtime";
+import type { JsDisplayOutput } from "@oh-my-gpt/gpt-coding-agent/eval/js/shared/types";
 
 function collect(): {
 	runtime: JsRuntime;

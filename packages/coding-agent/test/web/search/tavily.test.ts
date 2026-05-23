@@ -3,8 +3,8 @@ import {
 	buildRequestBody,
 	searchTavily,
 	type TavilySearchParams,
-} from "@oh-my-pi/pi-coding-agent/web/search/providers/tavily";
-import { hookFetch } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-coding-agent/web/search/providers/tavily";
+import { hookFetch } from "@oh-my-gpt/gpt-utils";
 
 describe("Tavily buildRequestBody", () => {
 	afterEach(() => {

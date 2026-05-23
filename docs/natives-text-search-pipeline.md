@@ -1,25 +1,25 @@
 # Natives Text/Search Pipeline
 
-This document maps the `@oh-my-pi/pi-natives` text/search/code surface from generated JS/TS exports to Rust N-API modules and back to JS result objects.
+This document maps the `@oh-my-gpt/gpt-natives` text/search/code surface from generated JS/TS exports to Rust N-API modules and back to JS result objects.
 
 Terminology follows `docs/natives-architecture.md`:
 
 - **Generated binding**: public API in `packages/natives/native/index.d.ts`.
-- **Rust module layer**: N-API exports in `crates/pi-natives/src/*`.
+- **Rust module layer**: N-API exports in `crates/gpt-natives/src/*`.
 - **Shared scan cache**: `fs_cache`-backed directory-entry cache used by discovery/search flows.
 
 ## Implementation files
 
 - `packages/natives/native/index.d.ts`
-- `crates/pi-natives/src/grep.rs`
-- `crates/pi-natives/src/glob.rs`
-- `crates/pi-natives/src/glob_util.rs`
-- `crates/pi-natives/src/fs_cache.rs`
-- `crates/pi-natives/src/fd.rs`
-- `crates/pi-natives/src/ast.rs`
-- `crates/pi-natives/src/text.rs`
-- `crates/pi-natives/src/highlight.rs`
-- `crates/pi-natives/src/tokens.rs`
+- `crates/gpt-natives/src/grep.rs`
+- `crates/gpt-natives/src/glob.rs`
+- `crates/gpt-natives/src/glob_util.rs`
+- `crates/gpt-natives/src/fs_cache.rs`
+- `crates/gpt-natives/src/fd.rs`
+- `crates/gpt-natives/src/ast.rs`
+- `crates/gpt-natives/src/text.rs`
+- `crates/gpt-natives/src/highlight.rs`
+- `crates/gpt-natives/src/tokens.rs`
 
 ## JS API ↔ Rust export mapping
 
@@ -205,7 +205,7 @@ These are pure, in-memory utilities.
 - `truncateToWidth`: visible-cell truncation with ellipsis policy (`Unicode`, `Ascii`, `Omit`), optional right padding.
 - `sliceWithWidth`: column slicing with optional strict width enforcement.
 - `extractSegments`: extracts before/after segments around an overlay while restoring ANSI state for the `after` segment.
-- `sanitizeText` (ANSI/control/surrogate stripping with line-ending normalization) no longer lives in `text.rs`; it moved to `@oh-my-pi/pi-utils` as a pure-JS implementation in `packages/utils/src/sanitize-text.ts`. The native binding was removed in the same change because the JS version was competitive on the benchmarked workloads, and keeping a Rust copy forced every caller (including `pi-utils`) to pull in `@oh-my-pi/pi-natives`.
+- `sanitizeText` (ANSI/control/surrogate stripping with line-ending normalization) no longer lives in `text.rs`; it moved to `@oh-my-gpt/gpt-utils` as a pure-JS implementation in `packages/utils/src/sanitize-text.ts`. The native binding was removed in the same change because the JS version was competitive on the benchmarked workloads, and keeping a Rust copy forced every caller (including `gpt-utils`) to pull in `@oh-my-gpt/gpt-natives`.
 - `visibleWidth`: counts visible terminal cells using caller-supplied tab width.
 
 ### Failure behavior

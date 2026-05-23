@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/utils/oauth";
-import { Snowflake, setProjectDir } from "@oh-my-pi/pi-utils";
+import { getOAuthProviders } from "@oh-my-gpt/gpt-ai/utils/oauth";
+import { Snowflake, setProjectDir } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import type { SettingPath, SettingValue } from "../config/settings";
 import { settings } from "../config/settings";

@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
+import type { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { Api, Model } from "@oh-my-gpt/gpt-ai";
 import { MODEL_ROLE_IDS } from "../config/model-registry";
 import {
 	type ModelLookupRegistry,

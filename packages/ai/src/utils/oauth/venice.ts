@@ -13,7 +13,7 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://venice.ai/settings/api";
-const API_BASE_URL = "https://api.venice.ai/api/v1";
+const AOMG_BASE_URL = "https://api.venice.ai/api/v1";
 const VALIDATION_MODEL = "qwen3-4b";
 
 /**
@@ -50,7 +50,7 @@ export async function loginVenice(options: OAuthController): Promise<string> {
 	await validateOpenAICompatibleApiKey({
 		provider: "Venice",
 		apiKey: trimmed,
-		baseUrl: API_BASE_URL,
+		baseUrl: AOMG_BASE_URL,
 		model: VALIDATION_MODEL,
 		signal: options.signal,
 	});

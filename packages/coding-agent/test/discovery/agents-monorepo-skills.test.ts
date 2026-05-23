@@ -10,16 +10,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache, readFile } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { getProjectPathCandidates } from "@oh-my-pi/pi-coding-agent/discovery/agents";
+import { clearCache, readFile } from "@oh-my-gpt/gpt-coding-agent/capability/fs";
+import type { Rule } from "@oh-my-gpt/gpt-coding-agent/capability/rule";
+import type { LoadContext } from "@oh-my-gpt/gpt-coding-agent/capability/types";
+import { getProjectPathCandidates } from "@oh-my-gpt/gpt-coding-agent/discovery/agents";
 import {
 	buildRuleFromMarkdown,
 	calculateDepth,
 	loadFilesFromDir,
 	scanSkillsFromDir,
-} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+} from "@oh-my-gpt/gpt-coding-agent/discovery/helpers";
 
 const PROVIDER_ID = "agents";
 
@@ -131,7 +131,7 @@ describe("agents provider project-level discovery", () => {
 		});
 
 		test("project walk-up skips home directory (no repo root)", async () => {
-			// Regression for https://github.com/can1357/oh-my-pi/issues/1116:
+			// Regression for https://github.com/can1357/oh-my-gpt/issues/1116:
 			// when cwd is under $HOME and no closer repoRoot exists, the walk-up
 			// must NOT enumerate `~/.agent[s]/` as project paths — those belong
 			// to the user level and getUserPathCandidates already covers them.
@@ -157,7 +157,7 @@ describe("agents provider project-level discovery", () => {
 		});
 
 		test("project and user candidates do not overlap when cwd is under home", () => {
-			// Regression for https://github.com/can1357/oh-my-pi/issues/1116.
+			// Regression for https://github.com/can1357/oh-my-gpt/issues/1116.
 			const noRepoCtx: LoadContext = { cwd: subProject, home: repoRoot, repoRoot: null };
 			const project = getProjectPathCandidates(noRepoCtx, "skills");
 			const user = [".agent", ".agents"].map(b => path.join(repoRoot, b, "skills"));

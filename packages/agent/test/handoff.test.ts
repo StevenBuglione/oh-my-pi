@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core";
-import { AUTO_HANDOFF_THRESHOLD_FOCUS, generateHandoff, renderHandoffPrompt } from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, Model, ToolCall } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-ai/models";
+import type { AgentMessage, AgentTool } from "@oh-my-gpt/gpt-agent-core";
+import {
+	AUTO_HANDOFF_THRESHOLD_FOCUS,
+	generateHandoff,
+	renderHandoffPrompt,
+} from "@oh-my-gpt/gpt-agent-core/compaction";
+import type { AssistantMessage, Model, ToolCall } from "@oh-my-gpt/gpt-ai";
+import * as ai from "@oh-my-gpt/gpt-ai";
+import { Effort } from "@oh-my-gpt/gpt-ai";
+import { getBundledModel } from "@oh-my-gpt/gpt-ai/models";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {

@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
+import { getConfigRootDir, setAgentDir } from "@oh-my-gpt/gpt-utils";
 import { runConfigCommand } from "../src/cli/config-cli";
 import { resetSettingsForTest } from "../src/config/settings";
 
 let testAgentDir = "";
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.OMG_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 beforeEach(async () => {
 	resetSettingsForTest();
-	testAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-config-cli-"));
+	testAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omg-config-cli-"));
 	setAgentDir(testAgentDir);
 });
 
@@ -23,7 +23,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.OMG_CODING_AGENT_DIR;
 	}
 	await fs.rm(testAgentDir, { recursive: true, force: true });
 });

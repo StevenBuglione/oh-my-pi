@@ -19,8 +19,8 @@ A **plugin** is a directory containing skills, commands, hooks, MCP servers, or 
 
 **Scopes**: plugins can be installed at two scopes:
 
-- **user** (default) -- available in all projects, stored in `~/.omp/plugins/installed_plugins.json`
-- **project** -- available only in the current project, stored in `.omp/plugins/installed_plugins.json`
+- **user** (default) -- available in all projects, stored in `~/.omg/plugins/installed_plugins.json`
+- **project** -- available only in the current project, stored in `.omg/plugins/installed_plugins.json`
 
 Project-scoped installs shadow user-scoped installs of the same plugin.
 
@@ -56,14 +56,14 @@ Project-scoped installs shadow user-scoped installs of the same plugin.
 The same operations are available from the command line:
 
 ```
-omp plugin marketplace add <source>
-omp plugin marketplace remove <name>
-omp plugin marketplace update [name]
-omp plugin marketplace list
-omp plugin discover [marketplace]
-omp plugin install [--force] [--scope user|project] name@marketplace
-omp plugin uninstall [--scope user|project] name@marketplace
-omp plugin upgrade [--scope user|project] [name@marketplace]
+omg plugin marketplace add <source>
+omg plugin marketplace remove <name>
+omg plugin marketplace update [name]
+omg plugin marketplace list
+omg plugin discover [marketplace]
+omg plugin install [--force] [--scope user|project] name@marketplace
+omg plugin uninstall [--scope user|project] name@marketplace
+omg plugin upgrade [--scope user|project] [name@marketplace]
 ```
 
 ## Marketplace sources
@@ -187,7 +187,7 @@ The `source` field supports several formats:
 ## On-disk layout
 
 ```
-~/.omp/
+~/.omg/
   marketplaces.json              # Registry of added marketplaces
   plugins/
     installed_plugins.json       # User-scoped installed plugins
@@ -195,7 +195,7 @@ The `source` field supports several formats:
       marketplaces/              # Cached marketplace catalogs
       plugins/                   # Cached plugin directories
 
-<project>/.omp/
+<project>/.omg/
   plugins/
     installed_plugins.json       # Project-scoped installed plugins
 ```

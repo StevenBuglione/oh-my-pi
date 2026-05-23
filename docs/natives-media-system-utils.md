@@ -1,21 +1,21 @@
 # Natives media + system utilities
 
-This document covers the media/system/conversion exports in `@oh-my-pi/pi-natives`: image processing, HTML conversion, clipboard access, token counting, macOS appearance/power helpers, ProjFS helpers, and work profiling.
+This document covers the media/system/conversion exports in `@oh-my-gpt/gpt-natives`: image processing, HTML conversion, clipboard access, token counting, macOS appearance/power helpers, ProjFS helpers, and work profiling.
 
 ## Implementation files
 
-- `crates/pi-natives/src/image.rs`
-- `crates/pi-natives/src/html.rs`
-- `crates/pi-natives/src/clipboard.rs`
-- `crates/pi-natives/src/tokens.rs`
-- `crates/pi-natives/src/appearance.rs`
-- `crates/pi-natives/src/power.rs`
-- `crates/pi-natives/src/projfs_overlay.rs`
-- `crates/pi-natives/src/prof.rs`
-- `crates/pi-natives/src/task.rs`
+- `crates/gpt-natives/src/image.rs`
+- `crates/gpt-natives/src/html.rs`
+- `crates/gpt-natives/src/clipboard.rs`
+- `crates/gpt-natives/src/tokens.rs`
+- `crates/gpt-natives/src/appearance.rs`
+- `crates/gpt-natives/src/power.rs`
+- `crates/gpt-natives/src/projfs_overlay.rs`
+- `crates/gpt-natives/src/prof.rs`
+- `crates/gpt-natives/src/task.rs`
 - `packages/natives/native/index.d.ts`
 
-> Note: there is no `crates/pi-natives/src/work.rs`; work profiling is implemented in `prof.rs` and fed by instrumentation in `task.rs`.
+> Note: there is no `crates/gpt-natives/src/work.rs`; work profiling is implemented in `prof.rs` and fed by instrumentation in `task.rs`.
 
 ## JS API ↔ Rust export/module mapping
 

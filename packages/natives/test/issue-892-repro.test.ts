@@ -1,12 +1,12 @@
 /**
- * Repro for https://github.com/can1357/oh-my-pi/issues/892
+ * Repro for https://github.com/can1357/oh-my-gpt/issues/892
  *
  * The old CommonJS fix depended on Bun's CJS-to-ESM analyzer statically
  * scanning `module.exports.<Name> = …` assignments. The loader is now ESM,
  * so named exports must be real `export const` declarations instead of CJS
  * assignments that Bun happens to detect.
  *
- * The contract this test pins down: ESM consumers of `@oh-my-pi/pi-natives`
+ * The contract this test pins down: ESM consumers of `@oh-my-gpt/gpt-natives`
  * resolve to `native/index.js`, and that file declares every public symbol
  * from `native/index.d.ts` as a real ESM named export.
  */
@@ -37,7 +37,7 @@ function esmExportsName(js: string, name: string): boolean {
 	return re.test(js);
 }
 
-describe("issue 892: pi-natives public surface", () => {
+describe("issue 892: gpt-natives public surface", () => {
 	it("declares every public .d.ts symbol as an explicit ESM export", async () => {
 		const [js, symbols] = await Promise.all([Bun.file(indexJsPath).text(), readPublicSymbols()]);
 		expect(symbols.length).toBeGreaterThan(0);

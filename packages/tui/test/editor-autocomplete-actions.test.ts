@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AutocompleteItem, AutocompleteProvider } from "@oh-my-pi/pi-tui/autocomplete";
-import { Editor } from "@oh-my-pi/pi-tui/components/editor";
+import type { AutocompleteItem, AutocompleteProvider } from "@oh-my-gpt/gpt-tui/autocomplete";
+import { Editor } from "@oh-my-gpt/gpt-tui/components/editor";
 import { defaultEditorTheme } from "./test-themes";
 
 class HashActionProvider implements AutocompleteProvider {

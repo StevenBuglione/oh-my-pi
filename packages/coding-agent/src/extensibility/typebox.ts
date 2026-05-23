@@ -21,7 +21,7 @@
  * `@sinclair/typebox` directly in their own package.
  */
 
-import { areJsonValuesEqual, zodToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { areJsonValuesEqual, zodToWireSchema } from "@oh-my-gpt/gpt-ai/utils/schema";
 import {
 	type ZodArray,
 	type ZodEnum,

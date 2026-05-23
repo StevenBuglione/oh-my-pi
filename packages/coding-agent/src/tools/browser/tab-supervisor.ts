@@ -1,4 +1,4 @@
-import { getPuppeteerDir, isCompiledBinary, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { getPuppeteerDir, isCompiledBinary, logger, Snowflake } from "@oh-my-gpt/gpt-utils";
 import type { Page, Target } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
 import type { ToolSession } from "../../sdk";

@@ -25,12 +25,12 @@ const getEmbeddedClientArchive = (() => {
 const CLIENT_DIR = path.join(import.meta.dir, "client");
 const STATIC_DIR = path.join(import.meta.dir, "..", "dist", "client");
 const IS_BUN_COMPILED =
-	Bun.env.PI_COMPILED ||
+	Bun.env.OMG_COMPILED ||
 	import.meta.url.includes("$bunfs") ||
 	import.meta.url.includes("~BUN") ||
 	import.meta.url.includes("%7EBUN");
 
-const COMPILED_CLIENT_DIR_ROOT = path.join(os.tmpdir(), "omp-stats-client");
+const COMPILED_CLIENT_DIR_ROOT = path.join(os.tmpdir(), "omg-stats-client");
 let compiledClientDirPromise: Promise<string> | null = null;
 
 function sanitizeArchivePath(archivePath: string): string | null {

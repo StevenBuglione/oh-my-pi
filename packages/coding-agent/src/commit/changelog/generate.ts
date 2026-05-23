@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import { completeSimple, validateToolCall } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import type { Api, AssistantMessage, Model } from "@oh-my-gpt/gpt-ai";
+import { completeSimple, validateToolCall } from "@oh-my-gpt/gpt-ai";
+import { prompt } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 import changelogSystemPrompt from "../../commit/prompts/changelog-system.md" with { type: "text" };
 import changelogUserPrompt from "../../commit/prompts/changelog-user.md" with { type: "text" };

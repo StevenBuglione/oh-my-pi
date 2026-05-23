@@ -32,7 +32,7 @@ The tool is `concurrency = "exclusive"` for a session, so calls do not overlap.
 
 ## Kernel lifecycle
 
-Each kernel is a single Python subprocess: `python -u <runner.py>`. The runner is bundled with the host binary (Bun text import), written to `~/.omp/python-env`-adjacent tmp cache once per script-hash, and reused by every subsequent spawn.
+Each kernel is a single Python subprocess: `python -u <runner.py>`. The runner is bundled with the host binary (Bun text import), written to `~/.omg/python-env`-adjacent tmp cache once per script-hash, and reused by every subsequent spawn.
 
 Kernel startup sequence:
 
@@ -70,7 +70,7 @@ Runner → host:
 {"type": "done",     "id": "<reqId>", "status": "ok"|"error", "executionCount": N, "cancelled": false}
 ```
 
-Status events the prelude emits (e.g. `_emit_status("find", count=…)`) ship inside display bundles under `application/x-omp-status` so the existing TUI status renderer keeps working.
+Status events the prelude emits (e.g. `_emit_status("find", count=…)`) ship inside display bundles under `application/x-omg-status` so the existing TUI status renderer keeps working.
 
 ## Magics
 
@@ -137,7 +137,7 @@ Environment is filtered before launching the runner:
 Runtime selection order:
 
 1. Active/located venv (`VIRTUAL_ENV`, then `<cwd>/.venv`, `<cwd>/venv`)
-2. Managed venv at `~/.omp/python-env`
+2. Managed venv at `~/.omg/python-env`
 3. `python` or `python3` on PATH
 
 When a venv is selected, its bin/Scripts path is prepended to `PATH`.
@@ -190,7 +190,7 @@ From runner frames:
 - `stdout` / `stderr` → plain text chunks
 - `display` / `result` → rich display handling (MIME bundle)
 - `error` → traceback text
-- `application/x-omp-status` MIME inside `display` → structured status events
+- `application/x-omg-status` MIME inside `display` → structured status events
 
 Display MIME precedence:
 
@@ -202,7 +202,7 @@ Additionally captured as structured outputs:
 
 - `application/json` → JSON tree data
 - `image/png` / `image/jpeg` → image payloads
-- `application/x-omp-status` → status events
+- `application/x-omg-status` → status events
 
 ### Matplotlib
 
@@ -227,7 +227,7 @@ Output is streamed through `OutputSink` and may be persisted to artifact storage
 ## Operational troubleshooting
 
 - **Python backend not available** — Check `eval.py`, `PI_PY`, and that `python`/`python3` is on PATH. If preflight fails and `eval.js` is enabled, omit `language` or pass `language: "js"` to use JavaScript.
-- **No Python on PATH** — Install a system Python 3.8+ or place a venv at `~/.omp/python-env`. `omp setup python --check` reports the resolved interpreter.
+- **No Python on PATH** — Install a system Python 3.8+ or place a venv at `~/.omg/python-env`. `omg setup python --check` reports the resolved interpreter.
 - **Execution hangs then times out** — Increase tool `timeout` (max 600s) if workload is legitimate. For stuck native code, cancellation triggers `SIGINT` first then escalates; the session restarts on the next request.
 - **stdin/input prompts in Python code** — `input()` is not supported; pass data programmatically.
 - **Working directory errors** — Tool validates `cwd` exists and is a directory before execution.

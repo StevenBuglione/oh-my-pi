@@ -28,13 +28,13 @@ Key integration points:
 ```text
          Generic helper order (`config.ts`)
 ┌───────────────────────────────────────┐
-│ 1) ~/.omp/agent, ~/.claude, ...       │
-│ 2) <cwd>/.omp, <cwd>/.claude, ...     │
+│ 1) ~/.omg/agent, ~/.claude, ...       │
+│ 2) <cwd>/.omg, <cwd>/.claude, ...     │
 └───────────────────────────────────────┘
                     │
                     ▼
         capability providers enumerate items
- (native provider scans project .omp before user .omp;
+ (native provider scans project .omg before user .omg;
   other providers have their own loading rules)
                     │
                     ▼
@@ -51,26 +51,26 @@ Key integration points:
 
 `src/config.ts` defines a fixed source priority list:
 
-1. `.omp` (native)
+1. `.omg` (native)
 2. `.claude`
 3. `.codex`
 4. `.gemini`
 
 User-level bases:
 
-- `~/.omp/agent`
+- `~/.omg/agent`
 - `~/.claude`
 - `~/.codex`
 - `~/.gemini`
 
 Project-level bases:
 
-- `<cwd>/.omp`
+- `<cwd>/.omg`
 - `<cwd>/.claude`
 - `<cwd>/.codex`
 - `<cwd>/.gemini`
 
-`CONFIG_DIR_NAME` is `.omp` (`packages/utils/src/dirs.ts`).
+`CONFIG_DIR_NAME` is `.omg` (`packages/utils/src/dirs.ts`).
 
 ## Important constraint
 
@@ -102,7 +102,7 @@ Searches for the first existing file across ordered bases, returns first match (
 
 ## `findAllNearestProjectConfigDirs(subpath, cwd)`
 
-Walks parent directories upward and returns the **nearest existing directory per source base** (`.omp`, `.claude`, `.codex`, `.gemini`), then sorts results by source priority.
+Walks parent directories upward and returns the **nearest existing directory per source base** (`.omg`, `.claude`, `.codex`, `.gemini`), then sorts results by source priority.
 
 Use this when project config should be inherited from ancestor directories (monorepo/nested workspace behavior).
 
@@ -136,7 +136,7 @@ Legacy migration still supported:
 
 The runtime settings model is layered:
 
-1. Global settings: `~/.omp/agent/config.yml`
+1. Global settings: `~/.omg/agent/config.yml`
 2. Project settings: discovered via settings capability (`settings.json` from providers)
 3. Runtime overrides: in-memory, non-persistent
 4. Schema defaults: from `SETTINGS_SCHEMA`
@@ -154,7 +154,7 @@ Write behavior:
 
 On startup, if `config.yml` is missing:
 
-1. Migrate from `~/.omp/agent/settings.json` (renamed to `.bak` on success)
+1. Migrate from `~/.omg/agent/settings.json` (renamed to `.bak` on success)
 2. Merge with legacy DB settings from `agent.db`
 3. Write merged result to `config.yml`
 
@@ -174,7 +174,7 @@ Most non-core config loading flows through the capability registry (`src/capabil
 
 Providers are sorted by numeric priority (higher first). Example priorities:
 
-- Native OMP (`builtin.ts`): `100`
+- Native OMG (`builtin.ts`): `100`
 - Claude: `80`
 - Codex / agents / Claude marketplace: `70`
 - Gemini: `60`
@@ -182,7 +182,7 @@ Providers are sorted by numeric priority (higher first). Example priorities:
 ```text
 Provider precedence (higher wins)
 
-native (.omp)          priority 100
+native (.omg)          priority 100
 claude                 priority  80
 codex / agents / ...   priority  70
 gemini                 priority  60
@@ -206,22 +206,22 @@ Relevant keys:
 
 ---
 
-## 6) Native `.omp` provider behavior (`packages/coding-agent/src/discovery/builtin.ts`)
+## 6) Native `.omg` provider behavior (`packages/coding-agent/src/discovery/builtin.ts`)
 
 Native provider (`id: native`) reads native config from:
 
-- project: `<cwd>/.omp/...`
-- user: `~/.omp/agent/...`
+- project: `<cwd>/.omg/...`
+- user: `~/.omg/agent/...`
 
 ### Directory admission rules
 
 - Slash commands, rules, prompts, instructions, hooks, tools, extensions, extension modules, and settings use a project/user root only when the root directory exists and is non-empty.
-- Skills scan `<ancestor>/.omp/skills` for each ancestor from the current working directory up to the repo root/home boundary, plus `~/.omp/agent/skills`, without requiring the root `.omp` directory itself to be non-empty.
-- `SYSTEM.md` and `AGENTS.md` read user-level files directly and use nearest-ancestor project `.omp` lookup for project files, but the project `.omp` directory must be non-empty.
+- Skills scan `<ancestor>/.omg/skills` for each ancestor from the current working directory up to the repo root/home boundary, plus `~/.omg/agent/skills`, without requiring the root `.omg` directory itself to be non-empty.
+- `SYSTEM.md` and `AGENTS.md` read user-level files directly and use nearest-ancestor project `.omg` lookup for project files, but the project `.omg` directory must be non-empty.
 
 ### Scope-specific loading
 
-- Skills: `<ancestor>/.omp/skills/*/SKILL.md` and `~/.omp/agent/skills/*/SKILL.md`
+- Skills: `<ancestor>/.omg/skills/*/SKILL.md` and `~/.omg/agent/skills/*/SKILL.md`
 - Slash commands: `commands/*.md`
 - Rules: `rules/*.{md,mdc}`
 - Prompts: `prompts/*.md`
@@ -234,7 +234,7 @@ Native provider (`id: native`) reads native config from:
 
 ### Nearest-project lookup nuance
 
-## For `SYSTEM.md` and `AGENTS.md`, native provider uses nearest-ancestor project `.omp` directory search (walk-up) and still requires the project `.omp` dir to be non-empty.
+## For `SYSTEM.md` and `AGENTS.md`, native provider uses nearest-ancestor project `.omg` directory search (walk-up) and still requires the project `.omg` dir to be non-empty.
 
 ## 7) How major subsystems consume config
 

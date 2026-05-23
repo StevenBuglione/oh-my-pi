@@ -5,9 +5,9 @@
  * `../shared-types` and are re-exported here. The types declared inline below
  * are deliberately client-only because:
  *   - `Usage` is redeclared locally so the client bundle avoids importing
- *     `@oh-my-pi/pi-ai` (the server-side AI types package).
+ *     `@oh-my-gpt/gpt-ai` (the server-side AI types package).
  *   - `MessageStats.stopReason` is widened from the server's `StopReason`
- *     enum to `string`, again to keep the client free of pi-ai types.
+ *     enum to `string`, again to keep the client free of gpt-ai types.
  *   - `TimeRange`, `OverviewStats`, `ModelDashboardStats`,
  *     `CostDashboardStats` are UI-only view shapes the server never produces.
  */

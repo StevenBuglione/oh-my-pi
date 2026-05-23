@@ -14,12 +14,12 @@
       },
     },
     "packages/agent": {
-      "name": "@oh-my-pi/pi-agent-core",
+      "name": "@oh-my-gpt/gpt-agent-core",
       "version": "15.2.4",
       "dependencies": {
-        "@oh-my-pi/pi-ai": "catalog:",
-        "@oh-my-pi/pi-natives": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-ai": "catalog:",
+        "@oh-my-gpt/gpt-natives": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
         "@opentelemetry/api": "catalog:",
       },
       "devDependencies": {
@@ -29,15 +29,15 @@
       },
     },
     "packages/ai": {
-      "name": "@oh-my-pi/pi-ai",
+      "name": "@oh-my-gpt/gpt-ai",
       "version": "15.2.4",
       "bin": {
-        "pi-ai": "./src/cli.ts",
+        "gpt-ai": "./src/cli.ts",
       },
       "dependencies": {
         "@anthropic-ai/sdk": "catalog:",
         "@bufbuild/protobuf": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
         "openai": "catalog:",
         "partial-json": "catalog:",
         "zod": "catalog:",
@@ -47,21 +47,21 @@
       },
     },
     "packages/coding-agent": {
-      "name": "@oh-my-pi/pi-coding-agent",
+      "name": "@oh-my-gpt/gpt-coding-agent",
       "version": "15.2.4",
       "bin": {
-        "omp": "src/cli.ts",
+        "omg": "src/cli.ts",
       },
       "dependencies": {
         "@agentclientprotocol/sdk": "catalog:",
         "@babel/parser": "catalog:",
         "@mozilla/readability": "catalog:",
-        "@oh-my-pi/omp-stats": "catalog:",
-        "@oh-my-pi/pi-agent-core": "catalog:",
-        "@oh-my-pi/pi-ai": "catalog:",
-        "@oh-my-pi/pi-natives": "catalog:",
-        "@oh-my-pi/pi-tui": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-agent-core": "catalog:",
+        "@oh-my-gpt/gpt-ai": "catalog:",
+        "@oh-my-gpt/gpt-natives": "catalog:",
+        "@oh-my-gpt/gpt-tui": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
+        "@oh-my-gpt/omg-stats": "catalog:",
         "@puppeteer/browsers": "catalog:",
         "@types/turndown": "catalog:",
         "@xterm/headless": "catalog:",
@@ -82,7 +82,7 @@
       },
     },
     "packages/natives": {
-      "name": "@oh-my-pi/pi-natives",
+      "name": "@oh-my-gpt/gpt-natives",
       "version": "15.2.4",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
@@ -90,14 +90,14 @@
       },
     },
     "packages/stats": {
-      "name": "@oh-my-pi/omp-stats",
+      "name": "@oh-my-gpt/omg-stats",
       "version": "15.2.4",
       "bin": {
-        "omp-stats": "./src/index.ts",
+        "omg-stats": "./src/index.ts",
       },
       "dependencies": {
-        "@oh-my-pi/pi-ai": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-ai": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
         "@tailwindcss/node": "catalog:",
         "chart.js": "catalog:",
         "date-fns": "catalog:",
@@ -115,27 +115,27 @@
       },
     },
     "packages/swarm-extension": {
-      "name": "@oh-my-pi/swarm-extension",
+      "name": "@oh-my-gpt/swarm-extension",
       "version": "15.2.4",
       "bin": {
-        "omp-swarm": "src/cli.ts",
+        "omg-swarm": "src/cli.ts",
       },
       "dependencies": {
-        "@oh-my-pi/pi-utils": "workspace:*",
+        "@oh-my-gpt/gpt-utils": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
       "peerDependencies": {
-        "@oh-my-pi/pi-coding-agent": "^13",
+        "@oh-my-gpt/gpt-coding-agent": "workspace:*",
       },
     },
     "packages/tui": {
-      "name": "@oh-my-pi/pi-tui",
+      "name": "@oh-my-gpt/gpt-tui",
       "version": "15.2.4",
       "dependencies": {
-        "@oh-my-pi/pi-natives": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-natives": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
         "lru-cache": "catalog:",
         "marked": "catalog:",
       },
@@ -145,7 +145,7 @@
       },
     },
     "packages/typescript-edit-benchmark": {
-      "name": "@oh-my-pi/typescript-edit-benchmark",
+      "name": "@oh-my-gpt/typescript-edit-benchmark",
       "version": "0.0.1",
       "bin": {
         "typescript-edit-benchmark": "src/index.ts",
@@ -155,11 +155,11 @@
         "@babel/parser": "catalog:",
         "@babel/traverse": "catalog:",
         "@babel/types": "catalog:",
-        "@oh-my-pi/pi-agent-core": "catalog:",
-        "@oh-my-pi/pi-ai": "catalog:",
-        "@oh-my-pi/pi-coding-agent": "catalog:",
-        "@oh-my-pi/pi-tui": "catalog:",
-        "@oh-my-pi/pi-utils": "catalog:",
+        "@oh-my-gpt/gpt-agent-core": "catalog:",
+        "@oh-my-gpt/gpt-ai": "catalog:",
+        "@oh-my-gpt/gpt-coding-agent": "catalog:",
+        "@oh-my-gpt/gpt-tui": "catalog:",
+        "@oh-my-gpt/gpt-utils": "catalog:",
         "diff": "catalog:",
         "prettier": "catalog:",
         "regexp-tree": "catalog:",
@@ -171,10 +171,10 @@
       },
     },
     "packages/utils": {
-      "name": "@oh-my-pi/pi-utils",
+      "name": "@oh-my-gpt/gpt-utils",
       "version": "15.2.4",
       "dependencies": {
-        "@oh-my-pi/pi-natives": "catalog:",
+        "@oh-my-gpt/gpt-natives": "catalog:",
         "beautiful-mermaid": "catalog:",
         "handlebars": "catalog:",
         "winston": "catalog:",
@@ -212,13 +212,13 @@
     "@bufbuild/protoc-gen-es": "^2.12.0",
     "@mozilla/readability": "^0.6.0",
     "@napi-rs/cli": "3.6.2",
-    "@oh-my-pi/omp-stats": "15.2.4",
-    "@oh-my-pi/pi-agent-core": "15.2.4",
-    "@oh-my-pi/pi-ai": "15.2.4",
-    "@oh-my-pi/pi-coding-agent": "15.2.4",
-    "@oh-my-pi/pi-natives": "15.2.4",
-    "@oh-my-pi/pi-tui": "15.2.4",
-    "@oh-my-pi/pi-utils": "15.2.4",
+    "@oh-my-gpt/gpt-agent-core": "15.2.4",
+    "@oh-my-gpt/gpt-ai": "15.2.4",
+    "@oh-my-gpt/gpt-coding-agent": "15.2.4",
+    "@oh-my-gpt/gpt-natives": "15.2.4",
+    "@oh-my-gpt/gpt-tui": "15.2.4",
+    "@oh-my-gpt/gpt-utils": "15.2.4",
+    "@oh-my-gpt/omg-stats": "15.2.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.0.0",
     "@opentelemetry/sdk-trace-base": "^2.0.0",
@@ -565,23 +565,23 @@
 
     "@octokit/types": ["@octokit/types@16.0.0", "", { "dependencies": { "@octokit/openapi-types": "^27.0.0" } }, "sha512-sKq+9r1Mm4efXW1FCk7hFSeJo4QKreL/tTbR0rz/qx/r1Oa2VV83LTA/H/MuCOX7uCIJmQVRKBcbmWoySjAnSg=="],
 
-    "@oh-my-pi/omp-stats": ["@oh-my-pi/omp-stats@workspace:packages/stats"],
+    "@oh-my-gpt/gpt-agent-core": ["@oh-my-gpt/gpt-agent-core@workspace:packages/agent"],
 
-    "@oh-my-pi/pi-agent-core": ["@oh-my-pi/pi-agent-core@workspace:packages/agent"],
+    "@oh-my-gpt/gpt-ai": ["@oh-my-gpt/gpt-ai@workspace:packages/ai"],
 
-    "@oh-my-pi/pi-ai": ["@oh-my-pi/pi-ai@workspace:packages/ai"],
+    "@oh-my-gpt/gpt-coding-agent": ["@oh-my-gpt/gpt-coding-agent@workspace:packages/coding-agent"],
 
-    "@oh-my-pi/pi-coding-agent": ["@oh-my-pi/pi-coding-agent@workspace:packages/coding-agent"],
+    "@oh-my-gpt/gpt-natives": ["@oh-my-gpt/gpt-natives@workspace:packages/natives"],
 
-    "@oh-my-pi/pi-natives": ["@oh-my-pi/pi-natives@workspace:packages/natives"],
+    "@oh-my-gpt/gpt-tui": ["@oh-my-gpt/gpt-tui@workspace:packages/tui"],
 
-    "@oh-my-pi/pi-tui": ["@oh-my-pi/pi-tui@workspace:packages/tui"],
+    "@oh-my-gpt/gpt-utils": ["@oh-my-gpt/gpt-utils@workspace:packages/utils"],
 
-    "@oh-my-pi/pi-utils": ["@oh-my-pi/pi-utils@workspace:packages/utils"],
+    "@oh-my-gpt/omg-stats": ["@oh-my-gpt/omg-stats@workspace:packages/stats"],
 
-    "@oh-my-pi/swarm-extension": ["@oh-my-pi/swarm-extension@workspace:packages/swarm-extension"],
+    "@oh-my-gpt/swarm-extension": ["@oh-my-gpt/swarm-extension@workspace:packages/swarm-extension"],
 
-    "@oh-my-pi/typescript-edit-benchmark": ["@oh-my-pi/typescript-edit-benchmark@workspace:packages/typescript-edit-benchmark"],
+    "@oh-my-gpt/typescript-edit-benchmark": ["@oh-my-gpt/typescript-edit-benchmark@workspace:packages/typescript-edit-benchmark"],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 

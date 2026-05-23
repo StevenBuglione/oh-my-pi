@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { AgentTool, AgentToolResult } from "@oh-my-gpt/gpt-agent-core";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-gpt/gpt-coding-agent/tools";
 import * as z from "zod/v4";
 import { callSessionTool } from "../../src/eval/js/tool-bridge";
 

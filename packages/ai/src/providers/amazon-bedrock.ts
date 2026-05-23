@@ -7,7 +7,7 @@
  * Bun's native `HTTPS_PROXY` support.
  */
 
-import { $env, $flag, extractHttpStatusFromError, fetchWithRetry } from "@oh-my-pi/pi-utils";
+import { $env, $flag, extractHttpStatusFromError, fetchWithRetry } from "@oh-my-gpt/gpt-utils";
 import type { Effort } from "../model-thinking";
 import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "../model-thinking";
 import { calculateCost } from "../models";

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import type { ImageContent, TextContent } from "@oh-my-gpt/gpt-ai";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import { $ } from "bun";
 import { createSessionRuntime } from "../src/autoresearch/state";
 import { openAutoresearchStorage } from "../src/autoresearch/storage";
@@ -93,11 +93,11 @@ describe("init_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("pi-autoresearch-init-db");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		fs.rmSync(dbOverride, { recursive: true, force: true });
 	});
 
@@ -273,11 +273,11 @@ describe("run_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("pi-autoresearch-run-db");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		fs.rmSync(dbOverride, { recursive: true, force: true });
 	});
 
@@ -379,11 +379,11 @@ describe("log_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("pi-autoresearch-log-db");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		fs.rmSync(dbOverride, { recursive: true, force: true });
 	});
 
@@ -796,11 +796,11 @@ describe("update_notes", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("pi-autoresearch-notes-db");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride;
+		process.env.OMG_AUTORESEARCH_DB_DIR = dbOverride;
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.OMG_AUTORESEARCH_DB_DIR;
 		fs.rmSync(dbOverride, { recursive: true, force: true });
 	});
 

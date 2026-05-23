@@ -17,8 +17,8 @@ import { validateOpenAICompatibleApiKey } from "./api-key-validation";
 import type { OAuthController } from "./types";
 
 const AUTH_URL = "https://platform.minimax.io/subscribe/coding-plan";
-const API_BASE_URL_INTL = "https://api.minimax.io/v1";
-const API_BASE_URL_CN = "https://api.minimaxi.com/v1";
+const AOMG_BASE_URL_INTL = "https://api.minimax.io/v1";
+const AOMG_BASE_URL_CN = "https://api.minimaxi.com/v1";
 const VALIDATION_MODEL = "MiniMax-M2";
 
 /**
@@ -28,7 +28,7 @@ const VALIDATION_MODEL = "MiniMax-M2";
  * Returns the API key directly (not OAuthCredentials - this isn't OAuth).
  */
 export async function loginMiniMaxCode(options: OAuthController): Promise<string> {
-	return loginMiniMaxCodeWithBaseUrl(options, API_BASE_URL_INTL, "MiniMax Coding Plan");
+	return loginMiniMaxCodeWithBaseUrl(options, AOMG_BASE_URL_INTL, "MiniMax Coding Plan");
 }
 
 async function loginMiniMaxCodeWithBaseUrl(
@@ -74,5 +74,5 @@ async function loginMiniMaxCodeWithBaseUrl(
  * Same flow as international but uses China endpoint.
  */
 export async function loginMiniMaxCodeCn(options: OAuthController): Promise<string> {
-	return loginMiniMaxCodeWithBaseUrl(options, API_BASE_URL_CN, "MiniMax Coding Plan (China)");
+	return loginMiniMaxCodeWithBaseUrl(options, AOMG_BASE_URL_CN, "MiniMax Coding Plan (China)");
 }

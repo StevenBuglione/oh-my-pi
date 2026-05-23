@@ -121,7 +121,7 @@ Streaming: none. `WebSearchTool.execute()` does not forward its `_signal` argume
     - `limit` / `num_search_results`: `params.numSearchResults ?? params.limit`, clamped to `1..20`, default `10`.
     - Output: `sources`, `requestId`.
   - **Anthropic** — `packages/coding-agent/src/web/search/providers/anthropic.ts`
-    - Availability: `findAnthropicAuth()` from `@oh-my-pi/pi-ai`.
+    - Availability: `findAnthropicAuth()` from `@oh-my-gpt/gpt-ai`.
     - Querying: Claude Messages API with web-search tool enabled.
     - `max_tokens` and `temperature` pass through.
     - `limit` and `num_search_results` are collapsed together before dispatch: `num_results = params.numSearchResults ?? params.limit`.

@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@oh-my-gpt/gpt-utils";
 import { resolveLocalUrlToPath } from "../internal-urls";
 import { normalizeLocalScheme } from "../tools/path-utils";
 import { ToolError } from "../tools/tool-errors";

@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { AuthStorage, Effort, getBundledModel, type Model } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@oh-my-gpt/gpt-agent-core";
+import { AuthStorage, Effort, getBundledModel, type Model } from "@oh-my-gpt/gpt-ai";
+import { ModelRegistry } from "@oh-my-gpt/gpt-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-gpt/gpt-coding-agent/config/settings";
+import type { CustomTool } from "@oh-my-gpt/gpt-coding-agent/extensibility/custom-tools/types";
+import { createAgentSession } from "@oh-my-gpt/gpt-coding-agent/sdk";
+import { SessionManager } from "@oh-my-gpt/gpt-coding-agent/session/session-manager";
+import { Snowflake } from "@oh-my-gpt/gpt-utils";
 import * as z from "zod/v4";
 
 function createMcpCustomTool(name: string, serverName: string, mcpToolName: string): CustomTool {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { OAuthManualInputManager } from "@oh-my-pi/pi-coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+import { OAuthManualInputManager } from "@oh-my-gpt/gpt-coding-agent/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@oh-my-gpt/gpt-coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@oh-my-gpt/gpt-coding-agent/slash-commands/builtin-registry";
 
 type RuntimeHarness = {
 	runtime: { ctx: InteractiveModeContext; handleBackgroundCommand: () => void };

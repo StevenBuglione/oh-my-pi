@@ -1,6 +1,6 @@
 # Natives Addon Loader Runtime
 
-This document covers the runtime loader shipped by `@oh-my-pi/pi-natives`: how `native/index.js` decides which `.node` file to require, how compiled-binary embedded payloads are extracted, and what startup failures report.
+This document covers the runtime loader shipped by `@oh-my-gpt/gpt-natives`: how `native/index.js` decides which `.node` file to require, how compiled-binary embedded payloads are extracted, and what startup failures report.
 
 ## Implementation files
 
@@ -32,14 +32,14 @@ At module initialization, `native/index.js` computes:
   - `execDir`: directory containing `process.execPath`.
   - `versionedDir`: `<getNativesDir()>/<packageVersion>`.
   - `userDataDir` fallback:
-    - Windows: `%LOCALAPPDATA%/omp` or `%USERPROFILE%/AppData/Local/omp`.
+    - Windows: `%LOCALAPPDATA%/omg` or `%USERPROFILE%/AppData/Local/omg`.
     - Non-Windows: `~/.local/bin`.
 - **Natives cache root** (`getNativesDir()`):
-  - if `$XDG_DATA_HOME/omp` exists, `$XDG_DATA_HOME/omp/natives`;
-  - otherwise `~/.omp/natives`.
+  - if `$XDG_DATA_HOME/omg` exists, `$XDG_DATA_HOME/omg/natives`;
+  - otherwise `~/.omg/natives`.
 - **Compiled-binary mode** (`detectCompiledBinary`): true if any of:
   - embedded-addon manifest is non-null,
-  - `PI_COMPILED` env var is set,
+  - `OMG_COMPILED` env var is set,
   - `import.meta.url` contains Bun embedded markers (`$bunfs`, `~BUN`, `%7EBUN`).
 - **Variant override**: `PI_NATIVE_VARIANT` (`modern`/`baseline` only; invalid values ignored).
 - **Selected variant**: explicit override, otherwise runtime AVX2 detection on x64 (`modern` if AVX2, else `baseline`).
@@ -187,6 +187,6 @@ Compiled mode diagnostics include:
 
 Normal package/runtime diagnostics include:
 
-- reinstall hint (`bun install @oh-my-pi/pi-natives`),
+- reinstall hint (`bun install @oh-my-gpt/gpt-natives`),
 - local rebuild command (`bun --cwd=packages/natives run build`),
 - optional x64 variant build hint (`TARGET_VARIANT=baseline|modern bun --cwd=packages/natives run build`).

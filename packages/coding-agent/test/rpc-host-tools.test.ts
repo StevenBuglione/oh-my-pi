@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent } from "@oh-my-pi/pi-agent-core";
-import { defineRpcClientTool, RpcClient } from "@oh-my-pi/pi-coding-agent/modes";
-import { RpcHostToolBridge } from "@oh-my-pi/pi-coding-agent/modes/rpc/host-tools";
+import type { AgentEvent } from "@oh-my-gpt/gpt-agent-core";
+import { defineRpcClientTool, RpcClient } from "@oh-my-gpt/gpt-coding-agent/modes";
+import { RpcHostToolBridge } from "@oh-my-gpt/gpt-coding-agent/modes/rpc/host-tools";
 import type {
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcHostToolUpdate,
-} from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
+} from "@oh-my-gpt/gpt-coding-agent/modes/rpc/rpc-types";
 
 const tempPaths: string[] = [];
 
@@ -116,7 +116,7 @@ describe("RpcHostToolBridge", () => {
 
 describe("RpcClient custom tools", () => {
 	it("registers host custom tools and serves tool calls over the RPC transport", async () => {
-		const scriptPath = path.join(os.tmpdir(), `omp-rpc-host-tools-${Date.now()}.js`);
+		const scriptPath = path.join(os.tmpdir(), `omg-rpc-host-tools-${Date.now()}.js`);
 		tempPaths.push(scriptPath);
 		await Bun.write(
 			scriptPath,

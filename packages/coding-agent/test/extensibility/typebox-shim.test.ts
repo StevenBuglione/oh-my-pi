@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isValidJsonSchema, toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { isValidJsonSchema, toolWireSchema } from "@oh-my-gpt/gpt-ai/utils/schema";
 import { Type } from "../../src/extensibility/typebox";
 
 describe("pi.typebox compatibility shim", () => {

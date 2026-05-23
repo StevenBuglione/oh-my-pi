@@ -10,8 +10,8 @@ import {
 	type RequestPermissionResponse,
 	type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Model } from "@oh-my-gpt/gpt-ai";
+import { TempDir } from "@oh-my-gpt/gpt-utils";
 import { Settings } from "../src/config/settings";
 import { createAcpConnection } from "../src/modes/acp/acp-mode";
 import type { AgentSession } from "../src/session/agent-session";
@@ -168,7 +168,7 @@ describe("ACP lazy startup", () => {
 			expect(initializeResponse).toEqual(
 				expect.objectContaining({
 					protocolVersion: 1,
-					agentInfo: expect.objectContaining({ name: "oh-my-pi" }),
+					agentInfo: expect.objectContaining({ name: "oh-my-gpt" }),
 				}),
 			);
 			expect(createCalls).toBe(0);
@@ -187,7 +187,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("applies CLI runtime API keys after ACP lazy session creation resolves extension models", async () => {
-		using tempDir = TempDir.createSync("@omp-acp-lazy-api-key-");
+		using tempDir = TempDir.createSync("@omg-acp-lazy-api-key-");
 		const cwd = tempDir.path();
 
 		await Bun.write(

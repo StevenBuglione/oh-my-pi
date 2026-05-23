@@ -2,18 +2,18 @@ import { describe, expect, test } from "bun:test";
 import {
 	convertOpenAICodexResponsesTools as convertCodexTools,
 	normalizeCodexToolChoice,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+} from "@oh-my-gpt/gpt-ai/providers/openai-codex-responses";
 import {
 	convertTools,
 	mapOpenAIResponsesToolChoiceForTools,
 	supportsFreeformApplyPatch,
-} from "@oh-my-pi/pi-ai/providers/openai-responses";
+} from "@oh-my-gpt/gpt-ai/providers/openai-responses";
 import {
 	appendResponsesToolResultMessages,
 	convertResponsesAssistantMessage,
 	processResponsesStream,
-} from "@oh-my-pi/pi-ai/providers/openai-responses-shared";
-import type { AssistantMessage, Model, Tool, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
+} from "@oh-my-gpt/gpt-ai/providers/openai-responses-shared";
+import type { AssistantMessage, Model, Tool, ToolResultMessage } from "@oh-my-gpt/gpt-ai/types";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses";
 import * as z from "zod/v4";
 

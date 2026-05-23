@@ -11,10 +11,10 @@ import {
 	type SimpleStreamOptions,
 	type StopReason,
 	type ToolCall,
-} from "@oh-my-pi/pi-ai";
-import { calculateCost } from "@oh-my-pi/pi-ai/models";
-import { parseStreamingJson } from "@oh-my-pi/pi-ai/utils/json-parse";
-import { readSseJson } from "@oh-my-pi/pi-utils";
+} from "@oh-my-gpt/gpt-ai";
+import { calculateCost } from "@oh-my-gpt/gpt-ai/models";
+import { parseStreamingJson } from "@oh-my-gpt/gpt-ai/utils/json-parse";
+import { readSseJson } from "@oh-my-gpt/gpt-utils";
 
 // Create stream class matching ProxyMessageEventStream
 class ProxyMessageEventStream extends EventStream<AssistantMessageEvent, AssistantMessage> {
