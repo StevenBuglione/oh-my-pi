@@ -1,5 +1,5 @@
 export const HARNESS_PROMPT_TEMPLATE_VERSION = "omg.artifact-project.prompts.v1";
-export const WIKI_MACHINE_PROMPT_TEMPLATE_VERSION = "omg.wiki-machine.prompts.v1";
+export const WIKI_MACHINE_PROMPT_TEMPLATE_VERSION = "omg.wiki.prompts.v1";
 
 export function plannerPrompt(objective: string): string {
 	return [
@@ -87,7 +87,7 @@ export function criticPrompt(objective: string, validation: string, artifactSha:
 export function wikiArchitectPrompt(objective: string): string {
 	return [
 		`Template: ${WIKI_MACHINE_PROMPT_TEMPLATE_VERSION}`,
-		"You are the architect for an OMG wiki-machine harness run.",
+		"You are the architect for an OMG wiki harness run.",
 		"You received one handoff zip. Unzip it first, then read HANDOFF_MANIFEST.json, packet/TASK.md, packet/CONSTRAINTS.md, packet/EXPECTED_OUTPUT.schema.json, and packet/AI_WIKI_MANIFEST.schema.json.",
 		'Create a file named response.json using schema_version "omg.wiki.blueprint.v1".',
 		"Before sending your final answer, run: python packet/validate_response.py response.json",
@@ -105,7 +105,7 @@ export function wikiArchitectPrompt(objective: string): string {
 export function wikiBuilderPrompt(objective: string, blueprintJson: string): string {
 	return [
 		`Template: ${WIKI_MACHINE_PROMPT_TEMPLATE_VERSION}`,
-		"You are the builder for an OMG wiki-machine harness run.",
+		"You are the builder for an OMG wiki harness run.",
 		"You received one handoff zip. Unzip it first, then read HANDOFF_MANIFEST.json, packet/TASK.md, packet/CONSTRAINTS.md, packet/WIKI_ACCEPTANCE_CHECKLIST.md, packet/AI_WIKI_MANIFEST.schema.json, and the attached wiki-builder skill.",
 		"Build the complete local wiki proof workspace in your ChatGPT sandbox and attach a downloadable file named workspace.zip. Use a real archive file, not pasted code or a description.",
 		"If you cannot create and attach workspace.zip, set status to blocked or invalid_artifact and explain the exact blocker; never return status complete without the attached zip.",
@@ -130,7 +130,7 @@ export function wikiBuilderPrompt(objective: string, blueprintJson: string): str
 export function wikiBuilderArtifactRepairPrompt(objective: string, downloadError: string): string {
 	return [
 		`Template: ${WIKI_MACHINE_PROMPT_TEMPLATE_VERSION}`,
-		"You are the builder for an OMG wiki-machine harness run.",
+		"You are the builder for an OMG wiki harness run.",
 		"OMG received your previous response, but local artifact download failed.",
 		`Download error: ${downloadError}`,
 		"Use the same handoff zip attached to this message. Rebuild or locate the complete local wiki proof workspace and attach a real downloadable file named workspace.zip.",
@@ -146,7 +146,7 @@ export function wikiBuilderArtifactRepairPrompt(objective: string, downloadError
 export function wikiBuilderValidationRepairPrompt(objective: string, validationError: string): string {
 	return [
 		`Template: ${WIKI_MACHINE_PROMPT_TEMPLATE_VERSION}`,
-		"You are the builder/fixer for an OMG wiki-machine harness run.",
+		"You are the builder/fixer for an OMG wiki harness run.",
 		"OMG downloaded your workspace.zip, but local AI wiki contract validation failed.",
 		`Validation error: ${validationError}`,
 		"You received one handoff zip containing the previous workspace.zip, validation logs, the wiki-builder skill, and packet/WIKI_ACCEPTANCE_CHECKLIST.md.",
@@ -164,12 +164,12 @@ export function wikiBuilderValidationRepairPrompt(objective: string, validationE
 export function wikiCriticPrompt(objective: string, validation: string, artifactSha: string): string {
 	return [
 		`Template: ${WIKI_MACHINE_PROMPT_TEMPLATE_VERSION}`,
-		"You are the final critic for an OMG wiki-machine harness run.",
+		"You are the final critic for an OMG wiki harness run.",
 		"You received one handoff zip. Unzip it first, then inspect artifacts/, validation/, and packet/ before deciding.",
 		'Create a file named review.json using schema_version "omg.wiki.review.v1".',
 		"Before sending your final answer, run: python packet/validate_response.py review.json",
 		"Attach review.json as a downloadable file. In the chat message, paste the same JSON only as a fallback.",
-		"Local OMG validation is authoritative. Approve when the artifact satisfies the wiki-machine objective and local validation passed.",
+		"Local OMG validation is authoritative. Approve when the artifact satisfies the wiki objective and local validation passed.",
 		"If the uploaded handoff is inaccessible, use the inline local validation evidence and artifact SHA below, note the upload-access issue as non-blocking residual risk, and still return schema-valid review JSON.",
 		'The verdict field must be exactly "good_enough" or "not_good_enough"; never use "blocked".',
 		"Forbidden: approving based on confidence alone, ignoring validation failures, or requiring real hosting/deployment for this local proof.",

@@ -21,6 +21,7 @@ import {
 	resumeArtifactProjectHarness,
 	resumeWikiMachineHarness,
 	runArtifactProjectHarness,
+	runHarnessBenchmark,
 	runHarnessDoctor,
 	runWikiMachineHarness,
 	validateAiWikiManifest,
@@ -1186,7 +1187,7 @@ describe("harness core", () => {
 		});
 
 		expect(state.status).toBe("good_enough");
-		expect(state.template).toBe("wiki-machine");
+		expect(state.template).toBe("wiki");
 		expect(state.gates?.map(gate => gate.id)).toContain("wiki_manifest");
 		expect(state.workers.map(worker => worker.role)).toEqual(["architect", "builder", "critic"]);
 		expect(sendFileCounts.every(count => count === 1)).toBe(true);
@@ -1384,7 +1385,7 @@ describe("harness core", () => {
 			},
 		});
 
-		await expect(promise).rejects.toThrow("valid wiki-machine JSON envelope after one repair attempt");
+		await expect(promise).rejects.toThrow("valid wiki JSON envelope after one repair attempt");
 		const [state] = await listHarnessRuns();
 		expect(state.status).toBe("blocked");
 		expect(state.promptBudget.used).toBe(2);
@@ -1540,6 +1541,43 @@ describe("harness core", () => {
 		expect(resumed.status).toBe("good_enough");
 		expect(architectSends).toBe(1);
 		expect(builderSends).toBe(1);
+	});
+
+	it("canonicalizes legacy wiki-machine template input to wiki", async () => {
+		const run = await createHarnessRun("legacy wiki spelling", { template: "wiki-machine" });
+
+		expect(run.template).toBe("wiki");
+		expect(run.gates?.map(gate => gate.id)).toContain("wiki_manifest");
+	});
+
+	it("runs the offline harness benchmark for all templates", async () => {
+		const result = await runHarnessBenchmark({ template: "all" });
+
+		expect(result.schemaVersion).toBe("omg.harness.benchmark.v1");
+		expect(result.ok).toBe(true);
+		expect(result.template).toBe("all");
+		expect(result.scenarios.map(scenario => scenario.id)).toContain("artifact-project-happy");
+		expect(result.scenarios.map(scenario => scenario.id)).toContain("wiki-happy");
+		expect(result.scenarios.every(scenario => scenario.promptBudget.used <= scenario.promptBudget.expectedMax)).toBe(
+			true,
+		);
+		expect(await Bun.file(result.benchmarkPath).exists()).toBe(true);
+		expect(await Bun.file(result.reportPath).exists()).toBe(true);
+	});
+
+	it("runs the offline harness benchmark with wiki alias and summarizes legacy live runs", async () => {
+		const legacy = await createHarnessRun("old live run", { template: "wiki-machine" });
+		legacy.status = "good_enough";
+		legacy.verdict = "good_enough";
+		await Bun.write(path.join(getHarnessRunDir(legacy.runId), "run.json"), `${JSON.stringify(legacy, null, 2)}\n`);
+
+		const result = await runHarnessBenchmark({ template: "wiki-machine", includeLiveRuns: true });
+
+		expect(result.ok).toBe(true);
+		expect(result.template).toBe("wiki");
+		expect(result.scenarios.every(scenario => scenario.template === "wiki")).toBe(true);
+		expect(result.liveRuns?.byTemplate.wiki).toBeGreaterThanOrEqual(1);
+		expect(result.liveRuns?.latestGoodEnoughByTemplate.wiki).toBeTruthy();
 	});
 });
 

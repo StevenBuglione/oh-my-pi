@@ -1,5 +1,6 @@
 export * from "./artifact-manifest";
 export * from "./artifact-project";
+export * from "./benchmark";
 export * from "./chatgpt-cli";
 export * from "./cleanup";
 export * from "./doctor";

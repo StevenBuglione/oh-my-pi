@@ -8,10 +8,12 @@ import {
 	getCurrentHarnessValidation,
 	getHarnessRunDir,
 	listHarnessRuns,
+	normalizeHarnessTemplate,
 	readRunState,
 	resumeArtifactProjectHarness,
 	resumeWikiMachineHarness,
 	runArtifactProjectHarness,
+	runHarnessBenchmark,
 	runHarnessDoctor,
 	runWikiMachineHarness,
 	validateChatGptSkill,
@@ -19,7 +21,7 @@ import {
 } from "../harness";
 import { initTheme } from "../modes/theme/theme";
 
-const ACTIONS = ["run", "resume", "status", "inspect", "export", "skills", "doctor", "cleanup"] as const;
+const ACTIONS = ["run", "resume", "status", "inspect", "export", "skills", "doctor", "cleanup", "benchmark"] as const;
 
 export default class Harness extends Command {
 	static description = "Run and inspect OMG harness workflows";
@@ -39,6 +41,7 @@ export default class Harness extends Command {
 		template: Flags.string({ description: "Harness workflow template", default: "artifact-project" }),
 		run: Flags.string({ description: "Harness run id for cleanup" }),
 		stale: Flags.boolean({ description: "Clean up stale run-scoped workers" }),
+		"include-live-runs": Flags.boolean({ description: "Include existing live run summaries in benchmark output" }),
 	};
 
 	static examples = [
@@ -48,10 +51,11 @@ export default class Harness extends Command {
 		"# Inspect a run ledger\n  omg harness inspect <run-id>",
 		"# Export a run report\n  omg harness export <run-id>",
 		"# Clean up run-scoped workers\n  omg harness cleanup --run <run-id>",
+		"# Run the offline harness benchmark\n  omg harness benchmark --template all",
 		"# Validate or bundle a ChatGPT worker skill\n  omg harness skills validate critic-review\n  omg harness skills bundle artifact-builder",
 		"# Check live harness prerequisites\n  omg harness doctor",
 		'# Run the live artifact-project workflow\n  omg harness run --live --template artifact-project "build a small validated tool"',
-		'# Run the live wiki-machine workflow\n  omg harness run --live --template wiki-machine "build a local AI wiki proof"',
+		'# Run the live wiki workflow\n  omg harness run --live --template wiki "build a local AI wiki proof"',
 	];
 
 	async run(): Promise<void> {
@@ -66,11 +70,14 @@ export default class Harness extends Command {
 		if (action === "run") {
 			const objective = [args.subject, args.value].filter(Boolean).join(" ").trim();
 			if (!objective) throw new Error("omg harness run requires an objective");
+			const template = normalizeHarnessTemplate(flags.template);
 			if (flags.live) {
-				if (flags.template !== "artifact-project" && flags.template !== "wiki-machine") {
-					throw new Error("supported live harness templates: artifact-project, wiki-machine");
+				if (!template) {
+					throw new Error(
+						"supported live harness templates: artifact-project, wiki (wiki-machine alias accepted)",
+					);
 				}
-				const runTemplate = flags.template === "wiki-machine" ? runWikiMachineHarness : runArtifactProjectHarness;
+				const runTemplate = template === "wiki" ? runWikiMachineHarness : runArtifactProjectHarness;
 				const state = await runTemplate(objective, {
 					promptLimit: flags.limit,
 					files: flags.file ?? [],
@@ -83,13 +90,11 @@ export default class Harness extends Command {
 				}
 				return;
 			}
-			const template =
-				flags.template === "artifact-project" || flags.template === "wiki-machine" ? flags.template : undefined;
 			const state = await createHarnessRun(objective, { promptLimit: flags.limit, template });
 			const packet = await buildEvidencePacket({
 				runId: state.runId,
 				objective,
-				role: template === "wiki-machine" ? "wiki-architect" : (flags.role ?? "planner"),
+				role: template === "wiki" ? "wiki-architect" : (flags.role ?? "planner"),
 				successCriteria: [
 					"Use evidence packets for ChatGPT handoffs.",
 					"Require structured JSON responses.",
@@ -111,7 +116,9 @@ export default class Harness extends Command {
 			if (!args.subject) throw new Error("omg harness resume requires a run id");
 			const existing = await readRunState(args.subject);
 			const resumeTemplate =
-				existing.template === "wiki-machine" ? resumeWikiMachineHarness : resumeArtifactProjectHarness;
+				normalizeHarnessTemplate(existing.template) === "wiki"
+					? resumeWikiMachineHarness
+					: resumeArtifactProjectHarness;
 			const state = await resumeTemplate(args.subject, {
 				promptLimit: flags.limit,
 				files: flags.file ?? [],
@@ -124,7 +131,9 @@ export default class Harness extends Command {
 
 		if (action === "doctor") {
 			const requiredSkills =
-				flags.template === "wiki-machine" ? ["wiki-architect", "wiki-builder", "wiki-critic"] : undefined;
+				normalizeHarnessTemplate(flags.template) === "wiki"
+					? ["wiki-architect", "wiki-builder", "wiki-critic"]
+					: undefined;
 			const result = await runHarnessDoctor({ cwd: process.cwd(), requireLive: true, requiredSkills });
 			if (flags.json) {
 				process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -132,6 +141,27 @@ export default class Harness extends Command {
 				for (const check of result.checks) {
 					process.stdout.write(`${check.ok ? "ok" : "fail"}  ${check.label}: ${check.summary}\n`);
 				}
+			}
+			if (!result.ok) process.exitCode = 1;
+			return;
+		}
+
+		if (action === "benchmark") {
+			const templateWasProvided = process.argv.some(arg => arg === "--template" || arg.startsWith("--template="));
+			const result = await runHarnessBenchmark({
+				template: templateWasProvided ? flags.template : "all",
+				includeLiveRuns: flags["include-live-runs"],
+			});
+			if (flags.json) {
+				process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+			} else {
+				process.stdout.write(`benchmark ${result.ok ? "pass" : "fail"} ${result.benchmarkId}\n`);
+				for (const scenario of result.scenarios) {
+					process.stdout.write(
+						`${scenario.ok ? "ok" : "fail"}  ${scenario.id}  prompts ${scenario.promptBudget.used}/${scenario.promptBudget.expectedMax}  repairs ${scenario.repairPrompts}  downloads ${scenario.artifactDownloadAttempts}${scenario.blocker ? `  ${scenario.blocker}` : ""}\n`,
+					);
+				}
+				process.stdout.write(`${result.reportPath}\n`);
 			}
 			if (!result.ok) process.exitCode = 1;
 			return;
@@ -163,6 +193,7 @@ export default class Harness extends Command {
 				return;
 			}
 			process.stdout.write(`run ${state.runId}\nstatus ${state.status}\nverdict ${state.verdict ?? "(pending)"}\n`);
+			process.stdout.write(`template ${normalizeHarnessTemplate(state.template) ?? "(none)"}\n`);
 			process.stdout.write(`prompt budget ${state.promptBudget.used}/${state.promptBudget.limit}\n\n`);
 			process.stdout.write("gates\n");
 			for (const gate of state.gates ?? []) {

@@ -98,8 +98,15 @@ export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
 export type HarnessTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
 export type HarnessRunStatus = "active" | "blocked" | "good_enough" | "not_good_enough" | "abandoned";
 export type HarnessGateStatus = "pending" | "running" | "passed" | "failed" | "skipped";
-export type HarnessTemplate = "artifact-project" | "wiki-machine";
+export type CanonicalHarnessTemplate = "artifact-project" | "wiki";
+export type HarnessTemplate = CanonicalHarnessTemplate | "wiki-machine";
 export type HarnessGateId = string;
+
+export function normalizeHarnessTemplate(template: string | undefined): CanonicalHarnessTemplate | undefined {
+	if (template === "wiki-machine") return "wiki";
+	if (template === "artifact-project" || template === "wiki") return template;
+	return undefined;
+}
 
 export const ProjectManifestSchema = z.object({
 	name: z.string().min(1),

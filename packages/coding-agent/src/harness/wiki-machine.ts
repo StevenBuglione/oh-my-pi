@@ -427,7 +427,7 @@ async function sendAndCopy(
 			repairCopied.stdout || repairCopied.stderr,
 		);
 		if (!parseChatGptJsonEnvelope(repairCopied.stdout.trim()).ok) {
-			throw new Error(`${role} worker did not return a valid wiki-machine JSON envelope after one repair attempt`);
+			throw new Error(`${role} worker did not return a valid wiki JSON envelope after one repair attempt`);
 		}
 		return {
 			workerId,
@@ -647,10 +647,7 @@ async function runValidation(
 		exitCode,
 		logPath,
 		status: exitCode === 0 ? "passed" : "failed",
-		summary:
-			exitCode === 0
-				? "Declared wiki-machine smoke validation passed"
-				: "Declared wiki-machine smoke validation failed",
+		summary: exitCode === 0 ? "Declared wiki smoke validation passed" : "Declared wiki smoke validation failed",
 	});
 	await writeRunState(state);
 	return { ok: exitCode === 0, logPath, output, exitCode };
@@ -702,7 +699,7 @@ export async function runWikiMachineHarness(
 ): Promise<HarnessRunState> {
 	const state = await createHarnessRun(objective, {
 		promptLimit: options.promptLimit ?? 10,
-		template: "wiki-machine",
+		template: "wiki",
 	});
 	return await continueWikiMachineHarness(state, options);
 }
@@ -712,9 +709,12 @@ export async function resumeWikiMachineHarness(
 	options: WikiMachineOptions = {},
 ): Promise<HarnessRunState> {
 	const state = await readRunState(runId);
-	if (state.template !== "wiki-machine") throw new Error(`run ${runId} is not a wiki-machine harness run`);
+	if (state.template !== "wiki" && state.template !== "wiki-machine") {
+		throw new Error(`run ${runId} is not a wiki harness run`);
+	}
 	if (state.status === "good_enough" || state.status === "abandoned") return state;
 	if (options.promptLimit) state.promptBudget.limit = options.promptLimit;
+	state.template = "wiki";
 	state.status = "active";
 	await writeRunState(state);
 	return await continueWikiMachineHarness(state, options);
@@ -917,7 +917,7 @@ async function continueWikiMachineHarness(
 		const validation = await runValidation(state, artifact.workspaceDir, validationCommand);
 		if (validation.ok) await passGate(state, "smoke_validate", options, { outputPaths: [validation.logPath] });
 		else {
-			await failGate(state, "smoke_validate", options, "Declared wiki-machine smoke validation failed", {
+			await failGate(state, "smoke_validate", options, "Declared wiki smoke validation failed", {
 				outputPaths: [validation.logPath],
 			});
 		}

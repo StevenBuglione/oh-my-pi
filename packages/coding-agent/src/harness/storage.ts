@@ -9,6 +9,7 @@ import {
 	type HarnessRunState,
 	type HarnessTemplate,
 	type HarnessTodoItem,
+	normalizeHarnessTemplate,
 } from "./types";
 
 const DEFAULT_TODOS = [
@@ -56,6 +57,10 @@ export function getHarnessRunsDir(agentDir?: string): string {
 	return path.join(getHarnessRoot(agentDir), "runs");
 }
 
+export function getHarnessBenchmarksDir(agentDir?: string): string {
+	return path.join(getHarnessRoot(agentDir), "benchmarks");
+}
+
 export function getHarnessRunDir(runId: string, agentDir?: string): string {
 	return path.join(getHarnessRunsDir(agentDir), runId);
 }
@@ -84,8 +89,9 @@ export function defaultArtifactProjectGates(): HarnessGateState[] {
 }
 
 export function defaultHarnessGates(template?: HarnessTemplate): HarnessGateState[] | undefined {
-	if (template === "artifact-project") return defaultArtifactProjectGates();
-	if (template === "wiki-machine") return WIKI_MACHINE_GATES.map(id => ({ id, status: "pending" }));
+	const normalized = normalizeHarnessTemplate(template);
+	if (normalized === "artifact-project") return defaultArtifactProjectGates();
+	if (normalized === "wiki") return WIKI_MACHINE_GATES.map(id => ({ id, status: "pending" }));
 	return undefined;
 }
 
@@ -112,18 +118,19 @@ export async function createHarnessRun(
 	options: { runId?: string; promptLimit?: number; agentDir?: string; template?: HarnessRunState["template"] } = {},
 ): Promise<HarnessRunState> {
 	const runId = options.runId ?? createRunId();
+	const template = normalizeHarnessTemplate(options.template);
 	await ensureRunDirs(runId, options.agentDir);
 	const createdAt = nowIso();
 	const state: HarnessRunState = {
 		schemaVersion: HARNESS_SCHEMA_VERSION,
 		runId,
 		objective,
-		template: options.template,
+		template,
 		status: "active",
 		createdAt,
 		updatedAt: createdAt,
 		promptBudget: { used: 0, limit: options.promptLimit ?? 10 },
-		gates: defaultHarnessGates(options.template),
+		gates: defaultHarnessGates(template),
 		workers: [],
 		evidencePackets: [],
 		artifacts: [],
@@ -290,7 +297,7 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		`# Harness Run ${state.runId}`,
 		"",
 		`- Objective: ${state.objective}`,
-		`- Template: ${state.template ?? "(none)"}`,
+		`- Template: ${normalizeHarnessTemplate(state.template) ?? "(none)"}`,
 		`- Status: ${state.status}`,
 		`- Created: ${state.createdAt}`,
 		`- Updated: ${state.updatedAt}`,
