@@ -205,6 +205,36 @@ function getGitHubToken(options: WikiResearchOptions): string | undefined {
 	return options.githubToken ?? Bun.env.GITHUB_TOKEN ?? Bun.env.GITHUB_PAT;
 }
 
+async function readPreviousIssueArtifact(runId: string): Promise<WikiResearchIssue | undefined> {
+	try {
+		const issuePath = path.join(getHarnessRunDir(runId), "artifacts", "issue.json");
+		const parsed = JSON.parse(await fs.readFile(issuePath, "utf8")) as Partial<WikiResearchIssue>;
+		if (
+			typeof parsed.number === "number" &&
+			parsed.number > 0 &&
+			typeof parsed.title === "string" &&
+			typeof parsed.body === "string" &&
+			Array.isArray(parsed.labels) &&
+			typeof parsed.owner === "string" &&
+			typeof parsed.repo === "string"
+		) {
+			return {
+				number: parsed.number,
+				title: parsed.title,
+				body: parsed.body,
+				labels: parsed.labels.filter((label): label is string => typeof label === "string"),
+				htmlUrl: typeof parsed.htmlUrl === "string" ? parsed.htmlUrl : "",
+				owner: parsed.owner,
+				repo: parsed.repo,
+				createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : undefined,
+			};
+		}
+	} catch {
+		return undefined;
+	}
+	return undefined;
+}
+
 function redactedTokenCheck(token: string | undefined, apply: boolean): HarnessDoctorCheck {
 	return {
 		id: "github_token",
@@ -506,7 +536,13 @@ export const fetchWikiResearchGitHubClient: WikiResearchGitHubClient = {
 		if (response.status === 404) return { exists: false };
 		if (!response.ok) throw new Error(`GitHub repo lookup failed with HTTP ${response.status}`);
 		const data = (await response.json()) as { default_branch?: string; pushed_at?: string };
-		return { exists: true, defaultBranch: data.default_branch ?? "main", sha: undefined };
+		const defaultBranch = data.default_branch ?? "main";
+		const ref = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`, {
+			headers: githubHeaders(token),
+		});
+		if (!ref.ok) throw new Error(`GitHub default branch lookup failed with HTTP ${ref.status}`);
+		const refData = (await ref.json()) as { object?: { sha?: string } };
+		return { exists: true, defaultBranch, sha: refData.object?.sha };
 	},
 	async getIssue(token, owner, repo, issueNumber) {
 		const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
@@ -776,7 +812,7 @@ async function continueWikiResearchHarness(
 			const parsed = parseIssueRef(options.issue, { owner, repo });
 			issue = await client.getIssue(token, parsed.owner, parsed.repo, parsed.number);
 		} else {
-			issue = {
+			issue = (await readPreviousIssueArtifact(state.runId)) ?? {
 				number: 0,
 				title: state.objective,
 				body: `## Objective\n${state.objective}\n`,

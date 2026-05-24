@@ -12,6 +12,7 @@ import {
 	bundleChatGptSkill,
 	cleanupHarnessRuns,
 	createHarnessRun,
+	fetchWikiResearchGitHubClient,
 	getCurrentHarnessArtifacts,
 	getCurrentHarnessValidation,
 	getHarnessNextAction,
@@ -25,6 +26,7 @@ import {
 	resumeArtifactProjectHarness,
 	resumeWikiBootstrapHarness,
 	resumeWikiMachineHarness,
+	resumeWikiResearchHarness,
 	runArtifactProjectHarness,
 	runHarnessBenchmark,
 	runHarnessDoctor,
@@ -2260,6 +2262,76 @@ describe("harness core", () => {
 		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:pr-open")).toBe(true);
 		expect(runText).not.toContain("ghp_super_secret_token");
 		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
+
+	it("resumes wiki research with the previously fetched issue when no override is provided", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		const state = await createHarnessRun("issue backed research", {
+			promptLimit: 10,
+			template: "wiki-research",
+		});
+		state.status = "blocked";
+		await writeRunState(state);
+		const runDir = getHarnessRunDir(state.runId);
+		await fs.mkdir(path.join(runDir, "artifacts"), { recursive: true });
+		await Bun.write(
+			path.join(runDir, "artifacts", "issue.json"),
+			`${JSON.stringify(
+				wikiResearchIssue({
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops\n\nhttps://kubernetes.io/docs/",
+				}),
+				null,
+				2,
+			)}\n`,
+		);
+
+		const resumed = await resumeWikiResearchHarness(state.runId, {
+			owner: "acme",
+			repo: "wiki-data-registry",
+			registryPath,
+			githubClient: wikiResearchMockClient({ calls, issue: wikiResearchIssue({ title: "Unexpected fetch" }) }),
+		});
+		const issue = JSON.parse(await Bun.file(path.join(runDir, "artifacts", "issue.json")).text());
+
+		expect(resumed.status).toBe("good_enough");
+		expect(issue.number).toBe(1);
+		expect(issue.title).toBe("Kubernetes backup patterns");
+		expect(calls.some(call => call.startsWith("issue:"))).toBe(false);
+		expect(calls.some(call => call.startsWith("list:"))).toBe(false);
+	});
+
+	it("fetches the wiki research default branch SHA before creating PR branches", async () => {
+		const originalFetch = globalThis.fetch;
+		const calls: string[] = [];
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			const url = String(input);
+			calls.push(url);
+			if (url.endsWith("/repos/acme/wiki-data-devops")) {
+				return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
+			}
+			if (url.endsWith("/repos/acme/wiki-data-devops/git/ref/heads/main")) {
+				return new Response(JSON.stringify({ object: { sha: "abc123".padEnd(40, "0") } }), { status: 200 });
+			}
+			return new Response("not found", { status: 404 });
+		}) as typeof fetch;
+		try {
+			const repo = await fetchWikiResearchGitHubClient.getRepo("ghp_super_secret_token", "acme", "wiki-data-devops");
+			expect(repo).toEqual({ exists: true, defaultBranch: "main", sha: "abc123".padEnd(40, "0") });
+			expect(calls.some(call => call.endsWith("/git/ref/heads/main"))).toBe(true);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	it("plans wiki research label sync without mutating GitHub by default", async () => {
