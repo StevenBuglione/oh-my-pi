@@ -22,6 +22,7 @@ import {
 	runWikiBootstrapHarness,
 	runWikiMachineHarness,
 	runWikiResearchHarness,
+	runWikiResearchQueue,
 	runWikiSourceHarness,
 	syncWikiResearchIssueLabels,
 	validateChatGptSkill,
@@ -68,6 +69,11 @@ export default class Harness extends Command {
 		steering: Flags.string({ description: "Path to wiki.steering.json for wiki-research runs" }),
 		registry: Flags.string({ description: "Path to wiki-data-registry sources.json for wiki-source runs" }),
 		apply: Flags.boolean({ description: "Apply mutating wiki-source GitHub provisioning steps" }),
+		"auto-merge": Flags.string({ description: "Wiki research auto-merge policy: off or safe", default: "off" }),
+		researcher: Flags.string({ description: "Wiki research backend: chatgpt or deterministic" }),
+		"allow-deterministic-fallback": Flags.boolean({
+			description: "Allow deterministic wiki research fallback if ChatGPT fails",
+		}),
 		private: Flags.boolean({ description: "Create wiki-source repositories as private when --apply is used" }),
 		run: Flags.string({ description: "Harness run id for cleanup" }),
 		stale: Flags.boolean({ description: "Clean up stale run-scoped workers" }),
@@ -92,6 +98,7 @@ export default class Harness extends Command {
 		"# Run issue-backed wiki research\n  omg harness run --template wiki-research --issue https://github.com/YOUR_ORG/wiki-data-registry/issues/1",
 		"# Bootstrap the five public wiki repos\n  omg harness run --template wiki-bootstrap --owner StevenBuglione",
 		"# Sync wiki research labels\n  omg harness wiki issues sync --owner YOUR_ORG --repo wiki-data-registry",
+		"# Run the unattended wiki research queue\n  omg harness wiki research run-queue --apply --auto-merge=safe --owner StevenBuglione",
 	];
 
 	async run(): Promise<void> {
@@ -106,6 +113,9 @@ export default class Harness extends Command {
 		if (action === "run") {
 			const objective = [args.subject, args.value].filter(Boolean).join(" ").trim();
 			const template = normalizeHarnessTemplate(flags.template);
+			const researcher =
+				flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
+			if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
 			if (template === "wiki-bootstrap") {
 				const state = await runWikiBootstrapHarness(objective || "bootstrap AI wiki repositories", {
 					promptLimit: flags.limit,
@@ -133,6 +143,9 @@ export default class Harness extends Command {
 					steeringPath: flags.steering,
 					registryPath: flags.registry,
 					apply: flags.apply,
+					autoMerge: flags["auto-merge"] === "safe" ? "safe" : "off",
+					researcher,
+					allowDeterministicFallback: flags["allow-deterministic-fallback"],
 					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
 				});
 				if (flags.json) process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
@@ -196,6 +209,9 @@ export default class Harness extends Command {
 
 		if (action === "resume") {
 			if (!args.subject) throw new Error("omg harness resume requires a run id");
+			const researcher =
+				flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
+			if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
 			const existing = await readRunState(args.subject);
 			const resumeTemplate =
 				normalizeHarnessTemplate(existing.template) === "wiki-bootstrap"
@@ -217,6 +233,9 @@ export default class Harness extends Command {
 				steeringPath: flags.steering,
 				registryPath: flags.registry,
 				apply: flags.apply,
+				autoMerge: flags["auto-merge"] === "safe" ? "safe" : "off",
+				researcher,
+				allowDeterministicFallback: flags["allow-deterministic-fallback"],
 				private: flags.private,
 				onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
 			});
@@ -338,8 +357,35 @@ export default class Harness extends Command {
 		}
 
 		if (action === "wiki") {
+			const researcher =
+				flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
+			if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
+			if (args.subject === "research" && args.value === "run-queue") {
+				const result = await runWikiResearchQueue({
+					owner: flags.owner,
+					repos: flags.repo ? [flags.repo] : undefined,
+					steeringPath: flags.steering,
+					registryPath: flags.registry,
+					apply: flags.apply,
+					autoMerge: flags["auto-merge"] === "safe" ? "safe" : "off",
+					researcher,
+					allowDeterministicFallback: flags["allow-deterministic-fallback"],
+					maxIssues: flags.limit,
+					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
+				});
+				if (flags.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+				else {
+					process.stdout.write(
+						`wiki research queue processed ${result.processed.length}/${result.scanned} queued issue(s); blocked ${result.blocked.length}\n`,
+					);
+				}
+				if (result.blocked.length && !result.processed.length) process.exitCode = 1;
+				return;
+			}
 			if (args.subject !== "issues" || args.value !== "sync") {
-				throw new Error("supported wiki harness command: omg harness wiki issues sync");
+				throw new Error(
+					"supported wiki harness commands: omg harness wiki issues sync, omg harness wiki research run-queue",
+				);
 			}
 			const result = await syncWikiResearchIssueLabels({
 				owner: flags.owner,

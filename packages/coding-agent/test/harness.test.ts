@@ -33,6 +33,9 @@ import {
 	runWikiBootstrapHarness,
 	runWikiMachineHarness,
 	runWikiResearchHarness,
+	runWikiResearchPublishVerification,
+	runWikiResearchQueue,
+	runWikiResearchWatchdog,
 	runWikiSourceHarness,
 	syncWikiResearchIssueLabels,
 	validateAiWikiManifest,
@@ -2209,6 +2212,7 @@ describe("harness core", () => {
 				owner: "acme",
 				repo: "wiki-data-registry",
 				issue: "1",
+				steeringPath: path.join(tempRoot, "missing-wiki.steering.json"),
 				registryPath,
 				apply: true,
 				githubToken: "ghp_super_secret_token",
@@ -2235,7 +2239,7 @@ describe("harness core", () => {
 				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
 			},
 		]);
-		await writeWikiSteering(steeringPath, { registryPath });
+		await writeWikiSteering(steeringPath, { registryPath, sourceMatchThreshold: 0.99 });
 		const state = await runWikiResearchHarness("issue backed research", {
 			owner: "acme",
 			repo: "wiki-data-registry",
@@ -2244,6 +2248,7 @@ describe("harness core", () => {
 			registryPath,
 			apply: true,
 			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner({ zipped: true }),
 			githubClient: wikiResearchMockClient({
 				calls,
 				issue: wikiResearchIssue({
@@ -2256,12 +2261,462 @@ describe("harness core", () => {
 		const reportText = await Bun.file(path.join(getHarnessRunDir(state.runId), "report.md")).text();
 
 		expect(state.status).toBe("good_enough");
+		expect(
+			state.workers.some(worker => worker.role === "researcher" && worker.workerId === "researcher-chatgpt-1"),
+		).toBe(true);
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
 		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);
 		expect(calls.some(call => call === "pr:wiki-data-devops")).toBe(true);
 		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:pr-open")).toBe(true);
 		expect(runText).not.toContain("ghp_super_secret_token");
 		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
+
+	it("discovers public citations when queued wiki research issues do not include URLs", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "homelab",
+				label: "Homelab",
+				description: "Proxmox OpenWrt TrueNAS self-hosting storage",
+				enabled: true,
+				order: 20,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-homelab@published/latest.json",
+			},
+		]);
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-homelab",
+			issue: "1",
+			registryPath,
+			githubClient: wikiResearchMockClient({
+				issue: wikiResearchIssue({
+					title: "Homelab starter content",
+					body: "## Objective\nResearch a starter homelab operations page.\n\n## Preferred source\nhomelab",
+					labels: ["wiki:research", "wiki:queued", "source:homelab"],
+				}),
+			}),
+		});
+		const research = JSON.parse(
+			await Bun.file(path.join(getHarnessRunDir(state.runId), "responses", "wiki-research-brief.json")).text(),
+		);
+
+		expect(state.status).toBe("good_enough");
+		expect(research.status).toBe("complete");
+		expect(research.citations.some((url: string) => url.includes("proxmox.com"))).toBe(true);
+	});
+
+	it("blocks unmatched research with an actionable new source boundary decision", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath, sourceMatchThreshold: 0.99 });
+		const state = await createHarnessRun("new source boundary", { template: "wiki-research" });
+
+		await expect(
+			resumeWikiResearchHarness(state.runId, {
+				owner: "acme",
+				repo: "wiki-data-registry",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				githubClient: wikiResearchMockClient({
+					calls,
+					issue: wikiResearchIssue({
+						title: "Beekeeping queen rearing",
+						body: "## Objective\nResearch beekeeping queen rearing and hive split planning.\n",
+						labels: ["wiki:research", "wiki:queued"],
+						repo: "wiki-data-registry",
+					}),
+				}),
+			}),
+		).rejects.toThrow("No registered source reached the match threshold");
+
+		const boundary = JSON.parse(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "responses", "wiki-source-boundary-decision.json"),
+			).text(),
+		);
+		expect(boundary.status).toBe("needs_new_source_review");
+		expect(boundary.proposedRepoName).toBe("wiki-data-beekeeping-queen-rearing-hive");
+		expect(boundary.recommendedCommand).toContain("omg harness run --template wiki-source");
+		expect(calls.some(call => call === "label:wiki-data-registry:wiki:research,wiki:needs-source-decision")).toBe(
+			true,
+		);
+	});
+
+	it("auto-merges safe wiki content PRs after critic and checks pass", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			autoMerge: "safe",
+			githubToken: "ghp_super_secret_token",
+			fetchImpl: wikiPublishFetch(),
+			publishVerificationAttempts: 1,
+			publishVerificationDelayMs: 0,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				withPublishVerification: true,
+				createPrWithoutHeadSha: true,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(calls).toContain("merge:wiki-data-devops#3");
+		expect(calls).toContain("close:wiki-data-devops#1");
+		expect(calls).toContain(`runs:wiki-data-devops:${"3".repeat(40)}`);
+		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:merged")).toBe(true);
+		expect(state.gates?.find(gate => gate.id === "publish_verify")?.status).toBe("passed");
+	});
+
+	it("blocks post-merge wiki publishing when jsDelivr latest pointers stay stale", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				autoMerge: "safe",
+				githubToken: "ghp_super_secret_token",
+				fetchImpl: wikiPublishFetch({ staleLatest: true }),
+				publishVerificationAttempts: 2,
+				publishVerificationDelayMs: 0,
+				workerRunner: wikiResearchWorkerRunner(),
+				githubClient: wikiResearchMockClient({
+					calls,
+					withSafeMerge: true,
+					withPublishVerification: true,
+					issue: wikiResearchIssue({
+						title: "Kubernetes backup patterns",
+						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+						repo: "wiki-data-devops",
+					}),
+				}),
+			}),
+		).rejects.toThrow("latest.json");
+
+		expect(calls).toContain("merge:wiki-data-devops#3");
+		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:blocked")).toBe(true);
+		expect(calls.some(call => call === "remove-label:wiki-data-devops:wiki:merged")).toBe(true);
+	});
+
+	it("retries post-merge publish verification without redrafting", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const result = await runWikiResearchPublishVerification({
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			fetchImpl: wikiPublishFetch(),
+			publishVerificationAttempts: 1,
+			publishVerificationDelayMs: 0,
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				withPublishVerification: true,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(result.status).toBe("verified");
+		expect(calls).toContain("comments:wiki-data-devops#1");
+		expect(calls).toContain("files:wiki-data-devops#3");
+		expect(calls).toContain("close:wiki-data-devops#1");
+		expect(calls.some(call => call.startsWith("put:"))).toBe(false);
+	});
+
+	it("repairs malformed ChatGPT wiki research JSON once before drafting", async () => {
+		const workerCalls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner({ invalidFirst: true, calls: workerCalls }),
+			githubClient: wikiResearchMockClient({
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(workerCalls.filter(action => action === "send")).toHaveLength(2);
+		expect(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "responses", "researcher-repair-package-research-brief.json"),
+			).exists(),
+		).toBe(true);
+	});
+
+	it("blocks production wiki research when ChatGPT never returns schema-valid JSON", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({ invalidAlways: true }),
+				githubClient: wikiResearchMockClient({
+					issue: wikiResearchIssue({
+						title: "Kubernetes backup patterns",
+						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+						repo: "wiki-data-devops",
+					}),
+				}),
+			}),
+		).rejects.toThrow("ChatGPT researcher returned invalid schema JSON");
+		const [state] = await listHarnessRuns();
+		expect(state.gates?.find(gate => gate.id === "researcher")?.status).toBe("failed");
+	});
+
+	it("blocks production wiki research when ChatGPT source decision disagrees with routing", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+			{
+				id: "projects",
+				label: "Projects",
+				description: "Project notes planning GitHub roadmaps",
+				enabled: true,
+				order: 30,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-projects@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({
+					sourceDecision: {
+						source_id: "projects",
+						repo_name: "wiki-data-projects",
+						domain_label: "Projects",
+						existing_source_candidates: ["projects"],
+					},
+				}),
+				githubClient: wikiResearchMockClient({
+					issue: wikiResearchIssue({
+						title: "Kubernetes backup patterns",
+						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+						repo: "wiki-data-devops",
+					}),
+				}),
+			}),
+		).rejects.toThrow("disagrees with candidate");
+	});
+
+	it("blocks production wiki research when the ChatGPT package is missing a required decision file", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({ missingFile: "critic-review.json" }),
+				githubClient: wikiResearchMockClient({
+					issue: wikiResearchIssue({
+						title: "Kubernetes backup patterns",
+						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+						repo: "wiki-data-devops",
+					}),
+				}),
+			}),
+		).rejects.toThrow("critic-review.json");
+	});
+
+	it("runs the wiki research queue across registry and source repos with issue leasing", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "projects",
+				label: "Projects",
+				description: "Project notes planning GitHub roadmaps",
+				enabled: true,
+				order: 30,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-projects@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath, registryRepo: "wiki-data-registry", maxIssuesPerRun: 1 });
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			steeringPath,
+			registryPath,
+			apply: true,
+			autoMerge: "off",
+			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner({
+				sourceDecision: {
+					source_id: "projects",
+					repo_name: "wiki-data-projects",
+					domain_label: "Projects",
+					existing_source_candidates: ["projects"],
+				},
+			}),
+			githubClient: wikiResearchMockClient({
+				calls,
+				issue: wikiResearchIssue({
+					title: "Projects starter content",
+					body: "## Objective\nResearch project wiki starter content.\n\n## Preferred source\nprojects",
+					labels: ["wiki:research", "wiki:queued", "source:projects"],
+				}),
+			}),
+		});
+
+		expect(result.processed).toHaveLength(1);
+		expect(result.processed[0]?.status).toBe("good_enough");
+		expect(result.researcher).toBe("chatgpt");
+		expect(result.processed[0]?.workerId).toBe("researcher-chatgpt-1");
+		expect(result.processed[0]?.schemaValidation).toBe("passed");
+		expect(calls.some(call => call === "label:wiki-data-registry:wiki:research,wiki:in-progress")).toBe(true);
+		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-projects:omg/wiki-research/issue-"))).toBe(true);
 	});
 
 	it("resumes wiki research with the previously fetched issue when no override is provided", async () => {
@@ -2339,6 +2794,75 @@ describe("harness core", () => {
 		expect(result.applied).toBe(false);
 		expect(result.labels).toContain("wiki:research");
 		expect(result.labels).toContain("wiki:queued");
+	});
+
+	it("runs the Qwen-only wiki research watchdog with schema-checked health output", async () => {
+		const automationsDir = path.join(tempRoot, "automations");
+		for (const name of ["queue", "benchmark", "watchdog"]) {
+			await fs.mkdir(path.join(automationsDir, name), { recursive: true });
+		}
+		await Bun.write(
+			path.join(automationsDir, "queue", "automation.toml"),
+			'status = "ACTIVE"\nprompt = "omg wiki-research run-queue --researcher=chatgpt"\n',
+		);
+		await Bun.write(
+			path.join(automationsDir, "benchmark", "automation.toml"),
+			'status = "ACTIVE"\nprompt = "omg wiki-research benchmark --summary"\n',
+		);
+		await Bun.write(
+			path.join(automationsDir, "watchdog", "automation.toml"),
+			'status = "ACTIVE"\nprompt = "omg wiki-research watchdog --json"\n',
+		);
+		const responses: string[] = [];
+		const result = await runWikiResearchWatchdog({
+			automationsDir,
+			chatGptRateLimitRunner: async () => ({ ok: true, exitCode: 0, stdout: "{}", stderr: "" }),
+			fetchImpl: (async (input: Parameters<typeof fetch>[0]) => {
+				const url = String(input);
+				responses.push(url);
+				if (url.endsWith("/models")) {
+					return new Response(JSON.stringify({ data: [{ id: "qwen3.6-35b-a3b-mtp-q4k-xl" }] }), { status: 200 });
+				}
+				return new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: '{"schemaVersion":"omg.wiki.watchdog_probe.v1","ok":true,"summary":"reachable"}',
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				);
+			}) as typeof fetch,
+		});
+
+		expect(result.health.ok).toBe(true);
+		expect(result.localModel.model).toBe("qwen3.6-35b-a3b-mtp-q4k-xl");
+		expect(result.localModel.schemaValidation).toBe("passed");
+		expect(responses.some(url => url.endsWith("/chat/completions"))).toBe(true);
+	});
+
+	it("keeps Qwen watchdog failures separate from content authority", async () => {
+		const result = await runWikiResearchWatchdog({
+			automationsDir: path.join(tempRoot, "missing-automations"),
+			chatGptRateLimitRunner: async () => ({ ok: true, exitCode: 0, stdout: "{}", stderr: "" }),
+			fetchImpl: (async (input: Parameters<typeof fetch>[0]) => {
+				if (String(input).endsWith("/models")) {
+					return new Response(JSON.stringify({ data: [{ id: "qwen3.6-35b-a3b-mtp-q4k-xl" }] }), {
+						status: 200,
+					});
+				}
+				return new Response(JSON.stringify({ choices: [{ message: { content: "not-json" } }] }), {
+					status: 200,
+				});
+			}) as typeof fetch,
+		});
+
+		expect(result.localModel.schemaValidation).toBe("failed");
+		expect(result.health.findings).toContain("local Qwen watchdog probe is unhealthy");
+		expect(result.health.recommendedActions.join("\n")).not.toContain("merge");
 	});
 
 	it("dry-runs wiki bootstrap with five repo seeds and registry URLs", async () => {
@@ -2525,8 +3049,318 @@ function wikiResearchIssue(overrides: Partial<any> = {}) {
 	};
 }
 
-function wikiResearchMockClient(options: { issue: any; calls?: string[] }) {
+function wikiResearchBrief(overrides: Partial<any> = {}) {
+	return {
+		schema_version: "omg.wiki.research_brief.v1",
+		status: "complete",
+		topic: "Kubernetes backup patterns",
+		summary: "Official Kubernetes and Velero documentation describe backup and restore planning considerations.",
+		citations: [
+			"https://kubernetes.io/docs/home/",
+			"https://velero.io/docs/",
+			"https://docs.github.com/en/actions",
+			"https://docs.docker.com/",
+			"https://kubernetes.io/docs/concepts/cluster-administration/backing-up/",
+			"https://velero.io/docs/main/basic-install/",
+			"https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/",
+			"https://velero.io/docs/main/restore-reference/",
+		],
+		findings: [
+			"Use official docs as the primary source.",
+			"Document restore validation separately from backup creation.",
+			"Capture scope, exclusions, and restore assumptions before choosing tooling.",
+			"Treat restore tests as the evidence that backup policy works.",
+			"Keep issue templates explicit enough to reproduce incidents.",
+			"Record release-note decisions near the workflow that publishes releases.",
+			"Use changelogs for human-readable change history rather than raw commit logs.",
+			"Separate operational checklists from background explanation.",
+		],
+		source_quality: [
+			"https://kubernetes.io/docs/home/",
+			"https://velero.io/docs/",
+			"https://docs.github.com/en/actions",
+			"https://docs.docker.com/",
+			"https://kubernetes.io/docs/concepts/cluster-administration/backing-up/",
+			"https://velero.io/docs/main/basic-install/",
+			"https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/",
+			"https://velero.io/docs/main/restore-reference/",
+		].map(url => ({
+			url,
+			title: new URL(url).hostname,
+			source_type: "official",
+			why_it_matters: "Authoritative public documentation for the researched topic.",
+		})),
+		claim_citations: [
+			{ claim: "Use official docs as the primary source.", citation_urls: ["https://kubernetes.io/docs/home/"] },
+			{
+				claim: "Document restore validation separately from backup creation.",
+				citation_urls: ["https://velero.io/docs/"],
+			},
+			{
+				claim: "Capture scope, exclusions, and restore assumptions before choosing tooling.",
+				citation_urls: ["https://kubernetes.io/docs/concepts/cluster-administration/backing-up/"],
+			},
+			{
+				claim: "Treat restore tests as the evidence that backup policy works.",
+				citation_urls: ["https://velero.io/docs/main/restore-reference/"],
+			},
+			{
+				claim: "Keep issue templates explicit enough to reproduce incidents.",
+				citation_urls: ["https://docs.github.com/en/actions"],
+			},
+			{
+				claim: "Record release-note decisions near the workflow that publishes releases.",
+				citation_urls: ["https://docs.github.com/en/actions"],
+			},
+			{
+				claim: "Use changelogs for human-readable change history rather than raw commit logs.",
+				citation_urls: ["https://docs.github.com/en/actions"],
+			},
+			{
+				claim: "Separate operational checklists from background explanation.",
+				citation_urls: ["https://docs.docker.com/"],
+			},
+		],
+		reader_takeaways: [
+			"Readers should understand what to document before implementing backup automation.",
+			"Readers should know why restore testing matters more than tool selection alone.",
+			"Readers should leave with practical sections they can adapt.",
+		],
+		confidence: 0.82,
+		...overrides,
+	};
+}
+
+function wikiResearchSourceDecision(overrides: Partial<any> = {}) {
+	return {
+		schema_version: "omg.wiki.source_decision.v1",
+		status: "complete",
+		recommended_action: "use_existing_source",
+		source_id: "devops",
+		repo_name: "wiki-data-devops",
+		domain_label: "DevOps",
+		reason: "The issue explicitly targets the registered DevOps source.",
+		existing_source_candidates: ["devops"],
+		confidence: 0.9,
+		required_seed_files: [],
+		...overrides,
+	};
+}
+
+function wikiResearchContentPlan(overrides: Partial<any> = {}) {
+	return {
+		schema_version: "omg.wiki.content_plan.v1",
+		status: "complete",
+		source_id: "devops",
+		pages: [
+			{
+				title: "Kubernetes backup patterns",
+				slug: "kubernetes-backup-patterns",
+				description: "Research Kubernetes backup patterns.",
+				tags: ["research", "devops", "kubernetes"],
+				reader_value: "A practical, cited guide to planning and validating Kubernetes backup documentation.",
+				outline: ["Summary", "Checklist", "Decision Guidance", "Common Pitfalls", "Maintenance Notes", "Sources"],
+			},
+		],
+		...overrides,
+	};
+}
+
+function wikiResearchDraftInstructions(overrides: Partial<any> = {}) {
+	return {
+		schema_version: "omg.wiki.draft_instructions.v1",
+		status: "complete",
+		source_id: "devops",
+		path: "docs/kubernetes-backup-patterns.md",
+		title: "Kubernetes backup patterns",
+		description: "Research Kubernetes backup patterns.",
+		tags: ["research", "devops", "kubernetes"],
+		required_sections: ["Summary", "Research Notes", "Sources"],
+		notes: ["Keep the page in ai_draft until a human reviews the implementation details."],
+		sections: ["Summary", "Checklist", "Decision Guidance", "Common Pitfalls", "Maintenance Notes"].map(
+			(heading, index) => ({
+				heading,
+				purpose: `Explain ${heading.toLowerCase()} with cited, readable guidance.`,
+				paragraphs: [`${heading} guidance should connect the source material to a practical reader decision.`],
+				bullets: [`Apply the cited ${heading.toLowerCase()} guidance before marking the page reviewed.`],
+				citation_urls: [
+					[
+						"https://kubernetes.io/docs/home/",
+						"https://velero.io/docs/",
+						"https://docs.github.com/en/actions",
+						"https://docs.docker.com/",
+						"https://kubernetes.io/docs/concepts/cluster-administration/backing-up/",
+					][index],
+				],
+			}),
+		),
+		confidence: 0.82,
+		...overrides,
+	};
+}
+
+function wikiResearchReview(overrides: Partial<any> = {}) {
+	return {
+		schema_version: "omg.wiki.research_review.v1",
+		approved: true,
+		blocking_findings: [],
+		non_blocking_findings: [],
+		verdict: "good_enough",
+		...overrides,
+	};
+}
+
+function wikiResearchWorkerRunner(
+	options: {
+		invalidFirst?: boolean;
+		invalidAlways?: boolean;
+		calls?: string[];
+		zipped?: boolean;
+		sourceDecision?: Partial<any>;
+		criticReview?: Partial<any>;
+		missingFile?: string;
+	} = {},
+) {
+	let copyCount = 0;
+	let downloadCount = 0;
 	const calls = options.calls ?? [];
+	return async (input: any) => {
+		calls.push(input.action);
+		if (input.action === "create") {
+			return {
+				ok: true,
+				action: input.action,
+				command: [],
+				exitCode: 0,
+				stdout: JSON.stringify([
+					{ worker_id: "researcher-chatgpt-1", conversation_url: "https://chatgpt.com/c/researcher" },
+				]),
+				stderr: "",
+			};
+		}
+		if (input.action === "rename") {
+			return { ok: true, action: input.action, command: [], exitCode: 0, stdout: "{}", stderr: "" };
+		}
+		if (input.action === "send") {
+			return {
+				ok: true,
+				action: input.action,
+				command: [],
+				exitCode: 0,
+				stdout: JSON.stringify({
+					request_id: input.prompt?.includes("previous response") ? "req-repair" : "req-research",
+					conversation_url: "https://chatgpt.com/c/researcher",
+				}),
+				stderr: "",
+			};
+		}
+		if (input.action === "watch") {
+			return {
+				ok: true,
+				action: input.action,
+				command: [],
+				exitCode: 0,
+				stdout: JSON.stringify({
+					request_id: "req-research",
+					conversation_url: "https://chatgpt.com/c/researcher",
+					is_generating: false,
+				}),
+				stderr: "",
+			};
+		}
+		if (input.action === "download_artifacts") {
+			downloadCount += 1;
+			const invalid = options.invalidAlways || (options.invalidFirst && downloadCount === 1);
+			if (input.downloadDir) {
+				await fs.mkdir(input.downloadDir, { recursive: true });
+				const packageJson: Record<string, unknown> = {
+					"source-decision.json": wikiResearchSourceDecision(options.sourceDecision),
+					"research-brief.json": invalid ? wikiResearchBrief({ citations: ["not-a-url"] }) : wikiResearchBrief(),
+					"content-plan.json": wikiResearchContentPlan({
+						source_id: options.sourceDecision?.source_id ?? "devops",
+					}),
+					"draft-instructions.json": wikiResearchDraftInstructions({
+						source_id: options.sourceDecision?.source_id ?? "devops",
+					}),
+					"critic-review.json": wikiResearchReview(options.criticReview),
+					"validation.json": {
+						ok: true,
+						schema_version: "omg.wiki.decision_package_validation.v1",
+						checked_files: [
+							"source-decision.json",
+							"research-brief.json",
+							"content-plan.json",
+							"draft-instructions.json",
+							"critic-review.json",
+						],
+						errors: [],
+						citation_count: invalid ? 1 : 8,
+						worker_id: "researcher-chatgpt-1",
+						request_id: "req-research",
+						conversation_url: "https://chatgpt.com/c/researcher",
+					},
+				};
+				if (options.missingFile) delete packageJson[options.missingFile];
+				const entries = Object.fromEntries(
+					Object.entries(packageJson).map(([name, value]) => [
+						name,
+						new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`),
+					]),
+				);
+				if (options.zipped) {
+					await Bun.write(path.join(input.downloadDir, "research-package.zip"), zipSync(entries));
+				} else {
+					for (const [name, bytes] of Object.entries(entries)) {
+						await Bun.write(path.join(input.downloadDir, name), bytes);
+					}
+				}
+			}
+			const downloadedFiles = options.zipped
+				? ["research-package.zip"]
+				: [
+						"source-decision.json",
+						"research-brief.json",
+						"content-plan.json",
+						"draft-instructions.json",
+						"critic-review.json",
+						"validation.json",
+					].filter(file => file !== options.missingFile);
+			return {
+				ok: true,
+				action: input.action,
+				command: [],
+				exitCode: 0,
+				stdout: JSON.stringify({ downloaded: downloadedFiles }),
+				stderr: "",
+				downloadedFiles,
+			};
+		}
+		if (input.action === "copy_message") {
+			copyCount += 1;
+			const invalid = options.invalidAlways || (options.invalidFirst && copyCount === 1);
+			return {
+				ok: true,
+				action: input.action,
+				command: [],
+				exitCode: 0,
+				stdout: invalid ? "not json" : JSON.stringify(wikiResearchBrief()),
+				stderr: "",
+			};
+		}
+		return { ok: false, action: input.action, command: [], exitCode: 1, stdout: "", stderr: "unexpected action" };
+	};
+}
+
+function wikiResearchMockClient(options: {
+	issue: any;
+	calls?: string[];
+	withSafeMerge?: boolean;
+	withPublishVerification?: boolean;
+	createPrWithoutHeadSha?: boolean;
+}) {
+	const calls = options.calls ?? [];
+	const mergedSha = "3".repeat(40);
+	let createdPr = false;
 	return {
 		async getAuthenticatedUser(token?: string) {
 			calls.push(`auth:${token === "ghp_super_secret_token"}`);
@@ -2560,6 +3394,25 @@ function wikiResearchMockClient(options: { issue: any; calls?: string[] }) {
 			calls.push(`comment:${input.repo}#${input.issueNumber}`);
 			return { htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/${input.issueNumber}#comment` };
 		},
+		async listIssueComments(_token: string | undefined, input: any) {
+			calls.push(`comments:${input.repo}#${input.issueNumber}`);
+			return [
+				{
+					body: [
+						"OMG wiki research merged",
+						"",
+						"Run: mock-run",
+						"Report: C:\\mock\\report.md",
+						"",
+						`https://github.com/${input.owner}/${input.repo}/pull/3`,
+						"",
+						`merged at ${mergedSha}`,
+						"",
+						"Post-merge publish verification failed.",
+					].join("\n"),
+				},
+			];
+		},
 		async addLabels(_token: string, input: any) {
 			calls.push(`label:${input.repo}:${input.labels.join(",")}`);
 		},
@@ -2577,11 +3430,116 @@ function wikiResearchMockClient(options: { issue: any; calls?: string[] }) {
 			calls.push(`put:${input.repo}:${input.path}`);
 			return { commitSha: "2".repeat(40) };
 		},
+		async getFile(_token: string, input: any) {
+			calls.push(`get-file:${input.repo}:${input.branch}:${input.path}`);
+			if (options.withPublishVerification && input.branch === "published") {
+				const latest = wikiPublishedLatest("acme", input.repo, mergedSha);
+				const latestAgent = wikiPublishedLatestAgent("acme", input.repo, mergedSha);
+				if (input.path === "latest.json") return { content: JSON.stringify(latest) };
+				if (input.path === "latest-agent.json") return { content: JSON.stringify(latestAgent) };
+			}
+			return undefined;
+		},
+		async listPullRequests(_token: string, input: any) {
+			calls.push(`list-pr:${input.repo}:${input.head ?? ""}`);
+			if (createdPr && options.createPrWithoutHeadSha) {
+				return [
+					{
+						number: 3,
+						htmlUrl: `https://github.com/${input.owner}/${input.repo}/pull/3`,
+						headSha: "2".repeat(40),
+					},
+				];
+			}
+			return [];
+		},
 		async createPullRequest(_token: string, input: any) {
 			calls.push(`pr:${input.repo}`);
-			return { number: 3, htmlUrl: `https://github.com/${input.owner}/${input.repo}/pull/3` };
+			createdPr = true;
+			return {
+				number: 3,
+				htmlUrl: `https://github.com/${input.owner}/${input.repo}/pull/3`,
+				headSha: options.createPrWithoutHeadSha ? undefined : "2".repeat(40),
+			};
+		},
+		async listPullRequestFiles(_token: string, input: any) {
+			calls.push(`files:${input.repo}#${input.pullNumber}`);
+			return options.withSafeMerge ? [{ filename: "docs/kubernetes-backup-patterns.md" }] : [];
+		},
+		async listCheckRunsForRef(_token: string, input: any) {
+			calls.push(`checks:${input.repo}:${input.ref}`);
+			return options.withSafeMerge ? [{ name: "validate", status: "completed", conclusion: "success" }] : [];
+		},
+		async listWorkflowRuns(_token: string, input: any) {
+			calls.push(`runs:${input.repo}:${input.headSha}`);
+			if (!options.withPublishVerification) return [];
+			return [
+				{
+					name: "Publish wiki data",
+					status: "completed",
+					conclusion: "success",
+					headSha: input.headSha,
+					htmlUrl: `https://github.com/${input.owner}/${input.repo}/actions/runs/123`,
+				},
+			];
+		},
+		async mergePullRequest(_token: string, input: any) {
+			calls.push(`merge:${input.repo}#${input.pullNumber}`);
+			return { merged: true, sha: mergedSha };
+		},
+		async closeIssue(_token: string, input: any) {
+			calls.push(`close:${input.repo}#${input.issueNumber}`);
 		},
 	};
+}
+
+function wikiPublishedLatest(owner: string, repo: string, sourceCommit: string): Record<string, unknown> {
+	const base = `https://cdn.example/${owner}/${repo}/${sourceCommit}/`;
+	return {
+		schemaVersion: "steve-wiki-latest/v1",
+		sourceId: "devops",
+		sourceCommit,
+		manifestUrl: `${base}wiki-manifest.json`,
+		catalogUrl: `${base}wiki-catalog.json`,
+		tagsUrl: `${base}wiki-tags.json`,
+		graphUrl: `${base}wiki-graph.json`,
+		healthUrl: `${base}wiki-health.json`,
+		agentManifestUrl: `${base}agent/agent-manifest.json`,
+		contentBaseUrl: `${base}docs/`,
+	};
+}
+
+function wikiPublishedLatestAgent(owner: string, repo: string, sourceCommit: string): Record<string, unknown> {
+	const base = `https://cdn.example/${owner}/${repo}/${sourceCommit}/agent/`;
+	return {
+		schemaVersion: "steve-wiki-latest-agent/v1",
+		sourceId: "devops",
+		sourceCommit,
+		chunksIndexUrl: `${base}agent-chunks.index.json`,
+		llmsSourceUrl: `${base}llms-source.txt`,
+	};
+}
+
+function wikiPublishFetch(options: { expectedCommit?: string; staleLatest?: boolean } = {}): typeof fetch {
+	const expectedCommit = options.expectedCommit ?? "3".repeat(40);
+	return (async (input: string | URL | Request) => {
+		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url.startsWith("https://purge.jsdelivr.net/")) return new Response("ok", { status: 200 });
+		if (url.includes("@published/latest-agent.json")) {
+			return Response.json(wikiPublishedLatestAgent("acme", "wiki-data-devops", expectedCommit));
+		}
+		if (url.includes("@published/latest.json")) {
+			const sourceCommit = options.staleLatest ? "4".repeat(40) : expectedCommit;
+			return Response.json(wikiPublishedLatest("acme", "wiki-data-devops", sourceCommit));
+		}
+		if (url.endsWith("/wiki-manifest.json")) {
+			return Response.json({
+				schemaVersion: "steve-wiki-manifest/v1",
+				pages: [{ slug: "kubernetes-backup-patterns", title: "Kubernetes Backup Patterns" }],
+			});
+		}
+		return new Response("ok", { status: 200 });
+	}) as typeof fetch;
 }
 
 function wikiBootstrapMockClient(options: { calls?: string[]; existingRepos?: string[] } = {}) {

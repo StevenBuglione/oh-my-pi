@@ -17,6 +17,11 @@ concurrency:
    group: ${{ github.workflow }}-${{ github.ref }}
    cancel-in-progress: true
 
+permissions:
+   actions: read
+   contents: read
+   packages: read
+
 jobs:
    # Compute a stable hash of every input that affects the native cdylib output,
    # then look for any prior successful main run that already uploaded the linux-x64
@@ -91,8 +96,8 @@ jobs:
          - name: Type check workspace
            run: bun run ci:check:full
 
-   # Linux x64 baseline + modern: required by `test`, so it runs on every PR
-   # unless rust-hash found a cached run. Tags always rebuild for fresh artifacts.
+   # PRs only need one Linux x64 addon for the TypeScript test/smoke path. Full
+   # baseline portability and Rust checks still run on main pushes and tags.
    native_linux:
       needs: [rust-hash]
       if: ${{ startsWith(github.ref, 'refs/tags/v') || needs.rust-hash.outputs.run-id == '' }}
@@ -100,9 +105,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            include:
-               - { variant: baseline, rust_checks: true }
-               - { variant: modern }
+            include: ${{ fromJSON(github.event_name == 'pull_request' && '[{"variant":"modern"}]' || '[{"variant":"baseline","rust_checks":true},{"variant":"modern"}]') }}
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/build-native

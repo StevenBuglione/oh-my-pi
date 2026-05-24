@@ -81,6 +81,8 @@ const WIKI_RESEARCH_GATES: HarnessGateId[] = [
 	"pr_create",
 	"issue_update",
 	"critic",
+	"safe_auto_merge",
+	"publish_verify",
 	"report",
 ];
 

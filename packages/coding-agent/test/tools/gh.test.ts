@@ -737,7 +737,9 @@ describe("github tool", () => {
 			expect(runGit(fixture.repoRoot, ["config", "--get", "branch.pr-123.merge"])).toBe(
 				`refs/heads/${fixture.headRefName}`,
 			);
-			expect(runGit(fixture.repoRoot, ["worktree", "list", "--porcelain"])).toContain(`worktree ${worktreePath}`);
+			expect(runGit(fixture.repoRoot, ["worktree", "list", "--porcelain"]).replace(/\\/g, "/")).toContain(
+				`worktree ${worktreePath.replace(/\\/g, "/")}`,
+			);
 			expect(runGit(worktreePath, ["branch", "--show-current"])).toBe("pr-123");
 		} finally {
 			await tempHome.cleanup();
@@ -844,10 +846,10 @@ describe("github tool", () => {
 			expect(text).toContain(`Worktree: ${wt200}`);
 			expect(runGit(wt100, ["branch", "--show-current"])).toBe("pr-100");
 			expect(runGit(wt200, ["branch", "--show-current"])).toBe("pr-200");
-			expect(runGit(fixture.repoRoot, ["config", "--get", "branch.pr-100.omgPrUrl"])).toBe(
+			expect(runGit(fixture.repoRoot, ["config", "--get", "branch.pr-100.ompPrUrl"])).toBe(
 				"https://github.com/owner/repo/pull/100",
 			);
-			expect(runGit(fixture.repoRoot, ["config", "--get", "branch.pr-200.omgPrUrl"])).toBe(
+			expect(runGit(fixture.repoRoot, ["config", "--get", "branch.pr-200.ompPrUrl"])).toBe(
 				"https://github.com/owner/repo/pull/200",
 			);
 

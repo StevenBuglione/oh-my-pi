@@ -76,44 +76,105 @@ export const WikiReviewEnvelopeSchema = z.object({
 	verdict: z.enum(["good_enough", "not_good_enough"]),
 });
 
-export const WikiSourceDecisionEnvelopeSchema = z.object({
-	schema_version: z.literal("omg.wiki.source_decision.v1"),
-	status: z.enum(["complete", "blocked", "needs_user_decision"]),
-	recommended_action: z.enum(["use_existing_source", "create_new_source", "blocked"]),
-	source_id: z.string(),
-	repo_name: z.string(),
-	domain_label: z.string(),
-	reason: z.string(),
-	existing_source_candidates: z.array(z.string()).default([]),
-	confidence: z.number().min(0).max(1),
-	required_seed_files: z.array(z.string()).default([]),
-});
+export const WikiSourceDecisionEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.source_decision.v1"),
+		status: z.enum(["complete", "blocked", "needs_user_decision"]),
+		recommended_action: z.enum(["use_existing_source", "create_new_source", "blocked"]),
+		source_id: z.string(),
+		repo_name: z.string(),
+		domain_label: z.string(),
+		reason: z.string(),
+		existing_source_candidates: z.array(z.string()).default([]),
+		confidence: z.number().min(0).max(1),
+		required_seed_files: z.array(z.string()).default([]),
+	})
+	.strict();
 
-export const WikiResearchBriefEnvelopeSchema = z.object({
-	schema_version: z.literal("omg.wiki.research_brief.v1"),
-	status: z.enum(["complete", "blocked", "needs_more_context"]),
-	topic: z.string(),
-	summary: z.string(),
-	citations: z.array(z.string()).default([]),
-	findings: z.array(z.string()).default([]),
-	confidence: z.number().min(0).max(1),
-});
+export const WikiResearchBriefEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.research_brief.v1"),
+		status: z.enum(["complete", "blocked", "needs_more_context"]),
+		topic: z.string(),
+		summary: z.string(),
+		citations: z.array(z.string().url()).default([]),
+		source_quality: z
+			.array(
+				z
+					.object({
+						url: z.string().url(),
+						title: z.string(),
+						source_type: z.enum(["official", "standards", "reference", "supporting"]),
+						why_it_matters: z.string(),
+					})
+					.strict(),
+			)
+			.default([]),
+		claim_citations: z
+			.array(
+				z
+					.object({
+						claim: z.string(),
+						citation_urls: z.array(z.string().url()).default([]),
+					})
+					.strict(),
+			)
+			.default([]),
+		findings: z.array(z.string()).default([]),
+		reader_takeaways: z.array(z.string()).default([]),
+		confidence: z.number().min(0).max(1),
+	})
+	.strict();
 
-export const WikiContentPlanEnvelopeSchema = z.object({
-	schema_version: z.literal("omg.wiki.content_plan.v1"),
-	status: z.enum(["complete", "blocked"]),
-	source_id: z.string(),
-	pages: z
-		.array(
-			z.object({
-				title: z.string(),
-				slug: z.string(),
-				description: z.string(),
-				tags: z.array(z.string()).default([]),
-			}),
-		)
-		.default([]),
-});
+export const WikiContentPlanEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.content_plan.v1"),
+		status: z.enum(["complete", "blocked"]),
+		source_id: z.string(),
+		pages: z
+			.array(
+				z
+					.object({
+						title: z.string(),
+						slug: z.string(),
+						description: z.string(),
+						tags: z.array(z.string()).default([]),
+						reader_value: z.string().default(""),
+						outline: z.array(z.string()).default([]),
+					})
+					.strict(),
+			)
+			.default([]),
+	})
+	.strict();
+
+export const WikiDraftInstructionsEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.draft_instructions.v1"),
+		status: z.enum(["complete", "blocked"]),
+		source_id: z.string(),
+		path: z.string(),
+		title: z.string(),
+		description: z.string(),
+		tags: z.array(z.string()).default([]),
+		required_sections: z.array(z.string()).default([]),
+		notes: z.array(z.string()).default([]),
+		sections: z
+			.array(
+				z
+					.object({
+						heading: z.string(),
+						purpose: z.string(),
+						paragraphs: z.array(z.string()).default([]),
+						bullets: z.array(z.string()).default([]),
+						citation_urls: z.array(z.string().url()).default([]),
+					})
+					.strict(),
+			)
+			.default([]),
+		confidence: z.number().min(0).max(1),
+	})
+	.strict();
 
 export const WikiPageDraftEnvelopeSchema = z.object({
 	schema_version: z.literal("omg.wiki.page_draft.v1"),
@@ -124,13 +185,15 @@ export const WikiPageDraftEnvelopeSchema = z.object({
 	citations: z.array(z.string()).default([]),
 });
 
-export const WikiResearchReviewEnvelopeSchema = z.object({
-	schema_version: z.literal("omg.wiki.research_review.v1"),
-	approved: z.boolean(),
-	blocking_findings: z.array(z.string()).default([]),
-	non_blocking_findings: z.array(z.string()).default([]),
-	verdict: z.enum(["good_enough", "not_good_enough"]),
-});
+export const WikiResearchReviewEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.research_review.v1"),
+		approved: z.boolean(),
+		blocking_findings: z.array(z.string()).default([]),
+		non_blocking_findings: z.array(z.string()).default([]),
+		verdict: z.enum(["good_enough", "not_good_enough"]),
+	})
+	.strict();
 
 export const ChatGptJsonEnvelopeSchema = z.union([
 	HandoffEnvelopeSchema,
@@ -143,6 +206,7 @@ export const ChatGptJsonEnvelopeSchema = z.union([
 	WikiSourceDecisionEnvelopeSchema,
 	WikiResearchBriefEnvelopeSchema,
 	WikiContentPlanEnvelopeSchema,
+	WikiDraftInstructionsEnvelopeSchema,
 	WikiPageDraftEnvelopeSchema,
 	WikiResearchReviewEnvelopeSchema,
 ]);
@@ -157,6 +221,7 @@ export type WikiReviewEnvelope = z.infer<typeof WikiReviewEnvelopeSchema>;
 export type WikiSourceDecisionEnvelope = z.infer<typeof WikiSourceDecisionEnvelopeSchema>;
 export type WikiResearchBriefEnvelope = z.infer<typeof WikiResearchBriefEnvelopeSchema>;
 export type WikiContentPlanEnvelope = z.infer<typeof WikiContentPlanEnvelopeSchema>;
+export type WikiDraftInstructionsEnvelope = z.infer<typeof WikiDraftInstructionsEnvelopeSchema>;
 export type WikiPageDraftEnvelope = z.infer<typeof WikiPageDraftEnvelopeSchema>;
 export type WikiResearchReviewEnvelope = z.infer<typeof WikiResearchReviewEnvelopeSchema>;
 export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
