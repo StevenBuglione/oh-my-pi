@@ -12,12 +12,14 @@ import {
 	normalizeHarnessTemplate,
 	readRunState,
 	resumeArtifactProjectHarness,
+	resumeWikiBootstrapHarness,
 	resumeWikiMachineHarness,
 	resumeWikiResearchHarness,
 	resumeWikiSourceHarness,
 	runArtifactProjectHarness,
 	runHarnessBenchmark,
 	runHarnessDoctor,
+	runWikiBootstrapHarness,
 	runWikiMachineHarness,
 	runWikiResearchHarness,
 	runWikiSourceHarness,
@@ -88,6 +90,7 @@ export default class Harness extends Command {
 		'# Run the live wiki workflow\n  omg harness run --live --template wiki "build a local AI wiki proof"',
 		'# Dry-run wiki data source provisioning\n  omg harness run --template wiki-source --owner YOUR_ORG "create a sandbox notes source"',
 		"# Run issue-backed wiki research\n  omg harness run --template wiki-research --issue https://github.com/YOUR_ORG/wiki-data-registry/issues/1",
+		"# Bootstrap the five public wiki repos\n  omg harness run --template wiki-bootstrap --owner StevenBuglione",
 		"# Sync wiki research labels\n  omg harness wiki issues sync --owner YOUR_ORG --repo wiki-data-registry",
 	];
 
@@ -103,6 +106,18 @@ export default class Harness extends Command {
 		if (action === "run") {
 			const objective = [args.subject, args.value].filter(Boolean).join(" ").trim();
 			const template = normalizeHarnessTemplate(flags.template);
+			if (template === "wiki-bootstrap") {
+				const state = await runWikiBootstrapHarness(objective || "bootstrap AI wiki repositories", {
+					promptLimit: flags.limit,
+					owner: flags.owner,
+					apply: flags.apply,
+					private: flags.private,
+					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
+				});
+				if (flags.json) process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+				else process.stdout.write(`${state.status} harness run ${state.runId}\n${getHarnessRunDir(state.runId)}\n`);
+				return;
+			}
 			if (template === "wiki-research") {
 				if (!objective && !flags.issue && !flags["from-issues"]) {
 					throw new Error(
@@ -183,13 +198,15 @@ export default class Harness extends Command {
 			if (!args.subject) throw new Error("omg harness resume requires a run id");
 			const existing = await readRunState(args.subject);
 			const resumeTemplate =
-				normalizeHarnessTemplate(existing.template) === "wiki-research"
-					? resumeWikiResearchHarness
-					: normalizeHarnessTemplate(existing.template) === "wiki-source"
-						? resumeWikiSourceHarness
-						: normalizeHarnessTemplate(existing.template) === "wiki"
-							? resumeWikiMachineHarness
-							: resumeArtifactProjectHarness;
+				normalizeHarnessTemplate(existing.template) === "wiki-bootstrap"
+					? resumeWikiBootstrapHarness
+					: normalizeHarnessTemplate(existing.template) === "wiki-research"
+						? resumeWikiResearchHarness
+						: normalizeHarnessTemplate(existing.template) === "wiki-source"
+							? resumeWikiSourceHarness
+							: normalizeHarnessTemplate(existing.template) === "wiki"
+								? resumeWikiMachineHarness
+								: resumeArtifactProjectHarness;
 			const state = await resumeTemplate(args.subject, {
 				promptLimit: flags.limit,
 				files: flags.file ?? [],
@@ -269,6 +286,33 @@ export default class Harness extends Command {
 								: flags.apply
 									? "wiki.steering.json is required before --apply"
 									: "Dry-run will use conservative steering defaults",
+						},
+					],
+				};
+				if (flags.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+				else {
+					for (const check of result.checks) {
+						process.stdout.write(`${check.ok ? "ok" : "fail"}  ${check.label}: ${check.summary}\n`);
+					}
+				}
+				if (!result.ok) process.exitCode = 1;
+				return;
+			}
+			if (normalizeHarnessTemplate(flags.template) === "wiki-bootstrap") {
+				const tokenPresent = Boolean(process.env.GITHUB_TOKEN || process.env.GITHUB_PAT);
+				const result = {
+					ok: !flags.apply || tokenPresent,
+					checks: [
+						{
+							id: "github_token",
+							label: "GitHub token",
+							ok: tokenPresent || !flags.apply,
+							blocking: Boolean(flags.apply),
+							summary: tokenPresent
+								? "GitHub token is present (value redacted)"
+								: flags.apply
+									? "Set GITHUB_TOKEN or GITHUB_PAT before --apply"
+									: "Not required for dry-run",
 						},
 					],
 				};

@@ -885,7 +885,11 @@ async function writeBenchmarkReport(result: HarnessBenchmarkResult): Promise<str
 
 export async function runHarnessBenchmark(options: HarnessBenchmarkOptions = {}): Promise<HarnessBenchmarkResult> {
 	const normalizedTemplate = normalizeHarnessTemplate(options.template);
-	if (normalizedTemplate === "wiki-source" || normalizedTemplate === "wiki-research") {
+	if (
+		normalizedTemplate === "wiki-source" ||
+		normalizedTemplate === "wiki-research" ||
+		normalizedTemplate === "wiki-bootstrap"
+	) {
 		throw new Error("supported benchmark templates: artifact-project, wiki, all");
 	}
 	const template: HarnessBenchmarkTemplate =

@@ -84,6 +84,17 @@ const WIKI_RESEARCH_GATES: HarnessGateId[] = [
 	"report",
 ];
 
+const WIKI_BOOTSTRAP_GATES: HarnessGateId[] = [
+	"doctor",
+	"provision_plan",
+	"repo_preflight",
+	"repo_create",
+	"repo_seed",
+	"labels_sync",
+	"validate",
+	"report",
+];
+
 export function getHarnessRoot(agentDir: string = getAgentDir()): string {
 	return path.join(agentDir, "harness");
 }
@@ -129,6 +140,7 @@ export function defaultHarnessGates(template?: HarnessTemplate): HarnessGateStat
 	if (normalized === "wiki") return WIKI_MACHINE_GATES.map(id => ({ id, status: "pending" }));
 	if (normalized === "wiki-source") return WIKI_SOURCE_GATES.map(id => ({ id, status: "pending" }));
 	if (normalized === "wiki-research") return WIKI_RESEARCH_GATES.map(id => ({ id, status: "pending" }));
+	if (normalized === "wiki-bootstrap") return WIKI_BOOTSTRAP_GATES.map(id => ({ id, status: "pending" }));
 	return undefined;
 }
 

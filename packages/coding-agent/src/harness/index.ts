@@ -14,6 +14,7 @@ export * from "./skills";
 export * from "./storage";
 export * from "./types";
 export * from "./wiki-blueprint";
+export * from "./wiki-bootstrap";
 export * from "./wiki-machine";
 export * from "./wiki-manifest";
 export * from "./wiki-research";

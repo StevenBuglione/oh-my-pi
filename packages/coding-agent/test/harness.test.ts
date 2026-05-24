@@ -27,6 +27,7 @@ import {
 	runArtifactProjectHarness,
 	runHarnessBenchmark,
 	runHarnessDoctor,
+	runWikiBootstrapHarness,
 	runWikiMachineHarness,
 	runWikiResearchHarness,
 	runWikiSourceHarness,
@@ -2266,6 +2267,89 @@ describe("harness core", () => {
 		expect(result.labels).toContain("wiki:research");
 		expect(result.labels).toContain("wiki:queued");
 	});
+
+	it("dry-runs wiki bootstrap with five repo seeds and registry URLs", async () => {
+		const state = await runWikiBootstrapHarness("bootstrap wiki", {
+			owner: "StevenBuglione",
+		});
+		const runDir = getHarnessRunDir(state.runId);
+		const plan = JSON.parse(await Bun.file(path.join(runDir, "artifacts", "wiki-bootstrap-plan.json")).text());
+		const registry = JSON.parse(
+			await Bun.file(path.join(runDir, "artifacts", "bootstrap", "wiki-data-registry", "sources.json")).text(),
+		);
+
+		expect(state.status).toBe("good_enough");
+		expect(state.template).toBe("wiki-bootstrap");
+		expect(plan.repos.map((repo: any) => repo.name)).toEqual([
+			"wiki-site",
+			"wiki-data-registry",
+			"wiki-data-devops",
+			"wiki-data-homelab",
+			"wiki-data-projects",
+		]);
+		expect(registry.sources.map((source: any) => source.id)).toEqual(["devops", "homelab", "projects"]);
+		expect(registry.sources[0].latestUrl).toBe(
+			"https://cdn.jsdelivr.net/gh/StevenBuglione/wiki-data-devops@published/latest.json",
+		);
+		expect(
+			await Bun.file(path.join(runDir, "artifacts", "bootstrap", "wiki-site", "static", "llms.txt")).exists(),
+		).toBe(true);
+		expect(state.gates?.find(gate => gate.id === "repo_create")?.status).toBe("skipped");
+	});
+
+	it("blocks mutating wiki bootstrap when the GitHub token is missing", async () => {
+		await expect(
+			runWikiBootstrapHarness("bootstrap wiki", {
+				owner: "StevenBuglione",
+				apply: true,
+				githubToken: "",
+			}),
+		).rejects.toThrow("GITHUB_TOKEN or GITHUB_PAT");
+		const [state] = await listHarnessRuns();
+		expect(state.gates?.find(gate => gate.id === "doctor")?.status).toBe("failed");
+	});
+
+	it("refuses to overwrite existing repos during wiki bootstrap apply", async () => {
+		await expect(
+			runWikiBootstrapHarness("bootstrap wiki", {
+				owner: "StevenBuglione",
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				githubClient: wikiBootstrapMockClient({
+					existingRepos: ["wiki-site"],
+				}),
+			}),
+		).rejects.toThrow("refusing to overwrite existing repos: wiki-site");
+		const [state] = await listHarnessRuns();
+		const runText = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		expect(runText).not.toContain("ghp_super_secret_token");
+		expect(state.gates?.find(gate => gate.id === "repo_preflight")?.status).toBe("failed");
+	});
+
+	it("applies wiki bootstrap through mocked GitHub APIs without leaking PATs", async () => {
+		const calls: string[] = [];
+		const state = await runWikiBootstrapHarness("bootstrap wiki", {
+			owner: "StevenBuglione",
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			githubClient: wikiBootstrapMockClient({ calls }),
+		});
+		const runText = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		const reportText = await Bun.file(path.join(getHarnessRunDir(state.runId), "report.md")).text();
+
+		expect(state.status).toBe("good_enough");
+		expect(calls.filter(call => call.startsWith("create:")).length).toBe(5);
+		expect(calls).toContain("create:StevenBuglione/wiki-site:false");
+		expect(calls).toContain("put:wiki-site:main:static/llms.txt");
+		expect(calls).toContain("branch:wiki-data-devops:published");
+		expect(calls).toContain("put:wiki-data-devops:published:latest.json");
+		expect(calls.some(call => call === "issue:wiki-data-registry:Research initial wiki source priorities")).toBe(
+			true,
+		);
+		expect(calls.some(call => call === "label:wiki-data-registry:wiki:research")).toBe(true);
+		expect(runText).not.toContain("ghp_super_secret_token");
+		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
 });
 
 function ok(input: { action: string }, stdout: string) {
@@ -2372,6 +2456,44 @@ function wikiResearchMockClient(options: { issue: any; calls?: string[] }) {
 		async createPullRequest(_token: string, input: any) {
 			calls.push(`pr:${input.repo}`);
 			return { number: 3, htmlUrl: `https://github.com/${input.owner}/${input.repo}/pull/3` };
+		},
+	};
+}
+
+function wikiBootstrapMockClient(options: { calls?: string[]; existingRepos?: string[] } = {}) {
+	const calls = options.calls ?? [];
+	const existing = new Set(options.existingRepos ?? []);
+	return {
+		async getAuthenticatedUser(token: string) {
+			calls.push(`auth:${token === "ghp_super_secret_token"}`);
+			return { login: "StevenBuglione" };
+		},
+		async getRepo(_token: string, owner: string, repo: string) {
+			calls.push(`get:${owner}/${repo}`);
+			return { exists: existing.has(repo), defaultBranch: "main", sha: "1".repeat(40) };
+		},
+		async createRepo(_token: string, input: any) {
+			calls.push(`create:${input.owner}/${input.repo}:${input.private}`);
+			return {
+				htmlUrl: `https://github.com/${input.owner}/${input.repo}`,
+				defaultBranch: "main",
+				sha: "1".repeat(40),
+			};
+		},
+		async putFile(_token: string, input: any) {
+			calls.push(`put:${input.repo}:${input.branch}:${input.path}`);
+			return { commitSha: "2".repeat(40) };
+		},
+		async createBranch(_token: string, input: any) {
+			calls.push(`branch:${input.repo}:${input.branch}`);
+			return { ref: `refs/heads/${input.branch}` };
+		},
+		async ensureLabel(_token: string, input: any) {
+			calls.push(`label:${input.repo}:${input.label}`);
+		},
+		async createIssue(_token: string, input: any) {
+			calls.push(`issue:${input.repo}:${input.title}`);
+			return { number: 1, htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/1` };
 		},
 	};
 }

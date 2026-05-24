@@ -164,7 +164,7 @@ export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
 export type HarnessTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
 export type HarnessRunStatus = "active" | "blocked" | "good_enough" | "not_good_enough" | "abandoned";
 export type HarnessGateStatus = "pending" | "running" | "passed" | "failed" | "skipped";
-export type CanonicalHarnessTemplate = "artifact-project" | "wiki" | "wiki-source" | "wiki-research";
+export type CanonicalHarnessTemplate = "artifact-project" | "wiki" | "wiki-source" | "wiki-research" | "wiki-bootstrap";
 export type HarnessTemplate = CanonicalHarnessTemplate | "wiki-machine";
 export type HarnessGateId = string;
 
@@ -174,7 +174,8 @@ export function normalizeHarnessTemplate(template: string | undefined): Canonica
 		template === "artifact-project" ||
 		template === "wiki" ||
 		template === "wiki-source" ||
-		template === "wiki-research"
+		template === "wiki-research" ||
+		template === "wiki-bootstrap"
 	) {
 		return template;
 	}
