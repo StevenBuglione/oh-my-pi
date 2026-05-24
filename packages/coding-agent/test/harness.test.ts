@@ -23,6 +23,7 @@ import {
 	parseWikiResearchIssueBody,
 	readRunState,
 	resumeArtifactProjectHarness,
+	resumeWikiBootstrapHarness,
 	resumeWikiMachineHarness,
 	runArtifactProjectHarness,
 	runHarnessBenchmark,
@@ -2349,6 +2350,57 @@ describe("harness core", () => {
 		expect(calls.some(call => call === "label:wiki-data-registry:wiki:research")).toBe(true);
 		expect(runText).not.toContain("ghp_super_secret_token");
 		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
+
+	it("resumes wiki bootstrap after repos were created and seeding was interrupted", async () => {
+		const firstCalls: string[] = [];
+		const baseClient = wikiBootstrapMockClient({ calls: firstCalls });
+		let failedPut = false;
+		await expect(
+			runWikiBootstrapHarness("bootstrap wiki", {
+				owner: "StevenBuglione",
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				githubClient: {
+					...baseClient,
+					async putFile(token: string, input: any) {
+						if (!failedPut && input.repo === "wiki-site" && input.path === "README.md") {
+							failedPut = true;
+							firstCalls.push(`put-fail:${input.repo}:${input.branch}:${input.path}`);
+							throw new Error("GitHub put file README.md failed with HTTP 422");
+						}
+						return baseClient.putFile(token, input);
+					},
+				},
+			}),
+		).rejects.toThrow("GitHub put file README.md failed with HTTP 422");
+
+		const [blocked] = await listHarnessRuns();
+		expect(blocked.status).toBe("blocked");
+		expect(blocked.gates?.find(gate => gate.id === "repo_create")?.status).toBe("passed");
+
+		const resumeCalls: string[] = [];
+		const resumed = await resumeWikiBootstrapHarness(blocked.runId, {
+			owner: "StevenBuglione",
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			githubClient: wikiBootstrapMockClient({
+				calls: resumeCalls,
+				existingRepos: [
+					"wiki-site",
+					"wiki-data-registry",
+					"wiki-data-devops",
+					"wiki-data-homelab",
+					"wiki-data-projects",
+				],
+			}),
+		});
+
+		expect(resumed.status).toBe("good_enough");
+		expect(resumeCalls.some(call => call.startsWith("create:"))).toBe(false);
+		expect(resumeCalls).toContain("put:wiki-site:main:README.md");
+		expect(resumed.gates?.find(gate => gate.id === "repo_preflight")?.status).toBe("passed");
+		expect(resumed.gates?.find(gate => gate.id === "repo_seed")?.status).toBe("passed");
 	});
 });
 

@@ -127,6 +127,10 @@ async function skipGate(
 	await setGateStatus(state, id, "skipped", { summary });
 }
 
+function gatePassed(state: HarnessRunState, id: string): boolean {
+	return state.gates?.some(gate => gate.id === id && gate.status === "passed") ?? false;
+}
+
 function getGitHubToken(options: WikiBootstrapOptions): string | undefined {
 	return options.githubToken ?? Bun.env.GITHUB_TOKEN ?? Bun.env.GITHUB_PAT;
 }
@@ -557,18 +561,27 @@ export const fetchWikiBootstrapGitHubClient: WikiBootstrapGitHubClient = {
 		};
 	},
 	async putFile(token, input) {
-		const response = await fetch(
-			`https://api.github.com/repos/${input.owner}/${input.repo}/contents/${encodeURIComponent(input.path).replace(/%2F/g, "/")}`,
-			{
-				method: "PUT",
-				headers: githubHeaders(token),
-				body: JSON.stringify({
-					message: input.message,
-					content: Buffer.from(input.content, "utf8").toString("base64"),
-					branch: input.branch,
-				}),
-			},
-		);
+		const contentUrl = `https://api.github.com/repos/${input.owner}/${input.repo}/contents/${encodeURIComponent(input.path).replace(/%2F/g, "/")}`;
+		const existing = await fetch(`${contentUrl}?ref=${encodeURIComponent(input.branch)}`, {
+			headers: githubHeaders(token),
+		});
+		let sha: string | undefined;
+		if (existing.ok) {
+			const data = (await existing.json()) as { sha?: string };
+			sha = data.sha;
+		} else if (existing.status !== 404) {
+			throw new Error(`GitHub lookup file ${input.path} failed with HTTP ${existing.status}`);
+		}
+		const response = await fetch(contentUrl, {
+			method: "PUT",
+			headers: githubHeaders(token),
+			body: JSON.stringify({
+				message: input.message,
+				content: Buffer.from(input.content, "utf8").toString("base64"),
+				branch: input.branch,
+				...(sha ? { sha } : {}),
+			}),
+		});
 		if (!response.ok) throw new Error(`GitHub put file ${input.path} failed with HTTP ${response.status}`);
 		const data = (await response.json()) as { commit?: { sha?: string } };
 		return { commitSha: data.commit?.sha ?? "" };
@@ -684,7 +697,7 @@ async function continueWikiBootstrapHarness(
 				"wiki-bootstrap-preflight.json",
 				`${JSON.stringify({ authenticatedAs: auth.login, owner, existing }, null, 2)}\n`,
 			);
-			if (existing.length) {
+			if (existing.length && !gatePassed(state, "repo_create")) {
 				await failGate(
 					state,
 					"repo_preflight",
@@ -696,7 +709,12 @@ async function continueWikiBootstrapHarness(
 				);
 				throw new Error(`refusing to overwrite existing repos: ${existing.join(", ")}`);
 			}
-			await passGate(state, "repo_preflight", options, { outputPaths: [preflightPath] });
+			await passGate(state, "repo_preflight", options, {
+				outputPaths: [preflightPath],
+				summary: existing.length
+					? "existing repos accepted because repo_create already passed in this run"
+					: "target repos are available",
+			});
 		} else {
 			await skipGate(state, "repo_preflight", options, "dry-run; GitHub API not called");
 		}
@@ -710,19 +728,26 @@ async function continueWikiBootstrapHarness(
 			await skipGate(state, "repo_seed", options, "dry-run; seed files written locally only");
 			await skipGate(state, "labels_sync", options, "dry-run; labels and starter issues not created");
 		} else if (token) {
-			await startGate(state, "repo_create", options);
-			const created: string[] = [];
-			for (const repo of BOOTSTRAP_REPOS) {
-				await client.createRepo(token, {
-					owner,
-					repo,
-					private: options.private ?? false,
-					description: repoDescription(repo),
-					org: owner !== (await client.getAuthenticatedUser(token)).login,
+			if (gatePassed(state, "repo_create")) {
+				await passGate(state, "repo_create", options, {
+					summary: "repositories already created in this run; resuming seeding",
 				});
-				created.push(repo);
+			} else {
+				await startGate(state, "repo_create", options);
+				const auth = await client.getAuthenticatedUser(token);
+				const created: string[] = [];
+				for (const repo of BOOTSTRAP_REPOS) {
+					await client.createRepo(token, {
+						owner,
+						repo,
+						private: options.private ?? false,
+						description: repoDescription(repo),
+						org: owner !== auth.login,
+					});
+					created.push(repo);
+				}
+				await passGate(state, "repo_create", options, { summary: `created ${created.join(", ")}` });
 			}
-			await passGate(state, "repo_create", options, { summary: `created ${created.join(", ")}` });
 
 			await startGate(state, "repo_seed", options);
 			for (const repo of BOOTSTRAP_REPOS) {
