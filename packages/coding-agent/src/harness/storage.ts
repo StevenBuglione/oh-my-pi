@@ -245,8 +245,47 @@ export async function listHarnessRuns(agentDir?: string): Promise<HarnessRunStat
 	return states.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export function getCurrentHarnessArtifacts(state: HarnessRunState): HarnessRunState["artifacts"] {
+	const seen = new Set<string>();
+	const current: HarnessRunState["artifacts"] = [];
+	for (const artifact of [...state.artifacts].reverse()) {
+		const key = artifact.sha256 || artifact.path;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		current.push(artifact);
+	}
+	return current.reverse().slice(-5);
+}
+
+export function getCurrentHarnessValidation(state: HarnessRunState): HarnessRunState["validation"] {
+	const entries =
+		state.status === "good_enough" ? state.validation.filter(entry => entry.status === "passed") : state.validation;
+	const seen = new Set<string>();
+	const current: HarnessRunState["validation"] = [];
+	for (const entry of [...entries].reverse()) {
+		const key = [entry.status, entry.command ?? "", entry.logPath ?? "", entry.summary].join("\0");
+		if (seen.has(key)) continue;
+		seen.add(key);
+		current.push(entry);
+	}
+	return current.reverse().slice(-8);
+}
+
+export function summarizeHarnessValidation(state: HarnessRunState): string {
+	const counts = state.validation.reduce(
+		(acc, entry) => {
+			acc[entry.status] += 1;
+			return acc;
+		},
+		{ failed: 0, passed: 0, skipped: 0 },
+	);
+	return `${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped`;
+}
+
 export async function writeReport(state: HarnessRunState, agentDir?: string): Promise<string> {
 	const runDir = await ensureRunDirs(state.runId, agentDir);
+	const currentArtifacts = getCurrentHarnessArtifacts(state);
+	const currentValidation = getCurrentHarnessValidation(state);
 	const lines = [
 		`# Harness Run ${state.runId}`,
 		"",
@@ -257,8 +296,8 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 		`- Updated: ${state.updatedAt}`,
 		`- Prompt budget: ${state.promptBudget.used}/${state.promptBudget.limit}`,
 		`- Evidence packets: ${state.evidencePackets.length}`,
-		`- Artifacts: ${state.artifacts.length}`,
-		`- Validation entries: ${state.validation.length}`,
+		`- Artifacts: ${currentArtifacts.length} current / ${state.artifacts.length} total`,
+		`- Validation: ${summarizeHarnessValidation(state)} (${state.validation.length} total entries)`,
 		`- Verdict: ${state.verdict ?? "(pending)"}`,
 		`- Next command: ${state.status === "good_enough" || state.status === "abandoned" ? `omg harness export ${state.runId}` : `omg harness resume ${state.runId}`}`,
 		"",
@@ -274,11 +313,23 @@ export async function writeReport(state: HarnessRunState, agentDir?: string): Pr
 			? state.workers.map(w => `- ${w.role}: ${w.workerId ?? "(unassigned)"} ${w.conversationUrl ?? ""}`.trim())
 			: ["- None recorded"]),
 		"",
-		"## Validation",
+		"## Current Artifacts",
 		"",
-		...(state.validation.length
-			? state.validation.map(v => `- ${v.status}: ${v.summary}${v.command ? ` (${v.command})` : ""}`)
+		...(currentArtifacts.length
+			? currentArtifacts.map(a => `- ${a.source}: ${a.path}${a.sha256 ? ` ${a.sha256}` : ""}`.trim())
+			: ["- None recorded"]),
+		"",
+		"## Current Validation",
+		"",
+		...(currentValidation.length
+			? currentValidation.map(v => `- ${v.status}: ${v.summary}${v.command ? ` (${v.command})` : ""}`)
 			: ["- No validation recorded yet"]),
+		...(state.validation.length > currentValidation.length
+			? [
+					"",
+					`Older validation history is retained in run.json (${state.validation.length - currentValidation.length} hidden entries).`,
+				]
+			: []),
 		"",
 		"## Reviewer Findings",
 		"",

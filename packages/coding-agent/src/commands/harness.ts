@@ -4,6 +4,8 @@ import {
 	bundleChatGptSkill,
 	cleanupHarnessRuns,
 	createHarnessRun,
+	getCurrentHarnessArtifacts,
+	getCurrentHarnessValidation,
 	getHarnessRunDir,
 	listHarnessRuns,
 	readRunState,
@@ -174,14 +176,19 @@ export default class Harness extends Command {
 				);
 			}
 			process.stdout.write("\nartifacts\n");
-			for (const artifact of state.artifacts) {
+			for (const artifact of getCurrentHarnessArtifacts(state)) {
 				const line = `- ${artifact.source}: ${artifact.path} ${artifact.sha256 ?? ""}`.trimEnd();
 				process.stdout.write(`${line}\n`);
 			}
-			process.stdout.write("\nvalidation\n");
-			for (const validation of state.validation) {
+			process.stdout.write("\ncurrent validation\n");
+			for (const validation of getCurrentHarnessValidation(state)) {
 				process.stdout.write(
 					`- ${validation.status}: ${validation.summary}${validation.command ? ` (${validation.command})` : ""}\n`,
+				);
+			}
+			if (state.validation.length > getCurrentHarnessValidation(state).length) {
+				process.stdout.write(
+					`\n${state.validation.length - getCurrentHarnessValidation(state).length} older validation entries retained in run.json\n`,
 				);
 			}
 			return;

@@ -12,6 +12,8 @@ import {
 	bundleChatGptSkill,
 	cleanupHarnessRuns,
 	createHarnessRun,
+	getCurrentHarnessArtifacts,
+	getCurrentHarnessValidation,
 	getHarnessRunDir,
 	listHarnessRuns,
 	parseChatGptJsonEnvelope,
@@ -24,6 +26,7 @@ import {
 	validateAiWikiManifest,
 	validateChatGptSkill,
 	validateProjectManifest,
+	writeReport,
 } from "../src/harness";
 
 describe("harness core", () => {
@@ -60,6 +63,46 @@ describe("harness core", () => {
 		expect(runs.some(item => item.runId === run.runId)).toBe(true);
 		expect(exported.objective).toBe("canonical objective");
 		expect(getHarnessRunDir(run.runId)).toContain(path.join("agent", "harness", "runs"));
+	});
+
+	it("keeps report and inspect summaries focused on current harness evidence", async () => {
+		const run = await createHarnessRun("summary objective");
+		run.status = "good_enough";
+		run.verdict = "good_enough";
+		run.artifacts.push(
+			{ source: "builder", path: "old.zip", sha256: "sha-old", validationStatus: "downloaded" },
+			{ source: "builder", path: "old-copy.zip", sha256: "sha-old", validationStatus: "downloaded" },
+			{ source: "builder", path: "new.zip", sha256: "sha-new", validationStatus: "downloaded" },
+		);
+		run.validation.push(
+			{ status: "failed", summary: "old manifest failure" },
+			{ status: "passed", summary: "AI_WIKI_MANIFEST.json passed validation", logPath: "manifest.json" },
+			{
+				status: "passed",
+				summary: "Declared wiki-machine smoke validation passed",
+				command: "python scripts/smoke_validate.py",
+				logPath: "smoke.txt",
+				exitCode: 0,
+			},
+			{
+				status: "passed",
+				summary: "Declared wiki-machine smoke validation passed",
+				command: "python scripts/smoke_validate.py",
+				logPath: "smoke.txt",
+				exitCode: 0,
+			},
+		);
+
+		const report = await Bun.file(await writeReport(run)).text();
+
+		expect(getCurrentHarnessArtifacts(run).map(artifact => artifact.path)).toEqual(["old-copy.zip", "new.zip"]);
+		expect(getCurrentHarnessValidation(run).map(entry => entry.summary)).toEqual([
+			"AI_WIKI_MANIFEST.json passed validation",
+			"Declared wiki-machine smoke validation passed",
+		]);
+		expect(report).toContain("## Current Validation");
+		expect(report).toContain("Older validation history is retained in run.json");
+		expect(report).not.toContain("- failed: old manifest failure");
 	});
 
 	it("builds evidence packets with hashes and excludes blocked paths", async () => {
