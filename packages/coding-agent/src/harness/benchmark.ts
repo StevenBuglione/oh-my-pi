@@ -3,6 +3,8 @@ import * as path from "node:path";
 import { zipSync } from "fflate";
 import { type ChatGptWorkerRunner, runArtifactProjectHarness } from "./artifact-project";
 import type { ChatGptWorkerCommand, ChatGptWorkerCommandResult } from "./chatgpt-cli";
+import { defaultHarnessCommandRunner, type HarnessCommandRunner } from "./doctor";
+import { actionMatchesReplayEvent, HARNESS_REPLAY_FIXTURES, type HarnessReplayFixture } from "./replay-fixtures";
 import { createRunId, getHarnessBenchmarksDir, listHarnessRuns } from "./storage";
 import type { HarnessRunState } from "./types";
 import { normalizeHarnessTemplate } from "./types";
@@ -62,17 +64,35 @@ export interface HarnessBenchmarkResult {
 	benchmarkPath: string;
 	scenarios: HarnessBenchmarkScenarioResult[];
 	liveRuns?: HarnessBenchmarkLiveSummary;
+	rateLimit?: {
+		ok: boolean;
+		skipped: boolean;
+		summary: string;
+		details?: unknown;
+	};
 }
 
 interface HarnessBenchmarkOptions {
 	template?: string;
 	includeLiveRuns?: boolean;
+	live?: boolean;
+	canary?: boolean;
 	agentDir?: string;
+	commandRunner?: HarnessCommandRunner;
+	workerRunner?: WikiMachineWorkerRunner;
+	doctorRunner?: HarnessCommandRunner;
 }
 
 interface ScenarioContext {
 	artifactDownloadAttempts: number;
 	repairPrompts: number;
+}
+
+interface RateLimitCheck {
+	ok: boolean;
+	skipped: boolean;
+	summary: string;
+	details?: unknown;
 }
 
 function benchmarkId(date = new Date()): string {
@@ -160,15 +180,41 @@ async function writeWikiWorkspace(
 		"wiki-site/src/wiki-core/types.ts": "export interface WikiPage { id: string; title: string; }\n",
 		"wiki-site/static/llms.txt": "# Benchmark Wiki\n",
 		"wiki-site/static/.well-known/wiki-agent.json": jsonFile({ schemaVersion: "benchmark/wiki-agent/v1" }),
-		"wiki-data-registry/sources.json": jsonFile({ schemaVersion: "benchmark/registry/v1", sources: [] }),
+		"wiki-data-registry/sources.json": jsonFile({
+			schemaVersion: "benchmark/registry/v1",
+			routeMode: "query",
+			sources: [
+				{
+					id: "devops",
+					label: "DevOps",
+					latestUrl: "http://localhost/wiki-data-devops/published/latest.json",
+				},
+			],
+		}),
 		"wiki-data-registry/agent-sources.json": jsonFile({ schemaVersion: "benchmark/agent-sources/v1", sources: [] }),
 		"wiki-data-devops/wiki.source.json": jsonFile({ schemaVersion: "benchmark/source/v1", id: "devops" }),
 		"wiki-data-devops/docs/index.md": "---\ntitle: DevOps\n---\n# DevOps\n",
-		"wiki-data-devops/published/latest.json": jsonFile({ schemaVersion: "benchmark/latest/v1" }),
+		"wiki-data-devops/published/latest.json": jsonFile({
+			schemaVersion: "benchmark/latest/v1",
+			manifestUrl: "http://localhost/wiki-manifest.json",
+			catalogUrl: "http://localhost/wiki-catalog.json",
+			pagefindBundleUrl: "http://localhost/pagefind/",
+			agentManifestUrl: "http://localhost/agent/agent-manifest.json",
+			contentBaseUrl: "http://localhost/docs/",
+		}),
 		"wiki-data-devops/published/latest-agent.json": jsonFile({ schemaVersion: "benchmark/latest-agent/v1" }),
 		"wiki-data-devops/published/dist/local/wiki-manifest.json": jsonFile({
 			schemaVersion: "benchmark/manifest/v1",
-			pages: [],
+			contentBaseUrl: "http://localhost/docs/",
+			pages: [
+				{
+					id: "devops:index",
+					sourceId: "devops",
+					title: "DevOps",
+					slug: "index",
+					file: "index.md",
+				},
+			],
 		}),
 		"wiki-data-devops/published/dist/local/wiki-catalog.json": jsonFile({
 			schemaVersion: "benchmark/catalog/v1",
@@ -180,7 +226,13 @@ async function writeWikiWorkspace(
 		"wiki-data-devops/published/dist/local/agent/agent-manifest.json": jsonFile({
 			schemaVersion: "benchmark/agent-manifest/v1",
 		}),
-		"wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl": "{}\n",
+		"wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl": `${JSON.stringify({
+			chunkId: "devops:index#top",
+			pageId: "devops:index",
+			url: "/wiki/?s=devops&p=index#top",
+			text: "DevOps index",
+			checksum: "sha256:benchmark",
+		})}\n`,
 		"scripts/smoke_validate.py":
 			"from pathlib import Path\nassert Path('AI_WIKI_MANIFEST.json').exists()\nprint('ok')\n",
 	};
@@ -267,6 +319,24 @@ function wikiArtifactEnvelope() {
 	};
 }
 
+async function writeArtifactProjectJsonArtifact(downloadDir: string): Promise<string[]> {
+	let payload: Record<string, unknown>;
+	if (downloadDir.includes("planner-json-artifacts")) payload = artifactPlannerEnvelope();
+	else if (downloadDir.includes("critic-json-artifacts")) payload = artifactReviewEnvelope(true);
+	else payload = artifactEnvelope();
+	await Bun.write(path.join(downloadDir, "response.json"), `${JSON.stringify(payload)}\n`);
+	return ["response.json"];
+}
+
+async function writeWikiJsonArtifact(downloadDir: string): Promise<string[]> {
+	let payload: Record<string, unknown>;
+	if (downloadDir.includes("architect-json-artifacts")) payload = wikiBlueprintEnvelope();
+	else if (downloadDir.includes("critic-json-artifacts")) payload = wikiReviewEnvelope();
+	else payload = wikiArtifactEnvelope();
+	await Bun.write(path.join(downloadDir, "response.json"), `${JSON.stringify(payload)}\n`);
+	return ["response.json"];
+}
+
 function wikiReviewEnvelope(nonBlocking: unknown[] = []) {
 	return {
 		schema_version: "omg.wiki.review.v1",
@@ -332,7 +402,8 @@ async function artifactRunner(
 		}
 		if (input.action === "download_artifacts" && input.downloadDir) {
 			await fs.mkdir(input.downloadDir, { recursive: true, mode: 0o700 });
-			if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+			if (input.downloadDir.includes("json-artifacts"))
+				return { ...ok(input, "{}"), downloadedFiles: await writeArtifactProjectJsonArtifact(input.downloadDir) };
 			context.artifactDownloadAttempts += 1;
 			const fromFixer = fixerSent || input.conversationUrl?.includes("fixer");
 			await Bun.write(
@@ -410,7 +481,9 @@ async function wikiRunner(
 		}
 		if (input.action === "download_artifacts" && input.downloadDir) {
 			await fs.mkdir(input.downloadDir, { recursive: true, mode: 0o700 });
-			if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+			if (input.downloadDir.includes("json-artifacts")) {
+				return { ...ok(input, "{}"), downloadedFiles: await writeWikiJsonArtifact(input.downloadDir) };
+			}
 			context.artifactDownloadAttempts += 1;
 			if (options.delayedDownloads && context.artifactDownloadAttempts <= options.delayedDownloads) {
 				return { ...ok(input, "{}"), downloadedFiles: [] };
@@ -421,6 +494,52 @@ async function wikiRunner(
 				repairSent && options.validationRepairZipBytes ? options.validationRepairZipBytes : zipBytes,
 			);
 			return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+		}
+		return ok(input, "{}");
+	};
+}
+
+async function replayWikiRunner(
+	context: ScenarioContext,
+	fixture: HarnessReplayFixture,
+	zipBytes: Uint8Array,
+): Promise<WikiMachineWorkerRunner> {
+	const events = [...fixture.events];
+	return async input => {
+		if (input.action === "status") return ok(input, "{}");
+		const event = events.shift();
+		if (!event || !actionMatchesReplayEvent(input.action, event.action)) {
+			throw new Error(`replay ${fixture.id} expected ${event?.action ?? "no more events"} but got ${input.action}`);
+		}
+		if (event.action === "create") {
+			return ok(
+				input,
+				JSON.stringify([{ worker_id: event.workerId, conversation_url: `https://chatgpt.replay/${event.role}` }]),
+			);
+		}
+		if (event.action === "rename")
+			return ok(input, JSON.stringify({ worker_id: event.workerId, title: input.title }));
+		if (event.action === "send" || event.action === "watch") {
+			return ok(
+				input,
+				JSON.stringify({
+					request_id: `replay-${event.workerId}`,
+					conversation_url: `https://chatgpt.replay/${event.conversationRole}`,
+				}),
+			);
+		}
+		if (event.action === "download_artifacts" && input.downloadDir) {
+			await fs.mkdir(input.downloadDir, { recursive: true, mode: 0o700 });
+			if (event.kind === "json" && event.downloadedFiles.length) {
+				await writeWikiJsonArtifact(input.downloadDir);
+			}
+			if (event.kind === "zip") {
+				context.artifactDownloadAttempts += 1;
+				if (event.downloadedFiles.includes("workspace.zip")) {
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+				}
+			}
+			return { ...ok(input, "{}"), downloadedFiles: event.downloadedFiles };
 		}
 		return ok(input, "{}");
 	};
@@ -588,6 +707,110 @@ async function runWikiScenarios(root: string): Promise<HarnessBenchmarkScenarioR
 	];
 }
 
+async function runReplayScenarios(root: string): Promise<HarnessBenchmarkScenarioResult[]> {
+	const results: HarnessBenchmarkScenarioResult[] = [];
+	for (const fixture of HARNESS_REPLAY_FIXTURES) {
+		results.push(
+			await runScenario(fixture.id, "wiki", fixture.expectedMaxPrompts, async context => {
+				const prepared = await prepareWikiScenario(root, fixture.id);
+				return await runWikiMachineHarness(fixture.objective, {
+					cwd: prepared.cwd,
+					checkDoctor: false,
+					artifactDownloadRetryDelaysMs: [0],
+					workerRunner: await replayWikiRunner(context, fixture, prepared.zipBytes),
+				});
+			}),
+		);
+	}
+	return results;
+}
+
+function rateLimitAllowsCanary(parsed: any): boolean {
+	if (parsed?.can_submit === false || parsed?.canSubmit === false || parsed?.allowed === false) return false;
+	if (typeof parsed?.remaining === "number" && parsed.remaining <= 0) return false;
+	if (typeof parsed?.remaining_prompts === "number" && parsed.remaining_prompts <= 0) return false;
+	if (typeof parsed?.available === "number" && parsed.available <= 0) return false;
+	const text = JSON.stringify(parsed).toLowerCase();
+	if (text.includes("rate limited") || text.includes("try again later")) return false;
+	return true;
+}
+
+async function checkRateLimitForCanary(runner: HarnessCommandRunner): Promise<RateLimitCheck> {
+	const status = await runner(["chatgpt", "rate-limit", "status", "--json"], { timeoutMs: 15_000 });
+	if (!status.ok) {
+		return {
+			ok: false,
+			skipped: true,
+			summary: "Could not read ChatGPT rate-limit status; live canary skipped",
+			details: { exitCode: status.exitCode, stderr: status.stderr },
+		};
+	}
+	let parsed: any;
+	try {
+		parsed = JSON.parse(status.stdout || "{}");
+	} catch (error) {
+		return {
+			ok: false,
+			skipped: true,
+			summary: "ChatGPT rate-limit status was not valid JSON; live canary skipped",
+			details: error instanceof Error ? error.message : String(error),
+		};
+	}
+	const allowed = rateLimitAllowsCanary(parsed);
+	return {
+		ok: allowed,
+		skipped: !allowed,
+		summary: allowed
+			? "ChatGPT rate-limit status allows live canary"
+			: "ChatGPT is rate-limited; live canary skipped",
+		details: parsed,
+	};
+}
+
+async function runLiveCanaryScenario(
+	root: string,
+	options: HarnessBenchmarkOptions,
+): Promise<{ scenario: HarnessBenchmarkScenarioResult; rateLimit: RateLimitCheck }> {
+	const rateLimit = await checkRateLimitForCanary(options.commandRunner ?? defaultHarnessCommandRunner);
+	if (rateLimit.skipped) {
+		return {
+			rateLimit,
+			scenario: {
+				id: "wiki-live-canary",
+				template: "wiki",
+				ok: true,
+				expectedStatus: "skipped",
+				actualStatus: "skipped",
+				verdict: "skipped",
+				durationMs: 0,
+				promptBudget: { used: 0, limit: 6, expectedMax: 6 },
+				gates: { passed: 0, failed: 0, skipped: 1, pending: 0, running: 0 },
+				artifactDownloadAttempts: 0,
+				repairPrompts: 0,
+				validation: { passed: 0, failed: 0, skipped: 1 },
+				blocker: rateLimit.summary,
+			},
+		};
+	}
+
+	const scenario = await runScenario("wiki-live-canary", "wiki", 6, async () => {
+		const cwd = path.join(root, "wiki-live-canary", "repo");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		return await runWikiMachineHarness("Build the smallest possible local OMG wiki canary artifact", {
+			cwd,
+			promptLimit: 6,
+			checkDoctor: !options.workerRunner,
+			doctorRunner: options.doctorRunner,
+			workerRunner: options.workerRunner,
+			artifactDownloadRetryDelaysMs: [10_000],
+			onEvent: undefined,
+		});
+	});
+	return { scenario, rateLimit };
+}
+
 function summarizeLiveRuns(runs: HarnessRunState[]): HarnessBenchmarkLiveSummary {
 	const byTemplate: Record<string, number> = {};
 	const byStatus: Record<string, number> = {};
@@ -646,27 +869,54 @@ async function writeBenchmarkReport(result: HarnessBenchmarkResult): Promise<str
 			"",
 		);
 	}
+	if (result.rateLimit) {
+		lines.push(
+			"## Rate Limit",
+			"",
+			`- OK: ${result.rateLimit.ok}`,
+			`- Skipped: ${result.rateLimit.skipped}`,
+			`- Summary: ${result.rateLimit.summary}`,
+			"",
+		);
+	}
 	await Bun.write(result.reportPath, `${lines.join("\n")}\n`);
 	return result.reportPath;
 }
 
 export async function runHarnessBenchmark(options: HarnessBenchmarkOptions = {}): Promise<HarnessBenchmarkResult> {
 	const normalizedTemplate = normalizeHarnessTemplate(options.template);
+	if (normalizedTemplate === "wiki-source" || normalizedTemplate === "wiki-research") {
+		throw new Error("supported benchmark templates: artifact-project, wiki, all");
+	}
 	const template: HarnessBenchmarkTemplate =
 		options.template === "all" || !options.template ? "all" : (normalizedTemplate ?? "all");
 	if (options.template && options.template !== "all" && !normalizedTemplate) {
 		throw new Error("supported benchmark templates: artifact-project, wiki, all");
+	}
+	if (options.live && !options.canary) {
+		throw new Error("live harness benchmark currently requires --canary");
+	}
+	if (options.live && template === "artifact-project") {
+		throw new Error("live canary benchmark is currently supported only for template wiki or all");
 	}
 	const id = benchmarkId();
 	const benchmarkDir = path.join(getHarnessBenchmarksDir(options.agentDir), id);
 	const workDir = path.join(benchmarkDir, "work");
 	await fs.mkdir(workDir, { recursive: true, mode: 0o700 });
 	const scenarios: HarnessBenchmarkScenarioResult[] = [];
-	if (template === "artifact-project" || template === "all") {
-		scenarios.push(...(await runArtifactScenarios(workDir)));
-	}
-	if (template === "wiki" || template === "all") {
-		scenarios.push(...(await runWikiScenarios(workDir)));
+	let rateLimit: RateLimitCheck | undefined;
+	if (options.live && options.canary) {
+		const canary = await runLiveCanaryScenario(workDir, options);
+		rateLimit = canary.rateLimit;
+		scenarios.push(canary.scenario);
+	} else {
+		if (template === "artifact-project" || template === "all") {
+			scenarios.push(...(await runArtifactScenarios(workDir)));
+		}
+		if (template === "wiki" || template === "all") {
+			scenarios.push(...(await runWikiScenarios(workDir)));
+			scenarios.push(...(await runReplayScenarios(workDir)));
+		}
 	}
 	const result: HarnessBenchmarkResult = {
 		schemaVersion: HARNESS_BENCHMARK_SCHEMA_VERSION,
@@ -678,6 +928,7 @@ export async function runHarnessBenchmark(options: HarnessBenchmarkOptions = {})
 		benchmarkPath: path.join(benchmarkDir, "benchmark.json"),
 		scenarios,
 		liveRuns: options.includeLiveRuns ? summarizeLiveRuns(await listHarnessRuns(options.agentDir)) : undefined,
+		rateLimit,
 	};
 	await fs.mkdir(benchmarkDir, { recursive: true, mode: 0o700 });
 	await Bun.write(result.benchmarkPath, `${JSON.stringify(result, null, 2)}\n`);

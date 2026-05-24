@@ -14,9 +14,13 @@ import {
 	createHarnessRun,
 	getCurrentHarnessArtifacts,
 	getCurrentHarnessValidation,
+	getHarnessNextAction,
 	getHarnessRunDir,
+	getOrCreateGateArtifactRequest,
 	listHarnessRuns,
 	parseChatGptJsonEnvelope,
+	parseWikiBlueprintEnvelope,
+	parseWikiResearchIssueBody,
 	readRunState,
 	resumeArtifactProjectHarness,
 	resumeWikiMachineHarness,
@@ -24,10 +28,14 @@ import {
 	runHarnessBenchmark,
 	runHarnessDoctor,
 	runWikiMachineHarness,
+	runWikiResearchHarness,
+	runWikiSourceHarness,
+	syncWikiResearchIssueLabels,
 	validateAiWikiManifest,
 	validateChatGptSkill,
 	validateProjectManifest,
 	writeReport,
+	writeRunState,
 } from "../src/harness";
 
 describe("harness core", () => {
@@ -217,6 +225,33 @@ describe("harness core", () => {
 		expect(valid.manifest?.packages).toContain("wiki-site");
 	});
 
+	it("rejects weak wiki contracts before smoke tests", async () => {
+		const workspace = path.join(tempRoot, "weak-wiki-contracts");
+		await writeWikiWorkspace(workspace);
+
+		await Bun.write(
+			path.join(workspace, "wiki-data-registry", "sources.json"),
+			JSON.stringify({ schemaVersion: "steve-wiki-registry/v1", routeMode: "hash", sources: [] }),
+		);
+		expect((await validateAiWikiManifest(workspace)).errors.join("\n")).toContain("routeMode must be query");
+
+		await writeWikiWorkspace(workspace);
+		await Bun.write(
+			path.join(workspace, "wiki-data-devops", "published", "latest.json"),
+			JSON.stringify({ schemaVersion: "steve-wiki-latest/v1" }),
+		);
+		expect((await validateAiWikiManifest(workspace)).errors.join("\n")).toContain("pagefindBundleUrl");
+
+		await writeWikiWorkspace(workspace);
+		await Bun.write(
+			path.join(workspace, "wiki-data-devops", "published", "dist", "local", "agent", "chunks", "chunks-0001.jsonl"),
+			`${JSON.stringify({ chunkId: "devops:index#top", pageId: "devops:index", text: "missing citation fields" })}\n`,
+		);
+		const citationErrors = (await validateAiWikiManifest(workspace)).errors.join("\n");
+		expect(citationErrors).toContain("url");
+		expect(citationErrors).toContain("checksum");
+	});
+
 	it("builds ChatGPT CLI commands without running them", () => {
 		expect(
 			buildChatGptCommand({
@@ -283,6 +318,42 @@ describe("harness core", () => {
 		);
 		expect(valid.ok).toBe(true);
 		expect(parseChatGptJsonEnvelope("{nope").ok).toBe(false);
+	});
+
+	it("normalizes schema-drifted wiki blueprint responses", () => {
+		const parsed = parseWikiBlueprintEnvelope(
+			JSON.stringify({
+				schema_version: "omg.wiki.blueprint.v1",
+				role: "architect",
+				status: "complete",
+				summary: "Build the wiki proof.",
+				confidence: 0.9,
+				architecture: { overview: "Local wiki shell plus data contracts." },
+				workspace_layout: ["wiki-site", "wiki-data-registry", "wiki-data-devops"],
+				implementation_plan: ["write contracts", "build local artifact"],
+				required_files: ["AI_WIKI_MANIFEST.json"],
+				validation_commands: ["npm test"],
+				assumptions: [],
+				risks: [],
+			}),
+		);
+
+		expect(parsed.ok).toBe(true);
+		expect(parsed.normalized).toBe(true);
+		expect(parsed.value?.architecture).toBe("Local wiki shell plus data contracts.");
+		expect(parsed.value?.build_phases).toEqual(["write contracts", "build local artifact"]);
+		expect(parsed.warnings).toContain("ignored non-blueprint field role");
+	});
+
+	it("recovers wiki blueprint JSON when copied validation commands contain unescaped quotes", () => {
+		const raw =
+			'{"schema_version":"omg.wiki.blueprint.v1","status":"complete","summary":"Build the wiki proof.","architecture":"Local wiki shell.","workspace_layout":["wiki-site"],"build_phases":["contracts"],"required_files":["AI_WIKI_MANIFEST.json"],"validation_commands":["node -e "JSON.parse(require(\'fs\').readFileSync(\'x.json\',\'utf8\'))""],"assumptions":[],"risks":[]}';
+		const parsed = parseWikiBlueprintEnvelope(raw);
+
+		expect(parsed.ok).toBe(true);
+		expect(parsed.normalized).toBe(true);
+		expect(parsed.value?.validation_commands).toEqual([]);
+		expect(parsed.warnings).toContain("malformed validation_commands were removed from copied worker JSON");
 	});
 
 	it("reports blocking doctor failures with mocked commands", async () => {
@@ -1116,7 +1187,7 @@ describe("harness core", () => {
 		expect(state.reviewerFindings).toContain("local validation still failed");
 	});
 
-	it("runs a mocked wiki-machine workflow to good_enough", async () => {
+	it("runs a mocked wiki workflow to good_enough", async () => {
 		const cwd = path.join(tempRoot, "wiki-repo");
 		await writeSkill(cwd, "wiki-architect");
 		await writeSkill(cwd, "wiki-builder");
@@ -1178,7 +1249,7 @@ describe("harness core", () => {
 				}
 				if (input.action === "download_artifacts" && input.downloadDir) {
 					await fs.mkdir(input.downloadDir, { recursive: true });
-					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
 					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
 					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
 				}
@@ -1193,7 +1264,7 @@ describe("harness core", () => {
 		expect(sendFileCounts.every(count => count === 1)).toBe(true);
 	});
 
-	it("retries delayed wiki-machine artifact downloads before blocking", async () => {
+	it("retries delayed wiki artifact downloads before blocking", async () => {
 		const cwd = path.join(tempRoot, "wiki-retry");
 		await writeSkill(cwd, "wiki-architect");
 		await writeSkill(cwd, "wiki-builder");
@@ -1255,7 +1326,7 @@ describe("harness core", () => {
 				}
 				if (input.action === "download_artifacts" && input.downloadDir) {
 					await fs.mkdir(input.downloadDir, { recursive: true });
-					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
 					artifactDownloadCount += 1;
 					if (artifactDownloadCount === 1) return { ...ok(input, "{}"), downloadedFiles: [] };
 					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
@@ -1338,7 +1409,7 @@ describe("harness core", () => {
 				}
 				if (input.action === "download_artifacts" && input.downloadDir) {
 					await fs.mkdir(input.downloadDir, { recursive: true });
-					if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
 					artifactDownloadCount += 1;
 					if (!repairSent) return { ...ok(input, "{}"), downloadedFiles: [] };
 					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
@@ -1385,13 +1456,13 @@ describe("harness core", () => {
 			},
 		});
 
-		await expect(promise).rejects.toThrow("valid wiki JSON envelope after one repair attempt");
+		await expect(promise).rejects.toThrow("did not attach downloadable JSON artifact");
 		const [state] = await listHarnessRuns();
 		expect(state.status).toBe("blocked");
 		expect(state.promptBudget.used).toBe(2);
 	});
 
-	it("blocks a wiki-machine artifact missing AI_WIKI_MANIFEST.json", async () => {
+	it("blocks a wiki artifact missing AI_WIKI_MANIFEST.json", async () => {
 		await writeSkill(tempRoot, "wiki-architect");
 		await writeSkill(tempRoot, "wiki-builder");
 		let workerIndex = 0;
@@ -1440,7 +1511,7 @@ describe("harness core", () => {
 					}
 					if (input.action === "download_artifacts" && input.downloadDir) {
 						await fs.mkdir(input.downloadDir, { recursive: true });
-						if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+						if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
 						await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
 						return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
 					}
@@ -1453,7 +1524,7 @@ describe("harness core", () => {
 		expect(state.gates?.find(gate => gate.id === "wiki_manifest")?.status).toBe("failed");
 	});
 
-	it("resumes a wiki-machine run after prompt budget blocks before critic", async () => {
+	it("resumes a wiki run after prompt budget blocks before critic", async () => {
 		const cwd = path.join(tempRoot, "wiki-resume");
 		await writeSkill(cwd, "wiki-architect");
 		await writeSkill(cwd, "wiki-builder");
@@ -1513,7 +1584,7 @@ describe("harness core", () => {
 			}
 			if (input.action === "download_artifacts" && input.downloadDir) {
 				await fs.mkdir(input.downloadDir, { recursive: true });
-				if (input.downloadDir.includes("json-artifacts")) return { ...ok(input, "{}"), downloadedFiles: [] };
+				if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
 				await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
 				return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
 			}
@@ -1550,6 +1621,227 @@ describe("harness core", () => {
 		expect(run.gates?.map(gate => gate.id)).toContain("wiki_manifest");
 	});
 
+	it("persists UUID artifact requests across resume state reloads", async () => {
+		const run = await createHarnessRun("uuid artifact names", { template: "wiki" });
+		const first = getOrCreateGateArtifactRequest(run, "builder", "builder", {
+			artifactKind: "workspace",
+			artifactExt: "zip",
+		});
+		await writeRunState(run);
+		const reloaded = await readRunState(run.runId);
+		const second = getOrCreateGateArtifactRequest(reloaded, "builder", "builder", {
+			artifactKind: "workspace",
+			artifactExt: "zip",
+		});
+
+		expect(second).toEqual(first);
+		expect(first.responseFilename).toMatch(/^omg-.+-builder-response-.+\.json$/);
+		expect(first.artifactFilename).toMatch(/^omg-.+-builder-workspace-.+\.zip$/);
+	});
+
+	it("prefers exact UUID wiki artifact filenames over legacy duplicate zip names", async () => {
+		const cwd = path.join(tempRoot, "wiki-uuid-exact");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "uuid-exact-wiki");
+		await writeWikiWorkspace(workspace);
+		const exactZipBytes = await zipDirectory(workspace, "workspace");
+		const legacyZipBytes = zipSync({
+			"workspace/README.md": new TextEncoder().encode("legacy wrong zip\n"),
+		});
+		let workerIndex = 0;
+		let expectedZipName = "";
+
+		const state = await runWikiMachineHarness("select exact uuid artifact", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-uuid`, conversation_url: `https://chatgpt.local/${role}` }]),
+					);
+				}
+				if (input.action === "send") {
+					if (String(input.worker).includes("builder")) {
+						expectedZipName = String(input.prompt).match(/downloadable file named ([^\s.]+\.zip)/)?.[1] ?? "";
+					}
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.local/${String(input.worker).split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.local/${String(input.worker).split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify({ ...wikiArtifact(), artifact_name: expectedZipName }));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), legacyZipBytes);
+					await Bun.write(path.join(input.downloadDir, expectedZipName), exactZipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip", expectedZipName] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		const downloadGate = state.gates?.find(gate => gate.id === "download");
+		const selected = downloadGate?.downloadAttempts?.find(attempt => attempt.selectedPath);
+		expect(state.status).toBe("good_enough");
+		expect(path.basename(selected?.selectedPath ?? "")).toBe(expectedZipName);
+		expect(selected?.degraded).toBe(false);
+	});
+
+	it("records degraded selection when wiki artifact falls back to legacy workspace.zip", async () => {
+		const cwd = path.join(tempRoot, "wiki-legacy-degraded");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		await writeSkill(cwd, "wiki-critic");
+		const workspace = path.join(tempRoot, "legacy-degraded-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+
+		const state = await runWikiMachineHarness("legacy zip fallback", {
+			cwd,
+			checkDoctor: false,
+			testCommand: [process.execPath, "-e", "process.exit(0)"],
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-legacy`, conversation_url: `https://chatgpt.local/${role}` }]),
+					);
+				}
+				if (input.action === "send" || input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.local/${String(input.worker).split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify(wikiArtifact()));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		const selected = state.gates
+			?.find(gate => gate.id === "download")
+			?.downloadAttempts?.find(attempt => attempt.selectedPath);
+		expect(state.status).toBe("good_enough");
+		expect(path.basename(selected?.selectedPath ?? "")).toBe("workspace.zip");
+		expect(selected?.degraded).toBe(true);
+	});
+
+	it("rejects ambiguous wiki zip downloads without the expected UUID artifact", async () => {
+		const cwd = path.join(tempRoot, "wiki-ambiguous-zips");
+		await writeSkill(cwd, "wiki-architect");
+		await writeSkill(cwd, "wiki-builder");
+		const workspace = path.join(tempRoot, "ambiguous-wiki");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+
+		await expect(
+			runWikiMachineHarness("ambiguous zip fallback", {
+				cwd,
+				checkDoctor: false,
+				artifactDownloadRetryDelaysMs: [],
+				workerRunner: async input => {
+					if (input.action === "create") {
+						workerIndex += 1;
+						const role = ["architect", "builder"][workerIndex - 1] ?? "worker";
+						return ok(
+							input,
+							JSON.stringify([
+								{ worker_id: `${role}-ambiguous`, conversation_url: `https://chatgpt.local/${role}` },
+							]),
+						);
+					}
+					if (input.action === "send" || input.action === "watch") {
+						return ok(
+							input,
+							JSON.stringify({
+								request_id: `req-${input.worker}`,
+								conversation_url: `https://chatgpt.local/${String(input.worker).split("-")[0]}`,
+							}),
+						);
+					}
+					if (input.action === "copy_message") {
+						return ok(
+							input,
+							JSON.stringify(input.conversationUrl?.includes("architect") ? wikiBlueprint() : wikiArtifact()),
+						);
+					}
+					if (input.action === "download_artifacts" && input.downloadDir) {
+						await fs.mkdir(input.downloadDir, { recursive: true });
+						if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
+						await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+						await Bun.write(path.join(input.downloadDir, "other.zip"), zipBytes);
+						return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip", "other.zip"] };
+					}
+					return ok(input, "{}");
+				},
+			}),
+		).rejects.toThrow("ambiguous");
+	});
+
 	it("runs the offline harness benchmark for all templates", async () => {
 		const result = await runHarnessBenchmark({ template: "all" });
 
@@ -1563,6 +1855,92 @@ describe("harness core", () => {
 		);
 		expect(await Bun.file(result.benchmarkPath).exists()).toBe(true);
 		expect(await Bun.file(result.reportPath).exists()).toBe(true);
+	}, 10_000);
+
+	it("runs replay benchmark fixtures for copied JSON and delayed zip recovery", async () => {
+		const result = await runHarnessBenchmark({ template: "wiki" });
+		const replay = result.scenarios.find(scenario => scenario.id === "wiki-replay-json-and-delayed-zip");
+
+		expect(result.ok).toBe(true);
+		expect(replay?.ok).toBe(true);
+		expect(replay?.artifactDownloadAttempts).toBe(2);
+		expect(replay?.promptBudget.used).toBeLessThanOrEqual(replay?.promptBudget.expectedMax ?? 0);
+	}, 10_000);
+
+	it("skips the live wiki canary benchmark cleanly when rate-limited", async () => {
+		const result = await runHarnessBenchmark({
+			template: "wiki",
+			live: true,
+			canary: true,
+			commandRunner: async () => commandOk(JSON.stringify({ can_submit: false, remaining: 0 })),
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.rateLimit?.skipped).toBe(true);
+		expect(result.scenarios).toHaveLength(1);
+		expect(result.scenarios[0].actualStatus).toBe("skipped");
+	});
+
+	it("passes the live wiki canary benchmark with mocked worker output", async () => {
+		const workspace = path.join(tempRoot, "live-canary-workspace");
+		await writeWikiWorkspace(workspace);
+		const zipBytes = await zipDirectory(workspace, "workspace");
+		let workerIndex = 0;
+
+		const result = await runHarnessBenchmark({
+			template: "wiki",
+			live: true,
+			canary: true,
+			commandRunner: async () => commandOk(JSON.stringify({ can_submit: true, remaining: 5 })),
+			workerRunner: async input => {
+				if (input.action === "create") {
+					workerIndex += 1;
+					const role = ["architect", "builder", "critic"][workerIndex - 1] ?? "worker";
+					return ok(
+						input,
+						JSON.stringify([{ worker_id: `${role}-canary`, conversation_url: `https://chatgpt.local/${role}` }]),
+					);
+				}
+				if (input.action === "send" || input.action === "watch") {
+					return ok(
+						input,
+						JSON.stringify({
+							request_id: `req-${input.worker}`,
+							conversation_url: `https://chatgpt.local/${String(input.worker).split("-")[0]}`,
+						}),
+					);
+				}
+				if (input.action === "copy_message") {
+					if (input.conversationUrl?.includes("architect")) return ok(input, JSON.stringify(wikiBlueprint()));
+					if (input.conversationUrl?.includes("critic")) {
+						return ok(
+							input,
+							JSON.stringify({
+								schema_version: "omg.wiki.review.v1",
+								approved: true,
+								blocking_findings: [],
+								non_blocking_findings: [],
+								required_fixes: [],
+								verdict: "good_enough",
+							}),
+						);
+					}
+					return ok(input, JSON.stringify(wikiArtifact()));
+				}
+				if (input.action === "download_artifacts" && input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					if (input.downloadDir.includes("json-artifacts")) return await writeMockWikiJsonArtifact(input);
+					await Bun.write(path.join(input.downloadDir, "workspace.zip"), zipBytes);
+					return { ...ok(input, "{}"), downloadedFiles: ["workspace.zip"] };
+				}
+				return ok(input, "{}");
+			},
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.rateLimit?.skipped).toBe(false);
+		expect(result.scenarios[0].id).toBe("wiki-live-canary");
+		expect(result.scenarios[0].actualStatus).toBe("good_enough");
 	});
 
 	it("runs the offline harness benchmark with wiki alias and summarizes legacy live runs", async () => {
@@ -1578,6 +1956,315 @@ describe("harness core", () => {
 		expect(result.scenarios.every(scenario => scenario.template === "wiki")).toBe(true);
 		expect(result.liveRuns?.byTemplate.wiki).toBeGreaterThanOrEqual(1);
 		expect(result.liveRuns?.latestGoodEnoughByTemplate.wiki).toBeTruthy();
+	}, 10_000);
+
+	it("explains the next harness command for blocked, active, and good_enough runs", async () => {
+		const blocked = await createHarnessRun("blocked wiki", { template: "wiki", promptLimit: 2 });
+		blocked.status = "blocked";
+		blocked.promptBudget.used = 2;
+		blocked.gates = [{ id: "critic", status: "failed", error: "critic rejected artifact" }];
+
+		const active = await createHarnessRun("active artifact", { template: "artifact-project" });
+		active.status = "active";
+		active.gates = [{ id: "builder", status: "running" }];
+
+		const done = await createHarnessRun("done wiki", { template: "wiki" });
+		done.status = "good_enough";
+		done.verdict = "good_enough";
+
+		const blockedNext = getHarnessNextAction(blocked);
+		const activeNext = getHarnessNextAction(active);
+		const doneNext = getHarnessNextAction(done);
+
+		expect(blockedNext.command).toContain(`omg harness resume ${blocked.runId} --limit`);
+		expect(blockedNext.currentGate).toBe("critic");
+		expect(blockedNext.wikiLadder?.length).toBeGreaterThan(0);
+		expect(activeNext.command).toBe(`omg harness resume ${active.runId}`);
+		expect(activeNext.currentGate).toBe("builder");
+		expect(doneNext.command).toBe(`omg harness export ${done.runId}`);
+	});
+
+	it("dry-runs wiki-source provisioning with seed files and registry patch", async () => {
+		const registryPath = path.join(tempRoot, "sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Cloud and automation notes",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+
+		const state = await runWikiSourceHarness("Create a sandbox notes data source", {
+			owner: "acme",
+			registryPath,
+		});
+
+		const runDir = getHarnessRunDir(state.runId);
+		const plan = JSON.parse(await Bun.file(path.join(runDir, "artifacts", "provision-plan.json")).text());
+		const patch = JSON.parse(await Bun.file(path.join(runDir, "artifacts", "registry-patch-sources.json")).text());
+		expect(state.status).toBe("good_enough");
+		expect(state.template).toBe("wiki-source");
+		expect(plan.mode).toBe("dry-run");
+		expect(plan.action).toBe("create_new_source");
+		expect(await Bun.file(path.join(runDir, "artifacts", "seed", plan.repo_name, "wiki.source.json")).exists()).toBe(
+			true,
+		);
+		expect(patch.sources.some((source: any) => source.id === plan.source_id)).toBe(true);
+		expect(state.gates?.find(gate => gate.id === "repo_create")?.status).toBe("skipped");
+	});
+
+	it("routes wiki-source objectives to existing registry sources when policy matches", async () => {
+		const registryPath = path.join(tempRoot, "existing-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+
+		const state = await runWikiSourceHarness("Add Kubernetes automation notes", {
+			owner: "acme",
+			registryPath,
+		});
+		const plan = JSON.parse(
+			await Bun.file(path.join(getHarnessRunDir(state.runId), "artifacts", "provision-plan.json")).text(),
+		);
+
+		expect(state.status).toBe("good_enough");
+		expect(plan.action).toBe("use_existing_source");
+		expect(plan.repo_name).toBe("wiki-data-devops");
+		expect(state.gates?.find(gate => gate.id === "repo_seed")?.status).toBe("skipped");
+	});
+
+	it("blocks wiki-source apply when the GitHub token is missing", async () => {
+		await expect(
+			runWikiSourceHarness("Create a sandbox notes source", {
+				owner: "acme",
+				apply: true,
+				githubToken: "",
+			}),
+		).rejects.toThrow("GITHUB_TOKEN or GITHUB_PAT");
+		const [state] = await listHarnessRuns();
+		const text = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		expect(text).not.toContain("ghp_");
+		expect(state.gates?.find(gate => gate.id === "doctor")?.status).toBe("failed");
+	});
+
+	it("blocks wiki-source runs when the registry cannot be read", async () => {
+		await expect(
+			runWikiSourceHarness("Create a sandbox notes source", {
+				owner: "acme",
+				registryPath: path.join(tempRoot, "missing-sources.json"),
+			}),
+		).rejects.toThrow("registry snapshot unavailable");
+		const [state] = await listHarnessRuns();
+		expect(state.gates?.find(gate => gate.id === "registry_snapshot")?.status).toBe("failed");
+	});
+
+	it("applies wiki-source provisioning through the mocked GitHub client without leaking the PAT", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "apply-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Cloud and automation notes",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		const state = await runWikiSourceHarness("Create a sandbox notes data source", {
+			owner: "acme",
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			githubClient: {
+				async getAuthenticatedUser(token) {
+					calls.push(`auth:${token === "ghp_super_secret_token"}`);
+					return { login: "acme" };
+				},
+				async getRepo(_token, owner, repo) {
+					calls.push(`get:${owner}/${repo}`);
+					return { exists: false };
+				},
+				async createRepo(_token, input) {
+					calls.push(`create:${input.owner}/${input.repo}:${input.private}`);
+					return {
+						htmlUrl: `https://github.com/${input.owner}/${input.repo}`,
+						defaultBranch: "main",
+						sha: "1".repeat(40),
+					};
+				},
+				async putFile(_token, input) {
+					calls.push(`put:${input.branch}:${input.path}`);
+					return { commitSha: "2".repeat(40) };
+				},
+				async createBranch(_token, input) {
+					calls.push(`branch:${input.branch}:${input.fromSha.length}`);
+					return { ref: `refs/heads/${input.branch}` };
+				},
+			},
+		});
+
+		const runText = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		const reportText = await Bun.file(path.join(getHarnessRunDir(state.runId), "report.md")).text();
+		expect(state.status).toBe("good_enough");
+		expect(calls[0]).toBe("auth:true");
+		expect(calls.some(call => call.startsWith("create:acme/wiki-data-"))).toBe(true);
+		expect(calls).toContain("branch:published:40");
+		expect(calls.some(call => call === "put:published:latest.json")).toBe(true);
+		expect(runText).not.toContain("ghp_super_secret_token");
+		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
+
+	it("parses issue-backed wiki research bodies into deterministic fields", () => {
+		const parsed = parseWikiResearchIssueBody({
+			title: "Research Kubernetes backup patterns",
+			body: [
+				"## Objective",
+				"Compare Velero and storage snapshots.",
+				"",
+				"## Expected output",
+				"A wiki page with tradeoffs.",
+				"",
+				"## Constraints",
+				"- Public sources only",
+				"",
+				"## Preferred source",
+				"devops",
+				"",
+				"## Acceptance",
+				"- Include restore testing notes",
+				"",
+				"https://velero.io/docs/",
+			].join("\n"),
+		});
+
+		expect(parsed.objective).toBe("Compare Velero and storage snapshots.");
+		expect(parsed.expectedOutput).toBe("A wiki page with tradeoffs.");
+		expect(parsed.constraints).toContain("Public sources only");
+		expect(parsed.preferredSource).toBe("devops");
+		expect(parsed.citations).toContain("https://velero.io/docs/");
+	});
+
+	it("dry-runs issue-backed wiki research into an existing source without GitHub mutations", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		const issue = wikiResearchIssue({
+			title: "Kubernetes backup patterns",
+			body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops\n\nhttps://kubernetes.io/docs/",
+		});
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-registry",
+			issue: "1",
+			registryPath,
+			githubClient: wikiResearchMockClient({ issue }),
+		});
+		const runDir = getHarnessRunDir(state.runId);
+		const draft = JSON.parse(await Bun.file(path.join(runDir, "responses", "wiki-page-draft.json")).text());
+
+		expect(state.status).toBe("good_enough");
+		expect(state.template).toBe("wiki-research");
+		expect(draft.source_id).toBe("devops");
+		expect(await Bun.file(path.join(runDir, "artifacts", "draft", draft.path)).exists()).toBe(true);
+		expect(state.gates?.find(gate => gate.id === "pr_create")?.status).toBe("skipped");
+	});
+
+	it("blocks mutating wiki-research when steering is missing", async () => {
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-registry",
+				issue: "1",
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				githubClient: wikiResearchMockClient({ issue: wikiResearchIssue() }),
+			}),
+		).rejects.toThrow("wiki.steering.json is required");
+		const [state] = await listHarnessRuns();
+		const runText = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		expect(runText).not.toContain("ghp_super_secret_token");
+		expect(state.gates?.find(gate => gate.id === "steering_load")?.status).toBe("failed");
+	});
+
+	it("applies issue-backed wiki research through mocked branch and PR APIs without leaking PATs", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-registry",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			githubClient: wikiResearchMockClient({
+				calls,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops\n\nhttps://kubernetes.io/docs/",
+				}),
+			}),
+		});
+		const runText = await Bun.file(path.join(getHarnessRunDir(state.runId), "run.json")).text();
+		const reportText = await Bun.file(path.join(getHarnessRunDir(state.runId), "report.md")).text();
+
+		expect(state.status).toBe("good_enough");
+		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
+		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);
+		expect(calls.some(call => call === "pr:wiki-data-devops")).toBe(true);
+		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:pr-open")).toBe(true);
+		expect(runText).not.toContain("ghp_super_secret_token");
+		expect(reportText).not.toContain("ghp_super_secret_token");
+	});
+
+	it("plans wiki research label sync without mutating GitHub by default", async () => {
+		const result = await syncWikiResearchIssueLabels({ owner: "acme", repo: "wiki-data-registry" });
+		expect(result.applied).toBe(false);
+		expect(result.labels).toContain("wiki:research");
+		expect(result.labels).toContain("wiki:queued");
 	});
 });
 
@@ -1594,6 +2281,99 @@ function ok(input: { action: string }, stdout: string) {
 
 function commandOk(stdout: string) {
 	return { ok: true, exitCode: 0, stdout, stderr: "" };
+}
+
+async function writeWikiRegistry(pathOut: string, sources: any[]): Promise<void> {
+	await Bun.write(
+		pathOut,
+		`${JSON.stringify(
+			{
+				schemaVersion: "steve-wiki-registry/v1",
+				updatedAt: "2026-05-24T00:00:00Z",
+				routeMode: "query",
+				sources,
+			},
+			null,
+			2,
+		)}\n`,
+	);
+}
+
+async function writeWikiSteering(pathOut: string, steering: Record<string, unknown>): Promise<void> {
+	await Bun.write(pathOut, `${JSON.stringify(steering, null, 2)}\n`);
+}
+
+function wikiResearchIssue(overrides: Partial<any> = {}) {
+	return {
+		number: 1,
+		title: "Kubernetes backup patterns",
+		body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops\n\nhttps://kubernetes.io/docs/",
+		labels: ["wiki:research", "wiki:queued", "source:devops"],
+		htmlUrl: "https://github.com/acme/wiki-data-registry/issues/1",
+		owner: "acme",
+		repo: "wiki-data-registry",
+		createdAt: "2026-05-24T00:00:00Z",
+		...overrides,
+	};
+}
+
+function wikiResearchMockClient(options: { issue: any; calls?: string[] }) {
+	const calls = options.calls ?? [];
+	return {
+		async getAuthenticatedUser(token?: string) {
+			calls.push(`auth:${token === "ghp_super_secret_token"}`);
+			return { login: "acme" };
+		},
+		async getRepo(_token: string | undefined, owner: string, repo: string) {
+			calls.push(`get:${owner}/${repo}`);
+			return { exists: true, defaultBranch: "main", sha: "1".repeat(40) };
+		},
+		async getIssue(_token: string | undefined, owner: string, repo: string, issueNumber: number) {
+			calls.push(`issue:${owner}/${repo}#${issueNumber}`);
+			return { ...options.issue, owner, repo, number: issueNumber };
+		},
+		async listIssues(_token: string | undefined, owner: string, repo: string, labels: string[]) {
+			calls.push(`list:${owner}/${repo}:${labels.join(",")}`);
+			return [{ ...options.issue, owner, repo }];
+		},
+		async createIssue(_token: string, input: any) {
+			calls.push(`create-issue:${input.repo}`);
+			return wikiResearchIssue({
+				number: 2,
+				title: input.title,
+				body: input.body,
+				labels: input.labels,
+				htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/2`,
+				owner: input.owner,
+				repo: input.repo,
+			});
+		},
+		async commentIssue(_token: string, input: any) {
+			calls.push(`comment:${input.repo}#${input.issueNumber}`);
+			return { htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/${input.issueNumber}#comment` };
+		},
+		async addLabels(_token: string, input: any) {
+			calls.push(`label:${input.repo}:${input.labels.join(",")}`);
+		},
+		async removeLabel(_token: string, input: any) {
+			calls.push(`remove-label:${input.repo}:${input.label}`);
+		},
+		async ensureLabel(_token: string, input: any) {
+			calls.push(`ensure-label:${input.repo}:${input.label}`);
+		},
+		async createBranch(_token: string, input: any) {
+			calls.push(`branch:${input.owner}/${input.repo}:${input.branch}`);
+			return { ref: `refs/heads/${input.branch}` };
+		},
+		async putFile(_token: string, input: any) {
+			calls.push(`put:${input.repo}:${input.path}`);
+			return { commitSha: "2".repeat(40) };
+		},
+		async createPullRequest(_token: string, input: any) {
+			calls.push(`pr:${input.repo}`);
+			return { number: 3, htmlUrl: `https://github.com/${input.owner}/${input.repo}/pull/3` };
+		},
+	};
 }
 
 function handoff(summary: string): Record<string, unknown> {
@@ -1662,11 +2442,31 @@ function wikiArtifact(): Record<string, unknown> {
 	};
 }
 
+async function writeMockWikiJsonArtifact(input: any, overrides: Record<string, unknown> = {}): Promise<any> {
+	if (!input.downloadDir) return { ...ok(input, "{}"), downloadedFiles: [] };
+	await fs.mkdir(input.downloadDir, { recursive: true });
+	let payload: Record<string, unknown>;
+	if (String(input.downloadDir).includes("architect-json-artifacts")) payload = wikiBlueprint();
+	else if (String(input.downloadDir).includes("critic-json-artifacts")) {
+		payload = {
+			schema_version: "omg.wiki.review.v1",
+			approved: true,
+			blocking_findings: [],
+			non_blocking_findings: [],
+			required_fixes: [],
+			verdict: "good_enough",
+		};
+	} else payload = wikiArtifact();
+	payload = { ...payload, ...overrides };
+	await Bun.write(path.join(input.downloadDir, "response.json"), `${JSON.stringify(payload)}\n`);
+	return { ...ok(input, "{}"), downloadedFiles: ["response.json"] };
+}
+
 async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {}): Promise<void> {
 	const omit = new Set(options.omit ?? []);
 	const files: Record<string, string> = {
 		"README.md": "# AI Wiki Proof\n",
-		"PROJECT_REPORT.md": "Local wiki-machine proof report.\n",
+		"PROJECT_REPORT.md": "Local wiki proof report.\n",
 		"AI_WIKI_MANIFEST.json": JSON.stringify(
 			{
 				schema_version: "omg.ai-wiki.workspace.v1",
@@ -1702,7 +2502,17 @@ async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {
 		"wiki-site/src/wiki-core/types.ts": "export type WikiSourceId = string;\n",
 		"wiki-site/static/llms.txt": "# AI Wiki\n",
 		"wiki-site/static/.well-known/wiki-agent.json": JSON.stringify({ schemaVersion: "steve-wiki-agent/v1" }),
-		"wiki-data-registry/sources.json": JSON.stringify({ schemaVersion: "steve-wiki-registry/v1", sources: [] }),
+		"wiki-data-registry/sources.json": JSON.stringify({
+			schemaVersion: "steve-wiki-registry/v1",
+			routeMode: "query",
+			sources: [
+				{
+					id: "devops",
+					label: "DevOps",
+					latestUrl: "http://localhost/wiki-data-devops/published/latest.json",
+				},
+			],
+		}),
 		"wiki-data-registry/agent-sources.json": JSON.stringify({
 			schemaVersion: "steve-wiki-agent-sources/v1",
 			sources: [],
@@ -1712,6 +2522,11 @@ async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {
 		"wiki-data-devops/published/latest.json": JSON.stringify({
 			schemaVersion: "steve-wiki-latest/v1",
 			sourceId: "devops",
+			manifestUrl: "http://localhost/wiki-data-devops/published/dist/local/wiki-manifest.json",
+			catalogUrl: "http://localhost/wiki-data-devops/published/dist/local/wiki-catalog.json",
+			pagefindBundleUrl: "http://localhost/wiki-data-devops/published/dist/local/pagefind/",
+			agentManifestUrl: "http://localhost/wiki-data-devops/published/dist/local/agent/agent-manifest.json",
+			contentBaseUrl: "http://localhost/wiki-data-devops/docs/",
 		}),
 		"wiki-data-devops/published/latest-agent.json": JSON.stringify({
 			schemaVersion: "steve-wiki-agent-latest/v1",
@@ -1719,7 +2534,16 @@ async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {
 		}),
 		"wiki-data-devops/published/dist/local/wiki-manifest.json": JSON.stringify({
 			schemaVersion: "steve-wiki-manifest/v1",
-			pages: [],
+			contentBaseUrl: "http://localhost/wiki-data-devops/docs/",
+			pages: [
+				{
+					id: "devops:index",
+					sourceId: "devops",
+					title: "Index",
+					slug: "index",
+					file: "index.md",
+				},
+			],
 		}),
 		"wiki-data-devops/published/dist/local/wiki-catalog.json": JSON.stringify({
 			schemaVersion: "steve-wiki-catalog/v1",
@@ -1738,7 +2562,10 @@ async function writeWikiWorkspace(root: string, options: { omit?: string[] } = {
 		}),
 		"wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl": `${JSON.stringify({
 			chunkId: "devops:index#top",
+			pageId: "devops:index",
+			url: "/wiki/?s=devops&p=index#top",
 			text: "Index",
+			checksum: "sha256:test",
 		})}\n`,
 	};
 	await fs.mkdir(root, { recursive: true });

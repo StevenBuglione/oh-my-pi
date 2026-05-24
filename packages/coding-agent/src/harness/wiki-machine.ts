@@ -1,6 +1,11 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { unzipSync, zipSync } from "fflate";
+import {
+	getOrCreateGateArtifactRequest,
+	type HarnessArtifactRequest,
+	recordGateDownloadAttempt,
+} from "./artifact-names";
 import { type ChatGptWorkerCommand, type ChatGptWorkerCommandResult, runChatGptWorkerCommand } from "./chatgpt-cli";
 import { type HarnessCommandRunner, runHarnessDoctor } from "./doctor";
 import { buildEvidencePacket, writeWikiAcceptanceChecklist } from "./evidence-packet";
@@ -11,6 +16,7 @@ import {
 	wikiBuilderPrompt,
 	wikiBuilderValidationRepairPrompt,
 	wikiCriticPrompt,
+	wikiJsonRepairPrompt,
 } from "./prompt-templates";
 import { bundleChatGptSkill } from "./skills";
 import {
@@ -26,6 +32,7 @@ import {
 	writeRunState,
 } from "./storage";
 import type { HarnessRunState, WikiReviewEnvelope } from "./types";
+import { parseWikiBlueprintEnvelope } from "./wiki-blueprint";
 import { type AiWikiManifestValidation, validateAiWikiManifest } from "./wiki-manifest";
 
 export type WikiMachineWorkerRunner = (input: ChatGptWorkerCommand) => Promise<ChatGptWorkerCommandResult>;
@@ -48,6 +55,15 @@ interface WorkerExchange {
 	conversationUrl?: string;
 	copiedText: string;
 	responsePath?: string;
+	degradedArtifactSelection?: boolean;
+}
+
+interface JsonArtifactCandidate {
+	ok: boolean;
+	text?: string;
+	degraded?: boolean;
+	warnings?: string[];
+	error?: string;
 }
 
 const DEFAULT_CHATGPT_MODEL_OPTION = "Thinking";
@@ -86,6 +102,19 @@ function responseMeta(raw: string): { requestId?: string; conversationUrl?: stri
 	};
 }
 
+function workerIsGenerating(raw: string): boolean | undefined {
+	const parsed = safeJson(raw);
+	return typeof parsed?.is_generating === "boolean" ? parsed.is_generating : undefined;
+}
+
+function workerHasUsefulResponse(raw: string): boolean {
+	const parsed = safeJson(raw);
+	if (!parsed || parsed.is_generating === true) return false;
+	if (typeof parsed.message_count === "number" && parsed.message_count > 0) return true;
+	if (typeof parsed.artifact_count === "number" && parsed.artifact_count > 0) return true;
+	return typeof parsed.conversation_url === "string" && parsed.conversation_url.includes("/c/");
+}
+
 function modelSelectionFailed(result: ChatGptWorkerCommandResult): boolean {
 	const text = `${result.stdout}\n${result.stderr}`.toLowerCase();
 	return (
@@ -99,6 +128,10 @@ function modelSelectionFailed(result: ChatGptWorkerCommandResult): boolean {
 
 function gatePassed(state: HarnessRunState, id: string): boolean {
 	return ensureHarnessGates(state).find(gate => gate.id === id)?.status === "passed";
+}
+
+function gateStatus(state: HarnessRunState, id: string): string | undefined {
+	return ensureHarnessGates(state).find(gate => gate.id === id)?.status;
 }
 
 async function startGate(state: HarnessRunState, id: string, options: WikiMachineOptions): Promise<void> {
@@ -260,15 +293,51 @@ async function waitForWorker(
 	sent: { requestId?: string; conversationUrl?: string },
 	runner: WikiMachineWorkerRunner,
 ): Promise<{ requestId?: string; conversationUrl?: string }> {
+	const deadline = Date.now() + 420_000;
+	let lastMeta = sent;
+	for (let attempt = 1; attempt <= 2; attempt += 1) {
+		const status = await runner({
+			action: "status",
+			worker: workerId,
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(state.runId, "responses", `${role}-status-${attempt}.json`, status.stdout || status.stderr);
+		if (status.ok) {
+			const generating = workerIsGenerating(status.stdout);
+			lastMeta = { ...lastMeta, ...responseMeta(status.stdout) };
+			if (workerHasUsefulResponse(status.stdout)) return lastMeta;
+			if (generating === undefined) break;
+		}
+		await sleep(5_000);
+	}
+
 	const watch = await runner({
 		action: "watch",
 		worker: workerId,
-		extraArgs: ["--until-complete", "--json", "--timeout", "420"],
-		timeoutMs: 450_000,
+		extraArgs: ["--until-complete", "--json", "--timeout", "20"],
+		timeoutMs: 30_000,
 	});
 	await writeRunFile(state.runId, "responses", `${role}-watch.json`, watch.stdout || watch.stderr);
-	if (!watch.ok) throw new Error(`failed to watch ${role} worker: ${watch.stderr || watch.stdout}`);
-	return { ...sent, ...responseMeta(watch.stdout) };
+	lastMeta = { ...lastMeta, ...responseMeta(watch.stdout) };
+	if (watch.ok || workerHasUsefulResponse(watch.stdout)) return lastMeta;
+
+	while (Date.now() < deadline) {
+		const status = await runner({
+			action: "status",
+			worker: workerId,
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(state.runId, "responses", `${role}-status.json`, status.stdout || status.stderr);
+		if (status.ok) {
+			lastMeta = { ...lastMeta, ...responseMeta(status.stdout) };
+			if (workerHasUsefulResponse(status.stdout)) return lastMeta;
+		}
+		await sleep(5_000);
+	}
+
+	throw new Error(`failed to observe completed ${role} worker: ${watch.stderr || watch.stdout}`);
 }
 
 async function downloadJsonResponse(
@@ -276,34 +345,210 @@ async function downloadJsonResponse(
 	role: "architect" | "builder" | "critic",
 	conversationUrl: string | undefined,
 	runner: WikiMachineWorkerRunner,
-): Promise<{ path: string; text: string } | undefined> {
+	request: HarnessArtifactRequest,
+): Promise<{ path: string; text: string; degraded: boolean } | undefined> {
 	if (!conversationUrl) return undefined;
 	const runDir = getHarnessRunDir(state.runId);
-	const downloadDir = path.join(runDir, "responses", `${role}-json-artifacts`);
-	await fs.rm(downloadDir, { recursive: true, force: true });
+	const attemptId = crypto.randomUUID();
+	const downloadDir = path.join(runDir, "responses", `${role}-json-artifacts`, attemptId);
 	await fs.mkdir(downloadDir, { recursive: true, mode: 0o700 });
 	const download = await runner({ action: "download_artifacts", conversationUrl, downloadDir, timeoutMs: 180_000 });
 	await writeRunFile(state.runId, "responses", `${role}-json-download.json`, download.stdout || download.stderr);
-	if (!download.ok || !download.downloadedFiles?.length) return undefined;
-	const preferred = role === "critic" ? ["review.json", "response.json"] : ["response.json", `${role}.json`];
-	const candidates = download.downloadedFiles
-		.filter(file => file.toLowerCase().endsWith(".json"))
-		.sort((a, b) => {
-			const aRank = preferred.findIndex(name => a.toLowerCase().endsWith(name));
-			const bRank = preferred.findIndex(name => b.toLowerCase().endsWith(name));
-			return (aRank === -1 ? 99 : aRank) - (bRank === -1 ? 99 : bRank) || a.localeCompare(b);
-		});
-	for (const relPath of candidates) {
+	const gate = state.gates?.find(item => item.id === role);
+	const attempt = {
+		id: attemptId,
+		kind: "json" as const,
+		expectedFiles: [request.responseFilename],
+		downloadedFiles: download.downloadedFiles ?? [],
+	};
+	if (!download.ok || !download.downloadedFiles?.length) {
+		recordGateDownloadAttempt(gate, attempt);
+		await writeRunState(state);
+		return undefined;
+	}
+	const valid: Array<{
+		relPath: string;
+		absolute: string;
+		text: string;
+		exact: boolean;
+		degraded: boolean;
+		warnings?: string[];
+	}> = [];
+	for (const relPath of download.downloadedFiles.filter(file => file.toLowerCase().endsWith(".json"))) {
 		const absolute = path.resolve(downloadDir, relPath);
 		if (absolute !== path.resolve(downloadDir) && !absolute.startsWith(`${path.resolve(downloadDir)}${path.sep}`))
 			continue;
 		const text = (await Bun.file(absolute).text()).trim();
-		const parsed = parseChatGptJsonEnvelope(text);
-		if (!parsed.ok) continue;
-		const copiedPath = await writeRunFile(state.runId, "responses", `${role}-copy.json`, `${text}\n`);
-		return { path: copiedPath, text };
+		const parsed = validateDownloadedJsonArtifact(role, text, request);
+		if (!parsed.ok || !parsed.text) continue;
+		valid.push({
+			relPath,
+			absolute,
+			text: parsed.text,
+			exact: path.basename(relPath) === request.responseFilename,
+			degraded: Boolean(parsed.degraded),
+			warnings: parsed.warnings,
+		});
 	}
+	const exact = valid.filter(candidate => candidate.exact);
+	let selected = exact[0];
+	let degraded = false;
+	if (!selected) {
+		if (valid.length > 1) {
+			recordGateDownloadAttempt(gate, { ...attempt, degraded: true });
+			await writeRunState(state);
+			throw new Error(
+				`${role} JSON download was ambiguous: expected ${request.responseFilename}, got ${valid.map(item => item.relPath).join(", ")}`,
+			);
+		}
+		selected = valid[0];
+		degraded = Boolean(selected);
+	}
+	if (selected) {
+		const parsedSelected = safeJson(selected.text);
+		if (
+			request.artifactFilename &&
+			role === "builder" &&
+			parsedSelected?.schema_version === "omg.wiki.artifact.v1" &&
+			parsedSelected.artifact_name !== request.artifactFilename
+		) {
+			if (selected.exact) {
+				throw new Error(
+					`${role} response artifact_name mismatch: expected ${request.artifactFilename}, got ${parsedSelected.artifact_name}`,
+				);
+			}
+			degraded = true;
+			state.validation.push({
+				status: "passed",
+				summary: `${role} JSON used legacy artifact_name ${parsedSelected.artifact_name}; expected ${request.artifactFilename}`,
+				logPath: selected.absolute,
+			});
+		}
+		if (selected.degraded) {
+			degraded = true;
+			state.validation.push({
+				status: "passed",
+				summary: `${role} JSON artifact normalized: ${selected.warnings?.join("; ") || "schema drift corrected"}`,
+				logPath: selected.absolute,
+			});
+		}
+		const copiedPath = await writeRunFile(state.runId, "responses", `${role}-copy.json`, `${selected.text}\n`);
+		recordGateDownloadAttempt(gate, {
+			...attempt,
+			selectedPath: selected.absolute,
+			selectedSha256: await sha256File(selected.absolute),
+			degraded,
+		});
+		if (degraded) {
+			state.validation.push({
+				status: "passed",
+				summary: `${role} JSON used legacy/degraded filename ${path.basename(selected.relPath)}; expected ${request.responseFilename}`,
+				logPath: selected.absolute,
+			});
+		}
+		await writeRunState(state);
+		return { path: copiedPath, text: selected.text, degraded };
+	}
+	recordGateDownloadAttempt(gate, attempt);
+	await writeRunState(state);
 	return undefined;
+}
+
+function validateDownloadedJsonArtifact(
+	role: "architect" | "builder" | "critic",
+	text: string,
+	_request: HarnessArtifactRequest,
+): JsonArtifactCandidate {
+	if (role === "architect") {
+		const parsed = parseWikiBlueprintEnvelope(text);
+		if (!parsed.ok || !parsed.text) return { ok: false, error: parsed.error };
+		return {
+			ok: true,
+			text: parsed.text.trim(),
+			degraded: parsed.normalized,
+			warnings: parsed.warnings,
+		};
+	}
+	const parsed = parseChatGptJsonEnvelope(text);
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+	return { ok: true, text };
+}
+
+async function workerStatusMeta(
+	state: HarnessRunState,
+	role: "architect" | "builder" | "critic",
+	workerId: string,
+	runner: WikiMachineWorkerRunner,
+): Promise<{ ready: boolean; requestId?: string; conversationUrl?: string }> {
+	const status = await runner({
+		action: "status",
+		worker: workerId,
+		extraArgs: ["--json"],
+		timeoutMs: 120_000,
+	});
+	await writeRunFile(state.runId, "responses", `${role}-status.json`, status.stdout || status.stderr);
+	if (!status.ok) return { ready: false };
+	return {
+		ready: workerHasUsefulResponse(status.stdout),
+		...responseMeta(status.stdout),
+	};
+}
+
+async function recoverCompletedRole(
+	state: HarnessRunState,
+	role: "architect" | "builder" | "critic",
+	runner: WikiMachineWorkerRunner,
+	options: { expectJson?: boolean; preferJson?: boolean } = {},
+): Promise<WorkerExchange | undefined> {
+	if (gateStatus(state, role) !== "running") return undefined;
+	const worker = state.workers.find(item => item.role === role && item.workerId);
+	if (!worker?.workerId) return undefined;
+	const meta = await workerStatusMeta(state, role, worker.workerId, runner);
+	const conversationUrl = meta.conversationUrl ?? worker.conversationUrl;
+	if (!meta.ready || !conversationUrl) return undefined;
+	const artifactRequest = getOrCreateGateArtifactRequest(state, role, role, {
+		artifactKind: "workspace",
+		artifactExt: role === "builder" ? "zip" : undefined,
+	});
+	const artifactJson =
+		options.expectJson || options.preferJson
+			? await downloadJsonResponse(state, role, conversationUrl, runner, artifactRequest)
+			: undefined;
+	if (artifactJson) {
+		await bindWorkerRole(state, role, {
+			workerId: worker.workerId,
+			requestId: meta.requestId ?? worker.requestId,
+			conversationUrl,
+			modelOption: worker.modelOption,
+			thinkingOption: worker.thinkingOption,
+			skillBundles: worker.skillBundles,
+		});
+		return {
+			workerId: worker.workerId,
+			requestId: meta.requestId ?? worker.requestId,
+			conversationUrl,
+			copiedText: artifactJson.text,
+			responsePath: artifactJson.path,
+			degradedArtifactSelection: artifactJson.degraded,
+		};
+	}
+	const copied = await runner({ action: "copy_message", conversationUrl, timeoutMs: 120_000 });
+	await writeRunFile(state.runId, "responses", `${role}-copy.txt`, copied.stdout || copied.stderr);
+	if (!copied.ok) return undefined;
+	await bindWorkerRole(state, role, {
+		workerId: worker.workerId,
+		requestId: meta.requestId ?? worker.requestId,
+		conversationUrl,
+		modelOption: worker.modelOption,
+		thinkingOption: worker.thinkingOption,
+		skillBundles: worker.skillBundles,
+	});
+	return {
+		workerId: worker.workerId,
+		requestId: meta.requestId ?? worker.requestId,
+		conversationUrl,
+		copiedText: copied.stdout.trim(),
+	};
 }
 
 async function sendAndCopy(
@@ -312,7 +557,13 @@ async function sendAndCopy(
 	workerId: string,
 	prompt: string,
 	runner: WikiMachineWorkerRunner,
-	options: { files?: string[]; skills?: string[]; expectJson?: boolean; preferJson?: boolean } = {},
+	options: {
+		files?: string[];
+		skills?: string[];
+		expectJson?: boolean;
+		preferJson?: boolean;
+		artifactRequest?: HarnessArtifactRequest;
+	} = {},
 ): Promise<WorkerExchange> {
 	await writeRunFile(state.runId, "prompts", `${role}.md`, prompt);
 	await consumePromptBudget(state, role);
@@ -351,7 +602,13 @@ async function sendAndCopy(
 	const watched = await waitForWorker(state, role, workerId, sent, runner);
 	const conversationUrl = watched.conversationUrl ?? sent.conversationUrl;
 	if (options.expectJson || options.preferJson) {
-		const artifactJson = await downloadJsonResponse(state, role, conversationUrl, runner);
+		const artifactRequest =
+			options.artifactRequest ??
+			getOrCreateGateArtifactRequest(state, role, role, {
+				artifactKind: "workspace",
+				artifactExt: role === "builder" ? "zip" : undefined,
+			});
+		const artifactJson = await downloadJsonResponse(state, role, conversationUrl, runner, artifactRequest);
 		if (artifactJson) {
 			await bindWorkerRole(state, role, {
 				workerId,
@@ -367,6 +624,57 @@ async function sendAndCopy(
 				conversationUrl,
 				copiedText: artifactJson.text,
 				responsePath: artifactJson.path,
+				degradedArtifactSelection: artifactJson.degraded,
+			};
+		}
+		if (options.expectJson) {
+			const repairPrompt = wikiJsonRepairPrompt(
+				role,
+				`downloadable JSON artifact ${artifactRequest.responseFilename} was not found or was invalid`,
+				artifactRequest.responseFilename,
+			);
+			await writeRunFile(state.runId, "prompts", `${role}-repair.md`, repairPrompt);
+			await consumePromptBudget(state, `${role} repair`);
+			const repair = await runner({
+				action: "send",
+				worker: workerId,
+				prompt: repairPrompt,
+				modelOption,
+				thinkingOption,
+				extraArgs: ["--json"],
+				timeoutMs: 120_000,
+			});
+			await writeRunFile(state.runId, "responses", `${role}-repair-send.json`, repair.stdout || repair.stderr);
+			if (!repair.ok)
+				throw new Error(`failed to send ${role} JSON repair prompt: ${repair.stderr || repair.stdout}`);
+			const repairMeta = await waitForWorker(state, `${role}-repair`, workerId, responseMeta(repair.stdout), runner);
+			const repairedArtifact = await downloadJsonResponse(
+				state,
+				role,
+				repairMeta.conversationUrl ?? conversationUrl,
+				runner,
+				artifactRequest,
+			);
+			if (!repairedArtifact) {
+				throw new Error(
+					`${role} worker did not attach downloadable JSON artifact ${artifactRequest.responseFilename} after one repair attempt`,
+				);
+			}
+			await bindWorkerRole(state, role, {
+				workerId,
+				requestId: repairMeta.requestId ?? watched.requestId ?? sent.requestId,
+				conversationUrl: repairMeta.conversationUrl ?? conversationUrl,
+				modelOption,
+				thinkingOption,
+				skillBundles: options.skills,
+			});
+			return {
+				workerId,
+				requestId: repairMeta.requestId ?? watched.requestId ?? sent.requestId,
+				conversationUrl: repairMeta.conversationUrl ?? conversationUrl,
+				copiedText: repairedArtifact.text,
+				responsePath: repairedArtifact.path,
+				degradedArtifactSelection: repairedArtifact.degraded,
 			};
 		}
 	}
@@ -375,9 +683,7 @@ async function sendAndCopy(
 	if (!copied.ok) throw new Error(`failed to copy ${role} worker response: ${copied.stderr || copied.stdout}`);
 	const validation = parseChatGptJsonEnvelope(copied.stdout.trim());
 	if (options.expectJson && !validation.ok) {
-		const repairPrompt =
-			`Your previous response failed OMG JSON validation: ${validation.error ?? "unknown schema error"}\n\n` +
-			"Re-emit the same answer as JSON only, with no Markdown fence, commentary, or surrounding text. Use the schema requested in the original prompt.";
+		const repairPrompt = wikiJsonRepairPrompt(role, validation.error ?? "unknown schema error");
 		await writeRunFile(state.runId, "prompts", `${role}-repair.md`, repairPrompt);
 		await consumePromptBudget(state, `${role} repair`);
 		const repair = await runner({
@@ -397,6 +703,11 @@ async function sendAndCopy(
 			role,
 			repairMeta.conversationUrl ?? conversationUrl,
 			runner,
+			options.artifactRequest ??
+				getOrCreateGateArtifactRequest(state, role, role, {
+					artifactKind: "workspace",
+					artifactExt: role === "builder" ? "zip" : undefined,
+				}),
 		);
 		if (repairedArtifact) {
 			await bindWorkerRole(state, role, {
@@ -413,6 +724,7 @@ async function sendAndCopy(
 				conversationUrl: repairMeta.conversationUrl ?? conversationUrl,
 				copiedText: repairedArtifact.text,
 				responsePath: repairedArtifact.path,
+				degradedArtifactSelection: repairedArtifact.degraded,
 			};
 		}
 		const repairCopied = await runner({
@@ -426,7 +738,33 @@ async function sendAndCopy(
 			`${role}-repair-copy.txt`,
 			repairCopied.stdout || repairCopied.stderr,
 		);
-		if (!parseChatGptJsonEnvelope(repairCopied.stdout.trim()).ok) {
+		const repairValidation = parseChatGptJsonEnvelope(repairCopied.stdout.trim());
+		if (!repairValidation.ok && role === "architect") {
+			const normalized = parseWikiBlueprintEnvelope(repairCopied.stdout.trim());
+			if (normalized.ok && normalized.text) {
+				const normalizedPath = await writeRunFile(
+					state.runId,
+					"responses",
+					"architect-normalized.json",
+					normalized.text,
+				);
+				state.validation.push({
+					status: "passed",
+					summary: `Architect JSON normalized after repair: ${normalized.warnings.join("; ") || "schema drift corrected"}`,
+					logPath: normalizedPath,
+				});
+				await writeRunState(state);
+				return {
+					workerId,
+					requestId: repairMeta.requestId ?? watched.requestId ?? sent.requestId,
+					conversationUrl: repairMeta.conversationUrl ?? conversationUrl,
+					copiedText: normalized.text.trim(),
+					responsePath: normalizedPath,
+					degradedArtifactSelection: true,
+				};
+			}
+		}
+		if (!repairValidation.ok) {
 			throw new Error(`${role} worker did not return a valid wiki JSON envelope after one repair attempt`);
 		}
 		return {
@@ -457,10 +795,9 @@ async function downloadAndUnpackArtifact(
 	conversationUrl: string | undefined,
 	runner: WikiMachineWorkerRunner,
 	options: WikiMachineOptions,
+	request: HarnessArtifactRequest,
 ): Promise<{ zipPath: string; workspaceDir: string; sha256: string }> {
 	const runDir = getHarnessRunDir(state.runId);
-	const downloadDir = path.join(runDir, "artifacts", "downloads");
-	await fs.mkdir(downloadDir, { recursive: true, mode: 0o700 });
 	const retryDelays = options.artifactDownloadRetryDelaysMs ?? DEFAULT_ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS;
 	let download: ChatGptWorkerCommandResult | undefined;
 	let zipPath: string | undefined;
@@ -470,6 +807,9 @@ async function downloadAndUnpackArtifact(
 			emit(options, `waiting ${Math.ceil(delay / 1000)}s for builder artifact before retry ${attempt + 1}`);
 			await sleep(delay);
 		}
+		const attemptId = crypto.randomUUID();
+		const downloadDir = path.join(runDir, "artifacts", "downloads", `builder-${attempt + 1}-${attemptId}`);
+		await fs.mkdir(downloadDir, { recursive: true, mode: 0o700 });
 		download = await runner({ action: "download_artifacts", conversationUrl, downloadDir, timeoutMs: 300_000 });
 		await writeRunFile(
 			state.runId,
@@ -478,7 +818,23 @@ async function downloadAndUnpackArtifact(
 			download.stdout || download.stderr,
 		);
 		if (!download.ok) throw new Error(`artifact download failed: ${download.stderr || download.stdout}`);
-		zipPath = await selectNewestDownloadedZip(downloadDir, download.downloadedFiles ?? []);
+		zipPath = await selectDownloadedZip(downloadDir, download.downloadedFiles ?? [], request.artifactFilename);
+		const selectedSha256 = zipPath ? await sha256File(zipPath) : undefined;
+		recordGateDownloadAttempt(
+			state.gates?.find(item => item.id === "download"),
+			{
+				id: attemptId,
+				kind: "artifact",
+				expectedFiles: request.artifactFilename ? [request.artifactFilename] : [],
+				downloadedFiles: download.downloadedFiles ?? [],
+				selectedPath: zipPath,
+				selectedSha256,
+				degraded: Boolean(
+					zipPath && request.artifactFilename && path.basename(zipPath) !== request.artifactFilename,
+				),
+			},
+		);
+		await writeRunState(state);
 		if (zipPath) break;
 	}
 	if (!zipPath) {
@@ -509,7 +865,11 @@ async function downloadAndUnpackArtifact(
 	return { zipPath, workspaceDir: await detectWorkspaceRoot(workspaceDir), sha256 };
 }
 
-async function selectNewestDownloadedZip(downloadDir: string, downloadedFiles: string[]): Promise<string | undefined> {
+async function selectDownloadedZip(
+	downloadDir: string,
+	downloadedFiles: string[],
+	expectedFilename?: string,
+): Promise<string | undefined> {
 	const resolvedDownloadDir = path.resolve(downloadDir);
 	const candidates: Array<{ path: string; mtimeMs: number }> = [];
 	for (const relPath of downloadedFiles.filter(file => file.toLowerCase().endsWith(".zip"))) {
@@ -517,6 +877,15 @@ async function selectNewestDownloadedZip(downloadDir: string, downloadedFiles: s
 		if (absolute !== resolvedDownloadDir && !absolute.startsWith(`${resolvedDownloadDir}${path.sep}`)) continue;
 		const stat = await fs.stat(absolute).catch(() => undefined);
 		if (stat?.isFile()) candidates.push({ path: absolute, mtimeMs: stat.mtimeMs });
+	}
+	if (expectedFilename) {
+		const exact = candidates.find(candidate => path.basename(candidate.path) === expectedFilename);
+		if (exact) return exact.path;
+	}
+	if (candidates.length > 1) {
+		throw new Error(
+			`ChatGPT builder zip download was ambiguous: expected ${expectedFilename ?? "one .zip"}, got ${candidates.map(item => path.basename(item.path)).join(", ")}`,
+		);
 	}
 	candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || b.path.localeCompare(a.path));
 	return candidates[0]?.path;
@@ -531,10 +900,14 @@ async function requestBuilderArtifactRepair(
 	builderId: string | undefined,
 	runner: WikiMachineWorkerRunner,
 	error: string,
+	request: HarnessArtifactRequest,
 ): Promise<string | undefined> {
 	if (!builderId) throw new Error("cannot request builder artifact repair without a bound builder worker");
 	await consumePromptBudget(state, "builder artifact repair");
-	const prompt = wikiBuilderArtifactRepairPrompt(state.objective, error);
+	const prompt = wikiBuilderArtifactRepairPrompt(state.objective, error, {
+		responseFilename: request.responseFilename,
+		workspaceFilename: request.artifactFilename,
+	});
 	await writeRunFile(state.runId, "prompts", "builder-artifact-repair.md", prompt);
 	const handoffPath = path.join(getHarnessRunDir(state.runId), "artifacts", "handoffs", "builder-handoff.zip");
 	const files = (await Bun.file(handoffPath).exists()) ? [handoffPath] : undefined;
@@ -576,10 +949,14 @@ async function requestBuilderValidationRepair(
 	runner: WikiMachineWorkerRunner,
 	error: string,
 	files: string[],
+	request: HarnessArtifactRequest,
 ): Promise<string | undefined> {
 	if (!builderId) throw new Error("cannot request builder validation repair without a bound builder worker");
 	await consumePromptBudget(state, "builder validation repair");
-	const prompt = wikiBuilderValidationRepairPrompt(state.objective, error);
+	const prompt = wikiBuilderValidationRepairPrompt(state.objective, error, {
+		responseFilename: request.responseFilename,
+		workspaceFilename: request.artifactFilename,
+	});
 	await writeRunFile(state.runId, "prompts", "builder-validation-repair.md", prompt);
 	const handoff = await createHandoffBundle(state, "builder", files);
 	const send = await runner({
@@ -686,7 +1063,7 @@ function selectValidationCommand(
 
 async function readRoleResponse(state: HarnessRunState, role: "architect" | "builder" | "critic"): Promise<string> {
 	const runDir = getHarnessRunDir(state.runId);
-	for (const name of [`${role}-copy.json`, `${role}-repair-copy.txt`, `${role}-copy.txt`]) {
+	for (const name of [`${role}-normalized.json`, `${role}-copy.json`, `${role}-repair-copy.txt`, `${role}-copy.txt`]) {
 		const filePath = path.join(runDir, "responses", name);
 		if (await Bun.file(filePath).exists()) return (await Bun.file(filePath).text()).trim();
 	}
@@ -788,24 +1165,33 @@ async function continueWikiMachineHarness(
 			cwd,
 			outDir: path.join(getHarnessRunDir(state.runId), "artifacts", "skills"),
 		});
+		const architectRequest = getOrCreateGateArtifactRequest(state, "architect", "architect");
 		let blueprintText = "";
 		if (gatePassed(state, "architect")) {
 			blueprintText = await readRoleResponse(state, "architect");
 		} else {
-			await startGate(state, "architect", options);
-			const architectId = await createWorker(state, "architect", runner, [architectSkill.zipPath]);
-			const handoff = await createHandoffBundle(state, "architect", [
-				architectSkill.zipPath,
-				...(await listFiles(packetDir)),
-			]);
-			const architect = await sendAndCopy(
-				state,
-				"architect",
-				architectId,
-				wikiArchitectPrompt(state.objective),
-				runner,
-				{ files: [handoff], expectJson: true },
-			);
+			const architect =
+				(await recoverCompletedRole(state, "architect", runner, { expectJson: true })) ??
+				(await (async () => {
+					await startGate(state, "architect", options);
+					const architectId = await createWorker(state, "architect", runner, [architectSkill.zipPath]);
+					const handoff = await createHandoffBundle(state, "architect", [
+						architectSkill.zipPath,
+						...(await listFiles(packetDir)),
+					]);
+					return await sendAndCopy(
+						state,
+						"architect",
+						architectId,
+						wikiArchitectPrompt(state.objective, architectRequest.responseFilename),
+						runner,
+						{
+							files: [handoff],
+							expectJson: true,
+							artifactRequest: architectRequest,
+						},
+					);
+				})());
 			blueprintText = architect.copiedText;
 			await passGate(state, "architect", options, {
 				workerRole: "architect",
@@ -817,12 +1203,33 @@ async function continueWikiMachineHarness(
 		}
 
 		await startGate(state, "contract", options);
-		const blueprint = parseChatGptJsonEnvelope(blueprintText);
-		if (!blueprint.ok || blueprint.value?.schema_version !== "omg.wiki.blueprint.v1") {
+		const blueprint = parseWikiBlueprintEnvelope(blueprintText);
+		if (!blueprint.ok || blueprint.value?.schema_version !== "omg.wiki.blueprint.v1" || !blueprint.text) {
 			await failGate(state, "contract", options, blueprint.error ?? "architect did not return wiki blueprint JSON");
 			throw new Error("architect did not return valid omg.wiki.blueprint.v1 JSON");
 		}
-		await passGate(state, "contract", options, { summary: "wiki blueprint contract accepted" });
+		if (blueprint.normalized) {
+			const normalizedPath = await writeRunFile(
+				state.runId,
+				"responses",
+				"architect-normalized.json",
+				blueprint.text,
+			);
+			blueprintText = blueprint.text.trim();
+			state.validation.push({
+				status: "passed",
+				summary: `Architect JSON normalized: ${blueprint.warnings.join("; ") || "schema drift corrected"}`,
+				logPath: normalizedPath,
+			});
+			await writeRunState(state);
+		} else {
+			blueprintText = blueprint.text.trim();
+		}
+		await passGate(state, "contract", options, {
+			summary: blueprint.normalized
+				? "wiki blueprint contract accepted after bounded normalization"
+				: "wiki blueprint contract accepted",
+		});
 		await setTodoStatus(state.runId, "select skills/workers", "completed");
 		await setTodoStatus(state.runId, "send worker prompts", "in_progress");
 
@@ -830,25 +1237,36 @@ async function continueWikiMachineHarness(
 			cwd,
 			outDir: path.join(getHarnessRunDir(state.runId), "artifacts", "skills"),
 		});
+		let builderRequest = getOrCreateGateArtifactRequest(state, "builder", "builder", {
+			artifactKind: "workspace",
+			artifactExt: "zip",
+		});
 		let builderConversationUrl: string | undefined;
 		if (gatePassed(state, "builder")) {
 			builderConversationUrl = state.workers.find(worker => worker.role === "builder")?.conversationUrl;
 		} else {
-			await startGate(state, "builder", options);
-			const builderId = await createWorker(state, "builder", runner, [builderSkill.zipPath]);
-			const handoff = await createHandoffBundle(state, "builder", [
-				builderSkill.zipPath,
-				...(await listFiles(packetDir)),
-				path.join(getHarnessRunDir(state.runId), "responses", "architect-copy.json"),
-			]);
-			const builder = await sendAndCopy(
-				state,
-				"builder",
-				builderId,
-				wikiBuilderPrompt(state.objective, blueprintText),
-				runner,
-				{ files: [handoff], preferJson: true },
-			);
+			const builder =
+				(await recoverCompletedRole(state, "builder", runner, { expectJson: true })) ??
+				(await (async () => {
+					await startGate(state, "builder", options);
+					const builderId = await createWorker(state, "builder", runner, [builderSkill.zipPath]);
+					const handoff = await createHandoffBundle(state, "builder", [
+						builderSkill.zipPath,
+						...(await listFiles(packetDir)),
+						path.join(getHarnessRunDir(state.runId), "responses", "architect-copy.json"),
+					]);
+					return await sendAndCopy(
+						state,
+						"builder",
+						builderId,
+						wikiBuilderPrompt(state.objective, blueprintText, {
+							responseFilename: builderRequest.responseFilename,
+							workspaceFilename: builderRequest.artifactFilename,
+						}),
+						runner,
+						{ files: [handoff], expectJson: true, artifactRequest: builderRequest },
+					);
+				})());
 			builderConversationUrl = builder.conversationUrl;
 			await passGate(state, "builder", options, {
 				workerRole: "builder",
@@ -862,18 +1280,23 @@ async function continueWikiMachineHarness(
 		await startGate(state, "download", options);
 		let artifact: Awaited<ReturnType<typeof downloadAndUnpackArtifact>>;
 		try {
-			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options);
+			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options, builderRequest);
 		} catch (error) {
 			if (!missingZipArtifact(error) || state.promptBudget.used >= state.promptBudget.limit) throw error;
 			emit(options, "builder artifact missing; requesting one controlled repair prompt");
 			const builderId = state.workers.find(worker => worker.role === "builder")?.workerId;
+			builderRequest = getOrCreateGateArtifactRequest(state, "download", "builder-repair", {
+				artifactKind: "workspace",
+				artifactExt: "zip",
+			});
 			builderConversationUrl = await requestBuilderArtifactRepair(
 				state,
 				builderId,
 				runner,
 				error instanceof Error ? error.message : String(error),
+				builderRequest,
 			);
-			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options);
+			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options, builderRequest);
 		}
 		await passGate(state, "download", options, {
 			outputPaths: [artifact.zipPath],
@@ -888,15 +1311,20 @@ async function continueWikiMachineHarness(
 			});
 			emit(options, "wiki manifest failed; requesting one controlled builder validation repair prompt");
 			const builderId = state.workers.find(worker => worker.role === "builder")?.workerId;
+			builderRequest = getOrCreateGateArtifactRequest(state, "wiki_manifest", "builder-validation-repair", {
+				artifactKind: "workspace",
+				artifactExt: "zip",
+			});
 			builderConversationUrl = await requestBuilderValidationRepair(
 				state,
 				builderId,
 				runner,
 				manifest.errors.join("; "),
 				[builderSkill.zipPath, artifact.zipPath, manifest.logPath, ...(await listFiles(packetDir))],
+				builderRequest,
 			);
 			await startGate(state, "download", options);
-			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options);
+			artifact = await downloadAndUnpackArtifact(state, builderConversationUrl, runner, options, builderRequest);
 			await passGate(state, "download", options, {
 				outputPaths: [artifact.zipPath],
 				summary: "replacement wiki workspace artifact downloaded",
@@ -927,27 +1355,32 @@ async function continueWikiMachineHarness(
 			cwd,
 			outDir: path.join(getHarnessRunDir(state.runId), "artifacts", "skills"),
 		});
+		const criticRequest = getOrCreateGateArtifactRequest(state, "critic", "critic");
 		let criticText = "";
 		if (gatePassed(state, "critic")) {
 			criticText = await readRoleResponse(state, "critic");
 		} else {
-			await startGate(state, "critic", options);
-			const criticId = await createWorker(state, "critic", runner, [criticSkill.zipPath]);
-			const handoff = await createHandoffBundle(state, "critic", [
-				artifact.zipPath,
-				validation.logPath,
-				manifest.logPath,
-				criticSkill.zipPath,
-				...(await listFiles(packetDir)),
-			]);
-			const critic = await sendAndCopy(
-				state,
-				"critic",
-				criticId,
-				wikiCriticPrompt(state.objective, validation.output, artifact.sha256),
-				runner,
-				{ files: [handoff], expectJson: true },
-			);
+			const critic =
+				(await recoverCompletedRole(state, "critic", runner, { expectJson: true })) ??
+				(await (async () => {
+					await startGate(state, "critic", options);
+					const criticId = await createWorker(state, "critic", runner, [criticSkill.zipPath]);
+					const handoff = await createHandoffBundle(state, "critic", [
+						artifact.zipPath,
+						validation.logPath,
+						manifest.logPath,
+						criticSkill.zipPath,
+						...(await listFiles(packetDir)),
+					]);
+					return await sendAndCopy(
+						state,
+						"critic",
+						criticId,
+						wikiCriticPrompt(state.objective, validation.output, artifact.sha256, criticRequest.responseFilename),
+						runner,
+						{ files: [handoff], expectJson: true, artifactRequest: criticRequest },
+					);
+				})());
 			criticText = critic.copiedText;
 			await passGate(state, "critic", options, {
 				workerRole: "critic",

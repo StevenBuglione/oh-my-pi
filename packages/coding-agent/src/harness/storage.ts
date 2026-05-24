@@ -49,6 +49,41 @@ const WIKI_MACHINE_GATES: HarnessGateId[] = [
 	"report",
 ];
 
+const WIKI_SOURCE_GATES: HarnessGateId[] = [
+	"doctor",
+	"registry_snapshot",
+	"decision_packet",
+	"source_classifier",
+	"decision_contract",
+	"provision_plan",
+	"github_preflight",
+	"repo_create",
+	"repo_seed",
+	"registry_update",
+	"validate",
+	"critic",
+	"report",
+];
+
+const WIKI_RESEARCH_GATES: HarnessGateId[] = [
+	"doctor",
+	"steering_load",
+	"issue_fetch",
+	"registry_snapshot",
+	"source_decision",
+	"issue_route",
+	"research_packet",
+	"researcher",
+	"content_plan",
+	"draft_builder",
+	"validate_content",
+	"branch_create",
+	"pr_create",
+	"issue_update",
+	"critic",
+	"report",
+];
+
 export function getHarnessRoot(agentDir: string = getAgentDir()): string {
 	return path.join(agentDir, "harness");
 }
@@ -92,6 +127,8 @@ export function defaultHarnessGates(template?: HarnessTemplate): HarnessGateStat
 	const normalized = normalizeHarnessTemplate(template);
 	if (normalized === "artifact-project") return defaultArtifactProjectGates();
 	if (normalized === "wiki") return WIKI_MACHINE_GATES.map(id => ({ id, status: "pending" }));
+	if (normalized === "wiki-source") return WIKI_SOURCE_GATES.map(id => ({ id, status: "pending" }));
+	if (normalized === "wiki-research") return WIKI_RESEARCH_GATES.map(id => ({ id, status: "pending" }));
 	return undefined;
 }
 

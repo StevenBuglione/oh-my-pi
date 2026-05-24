@@ -426,7 +426,7 @@ async function writeResponseContractFiles(packetDir: string): Promise<void> {
 		`${JSON.stringify(
 			{
 				description:
-					"Create response JSON as a file, validate it with validate_response.py, attach that file, and paste JSON only as fallback.",
+					"Create response JSON as a file, validate it with validate_response.py, attach that file, and do not paste JSON in chat.",
 				required_artifact_names: {
 					planner: "response.json",
 					builder: "response.json plus workspace.zip",
@@ -489,7 +489,7 @@ export async function writeWikiAcceptanceChecklist(packetDir: string): Promise<v
 	await Bun.write(
 		path.join(packetDir, "WIKI_ACCEPTANCE_CHECKLIST.md"),
 		[
-			"# Wiki-Machine Acceptance Checklist",
+			"# Wiki Acceptance Checklist",
 			"",
 			"OMG validates these exact paths before running tests. The builder artifact must include them at the workspace root.",
 			"",
@@ -506,6 +506,12 @@ export async function writeWikiAcceptanceChecklist(packetDir: string): Promise<v
 			"- `AI_WIKI_MANIFEST.json` must include all required package directories in `packages`.",
 			"- `AI_WIKI_MANIFEST.json.required_contracts` may include more files, but it cannot replace the required paths above.",
 			"- All required `.json` files must parse as valid JSON.",
+			'- `wiki-data-registry/sources.json` must use `routeMode: "query"` when `routeMode` is present and must include a `sources` array.',
+			"- `wiki-data-devops/published/latest.json` must include non-empty string fields: `manifestUrl`, `catalogUrl`, `pagefindBundleUrl`, `agentManifestUrl`, and `contentBaseUrl`.",
+			"- `wiki-data-devops/published/dist/local/wiki-manifest.json` must include a non-empty string `contentBaseUrl` and at least one page object.",
+			"- The first manifest page must include non-empty string fields: `id`, `sourceId`, `title`, `slug`, and `file`.",
+			"- `wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl` must contain at least one JSON line.",
+			"- Every agent chunk line must include non-empty string fields: `chunkId`, `pageId`, `url`, `text`, and `checksum`.",
 			"- Tests must run offline without secrets, paid APIs, deployments, or network access.",
 			"",
 		].join("\n"),

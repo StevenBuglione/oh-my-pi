@@ -60,6 +60,88 @@ async function requireJsonFile(workspaceDir: string, relPath: string, errors: st
 	}
 }
 
+async function readJsonContract(workspaceDir: string, relPath: string): Promise<any | undefined> {
+	const filePath = path.join(workspaceDir, relPath);
+	if (!(await Bun.file(filePath).exists())) return undefined;
+	try {
+		return JSON.parse(await Bun.file(filePath).text());
+	} catch {
+		return undefined;
+	}
+}
+
+function requireStringField(value: any, relPath: string, field: string, errors: string[]): void {
+	if (typeof value?.[field] !== "string" || value[field].trim().length === 0) {
+		errors.push(`${relPath} is missing required string field: ${field}`);
+	}
+}
+
+function requireArrayField(value: any, relPath: string, field: string, errors: string[]): void {
+	if (!Array.isArray(value?.[field])) {
+		errors.push(`${relPath} is missing required array field: ${field}`);
+	}
+}
+
+async function validateDeeperWikiContracts(workspaceDir: string, errors: string[]): Promise<void> {
+	const sources = await readJsonContract(workspaceDir, "wiki-data-registry/sources.json");
+	if (sources) {
+		if (sources.routeMode !== undefined && sources.routeMode !== "query") {
+			errors.push("wiki-data-registry/sources.json routeMode must be query when present");
+		}
+		requireArrayField(sources, "wiki-data-registry/sources.json", "sources", errors);
+	}
+
+	const latest = await readJsonContract(workspaceDir, "wiki-data-devops/published/latest.json");
+	if (latest) {
+		for (const field of ["manifestUrl", "catalogUrl", "pagefindBundleUrl", "agentManifestUrl", "contentBaseUrl"]) {
+			requireStringField(latest, "wiki-data-devops/published/latest.json", field, errors);
+		}
+	}
+
+	const manifest = await readJsonContract(workspaceDir, "wiki-data-devops/published/dist/local/wiki-manifest.json");
+	if (manifest) {
+		requireStringField(
+			manifest,
+			"wiki-data-devops/published/dist/local/wiki-manifest.json",
+			"contentBaseUrl",
+			errors,
+		);
+		if (!Array.isArray(manifest.pages) || manifest.pages.length === 0) {
+			errors.push("wiki-data-devops/published/dist/local/wiki-manifest.json must include at least one page");
+		} else {
+			const page = manifest.pages[0];
+			for (const field of ["id", "sourceId", "title", "slug", "file"]) {
+				requireStringField(
+					page,
+					"wiki-data-devops/published/dist/local/wiki-manifest.json pages[0]",
+					field,
+					errors,
+				);
+			}
+		}
+	}
+
+	const chunkPath = path.join(workspaceDir, "wiki-data-devops/published/dist/local/agent/chunks/chunks-0001.jsonl");
+	if (await Bun.file(chunkPath).exists()) {
+		const lines = (await Bun.file(chunkPath).text()).split(/\r?\n/).filter(line => line.trim().length > 0);
+		if (lines.length === 0) errors.push("agent chunks file must contain at least one JSONL chunk");
+		for (const [index, line] of lines.entries()) {
+			let chunk: any;
+			try {
+				chunk = JSON.parse(line);
+			} catch (error) {
+				errors.push(
+					`agent chunks line ${index + 1} is malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
+				);
+				continue;
+			}
+			for (const field of ["chunkId", "pageId", "url", "text", "checksum"]) {
+				requireStringField(chunk, `agent chunks line ${index + 1}`, field, errors);
+			}
+		}
+	}
+}
+
 export async function validateAiWikiManifest(workspaceDir: string): Promise<AiWikiManifestValidation> {
 	const manifestPath = path.join(workspaceDir, "AI_WIKI_MANIFEST.json");
 	const errors: string[] = [];
@@ -93,6 +175,7 @@ export async function validateAiWikiManifest(workspaceDir: string): Promise<AiWi
 		if (relPath.endsWith(".json")) await requireJsonFile(workspaceDir, relPath, errors);
 		else await requireExistingFile(workspaceDir, relPath, errors);
 	}
+	await validateDeeperWikiContracts(workspaceDir, errors);
 
 	return { ok: errors.length === 0, manifestPath, manifest, errors };
 }
