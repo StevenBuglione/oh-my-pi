@@ -2054,6 +2054,7 @@ export async function runWikiResearchQueue(
 	const maxIssues = Math.max(1, options.maxIssues ?? steering.maxIssuesPerRun ?? 1);
 	const client = options.githubClient ?? fetchWikiResearchGitHubClient;
 	const researcher = effectiveResearcher(options);
+	let contentIssuesProcessed = 0;
 	const result: WikiResearchQueueRunResult = {
 		schemaVersion: "omg.wiki.research_queue_run.v1",
 		owner,
@@ -2069,7 +2070,7 @@ export async function runWikiResearchQueue(
 	};
 
 	for (const repo of repos) {
-		if (result.processed.length >= maxIssues) break;
+		if (contentIssuesProcessed >= maxIssues) break;
 		try {
 			const queued = await client.listIssues(token, owner, repo, ["wiki:research", "wiki:queued"]);
 			const prOpen = await client.listIssues(token, owner, repo, ["wiki:research", "wiki:pr-open"]);
@@ -2112,6 +2113,7 @@ export async function runWikiResearchQueue(
 				}
 				continue;
 			}
+			if (contentIssuesProcessed >= maxIssues) continue;
 			const state = await runWikiResearchHarness(`queue ${owner}/${repo}#${issue.number}`, {
 				...options,
 				owner,
@@ -2159,6 +2161,7 @@ export async function runWikiResearchQueue(
 					researchGate?.status === "passed" ? "passed" : researchGate?.status === "failed" ? "failed" : "skipped",
 				citationCount: Array.isArray(researchBrief?.citations) ? researchBrief.citations.length : undefined,
 			});
+			contentIssuesProcessed += 1;
 		} catch (error) {
 			result.blocked.push({
 				repo,
@@ -2166,7 +2169,7 @@ export async function runWikiResearchQueue(
 			});
 		}
 	}
-	if (!result.scanned && !result.processed.length && !result.blocked.length && options.seedWhenEmpty) {
+	if (contentIssuesProcessed === 0 && options.seedWhenEmpty) {
 		if (!options.apply || !token) {
 			result.blocked.push({
 				repo: registryRepo,
