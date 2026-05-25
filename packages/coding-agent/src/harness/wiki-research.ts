@@ -37,9 +37,11 @@ export type WikiResearchWorkerRunner = (input: ChatGptWorkerCommand) => Promise<
 
 const DEFAULT_QWEN_BASE_URL = "http://10.10.10.8:8090/v1";
 const DEFAULT_QWEN_MODEL = "qwen3.6-35b-a3b-mtp-q4k-xl";
-const CHATGPT_MIN_DEEP_RESEARCH_CITATIONS = 8;
-const CHATGPT_MIN_DEEP_RESEARCH_FINDINGS = 8;
-const CHATGPT_MIN_DRAFT_SECTIONS = 5;
+const CHATGPT_RESEARCH_MODEL_OPTION = "Pro";
+const CHATGPT_RESEARCH_THINKING_OPTION = "Extended";
+const CHATGPT_MIN_DEEP_RESEARCH_CITATIONS = 12;
+const CHATGPT_MIN_DEEP_RESEARCH_FINDINGS = 12;
+const CHATGPT_MIN_DRAFT_SECTIONS = 8;
 
 export const WIKI_RESEARCH_REQUIRED_LABELS = [
 	"wiki:research",
@@ -896,6 +898,7 @@ function wikiResearchBriefPrompt(input: {
 	const repoName = input.candidateSourceDecision.repoName ?? "";
 	return [
 		"You are the research backend for OMG unattended wiki publishing.",
+		"You are running as the Pro Extended research worker. Spend the effort needed to produce a professional reference-quality package, not a thin canary draft.",
 		"ChatGPT is the only content decision engine. Local Qwen/watchdog models are not allowed to approve source, draft, critic, merge, or publishing decisions.",
 		"Create and attach a downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
 		"Do not paste any JSON into chat.",
@@ -978,14 +981,27 @@ function wikiResearchBriefPrompt(input: {
 				title: "string",
 				description: "string",
 				tags: ["research", sourceId],
-				required_sections: ["Summary", "Research Notes", "Sources"],
+				required_sections: [
+					"Summary",
+					"Decision Matrix",
+					"Reference Architecture",
+					"Restore Runbook",
+					"Failure Scenarios",
+					"Operational Checklist",
+					"Common Pitfalls",
+					"Maintenance Notes",
+					"Sources",
+				],
 				notes: ["string"],
 				sections: [
 					{
 						heading: "Summary",
 						purpose: "reader value of the section",
-						paragraphs: ["human-readable prose paragraph grounded in cited evidence"],
-						bullets: ["optional practical bullet"],
+						paragraphs: [
+							"human-readable prose paragraph grounded in cited evidence",
+							"second professional-depth paragraph with concrete operational guidance",
+						],
+						bullets: ["optional practical bullet with inline citation support"],
 						citation_urls: ["https://public-source.example/path"],
 					},
 				],
@@ -1016,13 +1032,17 @@ function wikiResearchBriefPrompt(input: {
 		`- For complete status, include at least ${CHATGPT_MIN_DEEP_RESEARCH_CITATIONS} high-quality citation URLs for normal factual pages.`,
 		`- Include at least ${CHATGPT_MIN_DEEP_RESEARCH_FINDINGS} substantive findings and claim-level citation mappings.`,
 		`- draft-instructions.json must include at least ${CHATGPT_MIN_DRAFT_SECTIONS} full sections with human-readable paragraphs, not placeholder bullets.`,
+		"- Each draft section should normally include at least two substantive paragraphs plus practical bullets where useful.",
+		"- Target professional reference quality: include decision matrices, tool comparisons, restore runbooks, failure scenarios, sample commands or command templates, storage-driver caveats, RPO/RTO examples, testing checklists, maintenance cadence, and explicit assumptions when relevant.",
+		"- Write like an experienced human operator explaining tradeoffs to another practitioner. Avoid filler, vague best practices, marketing language, and unsupported certainty.",
+		"- Use concrete examples and operational sequences, but keep commands conservative unless directly supported by official documentation.",
 		"- Write section paragraphs as a knowledgeable human would: specific, explanatory, calm, and useful. Avoid generic filler.",
 		"- Include source_quality entries for every citation and mark official/project/vendor/standards docs as official or standards.",
 		"- Every finding must be specific and supported by claim_citations.",
 		"- For every research-brief.findings string, include one claim_citations entry whose claim value is byte-for-byte identical to that finding and whose citation_urls support that finding.",
 		"- Prefer official documentation and primary sources; use blogs/forums only as supporting context.",
 		"- Do not invent citations, product facts, versions, or dates.",
-		"- Plan a page with Summary, Checklist, Decision Guidance, Common Pitfalls, Maintenance Notes, and Sources unless the issue explicitly asks for a different structure.",
+		"- Plan a page with Summary, Decision Matrix, Reference Architecture, Restore Runbook, Failure Scenarios, Operational Checklist, Common Pitfalls, Maintenance Notes, and Sources unless the issue explicitly asks for a different structure.",
 		"- If you agree with the candidate source, set source-decision recommended_action to use_existing_source.",
 		"- If the registered candidate source is wrong, set source-decision to blocked or needs_user_decision; do not silently pick a different repo.",
 		"- critic-review.json is your ChatGPT preflight approval of the package and planned draft. If citations or source coverage are weak, do not approve.",
@@ -1065,7 +1085,7 @@ function wikiResearchBriefRepairPrompt(invalidText: string, error: string | unde
 }
 
 async function createResearchWorker(state: HarnessRunState, runner: WikiResearchWorkerRunner): Promise<string> {
-	const existing = state.workers.find(worker => worker.role === "researcher")?.workerId;
+	const existing = state.workers.find(worker => worker.role === "researcher" && !worker.stoppedAt)?.workerId;
 	if (existing) return existing;
 	const result = await runner({
 		action: "create",
@@ -1088,6 +1108,21 @@ async function createResearchWorker(state: HarnessRunState, runner: WikiResearch
 	await writeRunFile(state.runId, "responses", "researcher-rename.json", rename.stdout || rename.stderr);
 	await bindWorkerRole(state, "researcher", { workerId, title });
 	return workerId;
+}
+
+async function stopResearchWorker(
+	state: HarnessRunState,
+	workerId: string,
+	runner: WikiResearchWorkerRunner,
+): Promise<void> {
+	const stopped = await runner({
+		action: "stop",
+		worker: workerId,
+		extraArgs: ["--json"],
+		timeoutMs: 30_000,
+	});
+	await writeRunFile(state.runId, "responses", "researcher-stop.json", stopped.stdout || stopped.stderr);
+	await bindWorkerRole(state, "researcher", { workerId, stoppedAt: new Date().toISOString() });
 }
 
 async function downloadResearchBriefPackage(
@@ -1322,8 +1357,8 @@ async function sendResearchPrompt(
 	const promptName = attempt === "initial" ? "researcher.md" : "researcher-repair.md";
 	await writeRunFile(state.runId, "prompts", promptName, prompt);
 	await consumePromptBudget(state, "researcher");
-	let modelOption = "Thinking";
-	const thinkingOption = "Standard";
+	let modelOption = CHATGPT_RESEARCH_MODEL_OPTION;
+	let thinkingOption = CHATGPT_RESEARCH_THINKING_OPTION;
 	let send = await runner({
 		action: "send",
 		worker: workerId,
@@ -1340,7 +1375,8 @@ async function sendResearchPrompt(
 		send.stdout || send.stderr,
 	);
 	if (!send.ok && modelSelectionFailed(send)) {
-		modelOption = "Pro";
+		modelOption = "Thinking";
+		thinkingOption = "Standard";
 		send = await runner({
 			action: "send",
 			worker: workerId,
@@ -1445,135 +1481,148 @@ async function runChatGptResearchBrief(
 }> {
 	const runner = options.workerRunner ?? runChatGptWorkerCommand;
 	const workerId = await createResearchWorker(state, runner);
-	const sent = await sendResearchPrompt(
-		state,
-		workerId,
-		wikiResearchBriefPrompt({ issue, body, candidateSourceDecision, registry, steering }),
-		runner,
-		"initial",
-	);
-	let parsed = await downloadResearchBriefPackage(state, {
-		requestId: sent.requestId,
-		conversationUrl: sent.conversationUrl,
-		runner,
-		attempt: "initial",
-	});
-	let repaired = false;
-	if (!parsed.ok) {
-		const copied = await runner({
-			action: "copy_message",
+	try {
+		const sent = await sendResearchPrompt(
+			state,
+			workerId,
+			wikiResearchBriefPrompt({ issue, body, candidateSourceDecision, registry, steering }),
+			runner,
+			"initial",
+		);
+		let parsed = await downloadResearchBriefPackage(state, {
+			requestId: sent.requestId,
 			conversationUrl: sent.conversationUrl,
-			timeoutMs: 120_000,
+			runner,
+			attempt: "initial",
 		});
-		await writeRunFile(state.runId, "responses", "researcher-copy.txt", copied.stdout || copied.stderr);
-		const repairSent = await sendResearchPrompt(
-			state,
-			workerId,
-			wikiResearchBriefRepairPrompt(copied.stdout || parsed.error || "", parsed.error),
-			runner,
-			"repair",
-		);
-		parsed = await downloadResearchBriefPackage(state, {
-			requestId: repairSent.requestId ?? sent.requestId,
-			conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
-			runner,
-			attempt: "repair",
-		});
-		repaired = true;
-	}
-	if (!parsed.ok) {
-		throw new Error(`ChatGPT researcher returned invalid schema JSON: ${parsed.error ?? "unknown validation error"}`);
-	}
-	let completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
-	if (completionErrors.length && !repaired) {
-		const repairSent = await sendResearchPrompt(
-			state,
-			workerId,
-			wikiResearchBriefRepairPrompt(
-				JSON.stringify(
-					{
-						sourceDecision: parsed.sourceDecision,
-						research: parsed.research,
-						contentPlan: parsed.contentPlan,
-						draftInstructions: parsed.draftInstructions,
-						criticReview: parsed.criticReview,
-					},
-					null,
-					2,
-				),
-				`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`,
-			),
-			runner,
-			"repair",
-		);
-		const repairedPackage = await downloadResearchBriefPackage(state, {
-			requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,
-			conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
-			runner,
-			attempt: "repair",
-		});
-		if (!repairedPackage.ok) {
+		let repaired = false;
+		if (!parsed.ok) {
+			const copied = await runner({
+				action: "copy_message",
+				conversationUrl: sent.conversationUrl,
+				timeoutMs: 120_000,
+			});
+			await writeRunFile(state.runId, "responses", "researcher-copy.txt", copied.stdout || copied.stderr);
+			const repairSent = await sendResearchPrompt(
+				state,
+				workerId,
+				wikiResearchBriefRepairPrompt(copied.stdout || parsed.error || "", parsed.error),
+				runner,
+				"repair",
+			);
+			parsed = await downloadResearchBriefPackage(state, {
+				requestId: repairSent.requestId ?? sent.requestId,
+				conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
+				runner,
+				attempt: "repair",
+			});
+			repaired = true;
+		}
+		if (!parsed.ok) {
 			throw new Error(
-				`ChatGPT researcher returned invalid schema JSON after quality repair: ${
-					repairedPackage.error ?? "unknown validation error"
-				}`,
+				`ChatGPT researcher returned invalid schema JSON: ${parsed.error ?? "unknown validation error"}`,
 			);
 		}
-		parsed = repairedPackage;
-		repaired = true;
-		completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
+		let completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
+		if (completionErrors.length && !repaired) {
+			const repairSent = await sendResearchPrompt(
+				state,
+				workerId,
+				wikiResearchBriefRepairPrompt(
+					JSON.stringify(
+						{
+							sourceDecision: parsed.sourceDecision,
+							research: parsed.research,
+							contentPlan: parsed.contentPlan,
+							draftInstructions: parsed.draftInstructions,
+							criticReview: parsed.criticReview,
+						},
+						null,
+						2,
+					),
+					`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`,
+				),
+				runner,
+				"repair",
+			);
+			const repairedPackage = await downloadResearchBriefPackage(state, {
+				requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,
+				conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
+				runner,
+				attempt: "repair",
+			});
+			if (!repairedPackage.ok) {
+				throw new Error(
+					`ChatGPT researcher returned invalid schema JSON after quality repair: ${
+						repairedPackage.error ?? "unknown validation error"
+					}`,
+				);
+			}
+			parsed = repairedPackage;
+			repaired = true;
+			completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
+		}
+		if (completionErrors.length) {
+			throw new Error(`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`);
+		}
+		const canonicalPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"wiki-research-brief.json",
+			`${JSON.stringify(parsed.research, null, 2)}\n`,
+		);
+		const sourceDecisionPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"wiki-source-decision-chatgpt.json",
+			`${JSON.stringify(parsed.sourceDecision, null, 2)}\n`,
+		);
+		const planPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"wiki-content-plan-chatgpt.json",
+			`${JSON.stringify(parsed.contentPlan, null, 2)}\n`,
+		);
+		const draftInstructionPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"wiki-draft-instructions-chatgpt.json",
+			`${JSON.stringify(parsed.draftInstructions, null, 2)}\n`,
+		);
+		const criticPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"wiki-research-review-chatgpt.json",
+			`${JSON.stringify(parsed.criticReview, null, 2)}\n`,
+		);
+		return {
+			sourceDecision: parsed.sourceDecision,
+			research: parsed.research,
+			contentPlan: parsed.contentPlan,
+			draftInstructions: parsed.draftInstructions,
+			criticReview: parsed.criticReview,
+			responsePaths: [
+				...parsed.responsePaths,
+				canonicalPath,
+				sourceDecisionPath,
+				planPath,
+				draftInstructionPath,
+				criticPath,
+			],
+			workerId,
+			requestId: parsed.requestId,
+			conversationUrl: parsed.conversationUrl,
+		};
+	} finally {
+		await stopResearchWorker(state, workerId, runner).catch(async error => {
+			await writeRunFile(
+				state.runId,
+				"responses",
+				"researcher-stop-error.txt",
+				error instanceof Error ? error.message : String(error),
+			);
+		});
 	}
-	if (completionErrors.length) {
-		throw new Error(`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`);
-	}
-	const canonicalPath = await writeRunFile(
-		state.runId,
-		"responses",
-		"wiki-research-brief.json",
-		`${JSON.stringify(parsed.research, null, 2)}\n`,
-	);
-	const sourceDecisionPath = await writeRunFile(
-		state.runId,
-		"responses",
-		"wiki-source-decision-chatgpt.json",
-		`${JSON.stringify(parsed.sourceDecision, null, 2)}\n`,
-	);
-	const planPath = await writeRunFile(
-		state.runId,
-		"responses",
-		"wiki-content-plan-chatgpt.json",
-		`${JSON.stringify(parsed.contentPlan, null, 2)}\n`,
-	);
-	const draftInstructionPath = await writeRunFile(
-		state.runId,
-		"responses",
-		"wiki-draft-instructions-chatgpt.json",
-		`${JSON.stringify(parsed.draftInstructions, null, 2)}\n`,
-	);
-	const criticPath = await writeRunFile(
-		state.runId,
-		"responses",
-		"wiki-research-review-chatgpt.json",
-		`${JSON.stringify(parsed.criticReview, null, 2)}\n`,
-	);
-	return {
-		sourceDecision: parsed.sourceDecision,
-		research: parsed.research,
-		contentPlan: parsed.contentPlan,
-		draftInstructions: parsed.draftInstructions,
-		criticReview: parsed.criticReview,
-		responsePaths: [
-			...parsed.responsePaths,
-			canonicalPath,
-			sourceDecisionPath,
-			planPath,
-			draftInstructionPath,
-			criticPath,
-		],
-		workerId,
-		requestId: parsed.requestId,
-		conversationUrl: parsed.conversationUrl,
-	};
 }
 
 function validateChatGptResearchDecisionPackage(
@@ -1700,6 +1749,8 @@ function draftMarkdown(
 			].includes(section),
 	);
 	const today = new Date().toISOString().slice(0, 10);
+	const publishStatus = research.confidence >= 0.75 ? "active" : "draft";
+	const reviewStatus = research.confidence >= 0.75 ? "needs_review" : "ai_draft";
 	const citationLines = research.citations.map(
 		url => `  - title: ${yamlScalar(new URL(url).hostname)}\n    url: ${yamlScalar(url)}\n    accessed: ${today}`,
 	);
@@ -1725,9 +1776,9 @@ function draftMarkdown(
 		"tags:",
 		...tags.map(tag => `  - ${yamlScalar(tag)}`),
 		"area: general",
-		"status: draft",
+		`status: ${publishStatus}`,
 		"difficulty: intermediate",
-		"review_status: ai_draft",
+		`review_status: ${reviewStatus}`,
 		"generated_by: omg-wiki-research",
 		"human_reviewed: false",
 		`last_verified: ${today}`,

@@ -2227,6 +2227,9 @@ describe("harness core", () => {
 
 	it("applies issue-backed wiki research through mocked branch and PR APIs without leaking PATs", async () => {
 		const calls: string[] = [];
+		const workerCalls: string[] = [];
+		const sendModes: string[] = [];
+		const workerRunner = wikiResearchWorkerRunner({ zipped: true, calls: workerCalls });
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		const steeringPath = path.join(tempRoot, "wiki.steering.json");
 		await writeWikiRegistry(registryPath, [
@@ -2248,7 +2251,10 @@ describe("harness core", () => {
 			registryPath,
 			apply: true,
 			githubToken: "ghp_super_secret_token",
-			workerRunner: wikiResearchWorkerRunner({ zipped: true }),
+			workerRunner: async input => {
+				if (input.action === "send") sendModes.push(`${input.modelOption}:${input.thinkingOption}`);
+				return workerRunner(input);
+			},
 			githubClient: wikiResearchMockClient({
 				calls,
 				issue: wikiResearchIssue({
@@ -2264,6 +2270,13 @@ describe("harness core", () => {
 		expect(
 			state.workers.some(worker => worker.role === "researcher" && worker.workerId === "researcher-chatgpt-1"),
 		).toBe(true);
+		expect(
+			state.workers.some(
+				worker => worker.role === "researcher" && worker.workerId === "researcher-chatgpt-1" && worker.stoppedAt,
+			),
+		).toBe(true);
+		expect(sendModes).toContain("Pro:Extended");
+		expect(workerCalls).toContain("stop");
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
 		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);
 		expect(calls.some(call => call === "pr:wiki-data-devops")).toBe(true);
@@ -3211,6 +3224,10 @@ function wikiResearchBrief(overrides: Partial<any> = {}) {
 			"https://velero.io/docs/main/basic-install/",
 			"https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/",
 			"https://velero.io/docs/main/restore-reference/",
+			"https://etcd.io/docs/v3.5/op-guide/recovery/",
+			"https://kubernetes.io/docs/concepts/storage/volume-snapshots/",
+			"https://kubernetes-csi.github.io/docs/snapshot-restore-feature.html",
+			"https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/",
 		],
 		findings: [
 			"Use official docs as the primary source.",
@@ -3221,6 +3238,10 @@ function wikiResearchBrief(overrides: Partial<any> = {}) {
 			"Record release-note decisions near the workflow that publishes releases.",
 			"Use changelogs for human-readable change history rather than raw commit logs.",
 			"Separate operational checklists from background explanation.",
+			"Protect control-plane state separately from workload data.",
+			"Use storage snapshots only after confirming driver and application consistency assumptions.",
+			"GitOps can rebuild declared state but does not restore runtime data by itself.",
+			"Document version and controller prerequisites before restore drills.",
 		],
 		source_quality: [
 			"https://kubernetes.io/docs/home/",
@@ -3231,6 +3252,10 @@ function wikiResearchBrief(overrides: Partial<any> = {}) {
 			"https://velero.io/docs/main/basic-install/",
 			"https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/",
 			"https://velero.io/docs/main/restore-reference/",
+			"https://etcd.io/docs/v3.5/op-guide/recovery/",
+			"https://kubernetes.io/docs/concepts/storage/volume-snapshots/",
+			"https://kubernetes-csi.github.io/docs/snapshot-restore-feature.html",
+			"https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/",
 		].map(url => ({
 			url,
 			title: new URL(url).hostname,
@@ -3266,6 +3291,22 @@ function wikiResearchBrief(overrides: Partial<any> = {}) {
 			{
 				claim: "Separate operational checklists from background explanation.",
 				citation_urls: ["https://docs.docker.com/"],
+			},
+			{
+				claim: "Protect control-plane state separately from workload data.",
+				citation_urls: ["https://etcd.io/docs/v3.5/op-guide/recovery/"],
+			},
+			{
+				claim: "Use storage snapshots only after confirming driver and application consistency assumptions.",
+				citation_urls: ["https://kubernetes.io/docs/concepts/storage/volume-snapshots/"],
+			},
+			{
+				claim: "GitOps can rebuild declared state but does not restore runtime data by itself.",
+				citation_urls: ["https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/"],
+			},
+			{
+				claim: "Document version and controller prerequisites before restore drills.",
+				citation_urls: ["https://kubernetes-csi.github.io/docs/snapshot-restore-feature.html"],
 			},
 		],
 		reader_takeaways: [
@@ -3314,6 +3355,16 @@ function wikiResearchContentPlan(overrides: Partial<any> = {}) {
 }
 
 function wikiResearchDraftInstructions(overrides: Partial<any> = {}) {
+	const citationUrls = [
+		"https://kubernetes.io/docs/home/",
+		"https://velero.io/docs/",
+		"https://docs.github.com/en/actions",
+		"https://docs.docker.com/",
+		"https://kubernetes.io/docs/concepts/cluster-administration/backing-up/",
+		"https://velero.io/docs/main/basic-install/",
+		"https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/",
+		"https://velero.io/docs/main/restore-reference/",
+	];
 	return {
 		schema_version: "omg.wiki.draft_instructions.v1",
 		status: "complete",
@@ -3324,23 +3375,25 @@ function wikiResearchDraftInstructions(overrides: Partial<any> = {}) {
 		tags: ["research", "devops", "kubernetes"],
 		required_sections: ["Summary", "Research Notes", "Sources"],
 		notes: ["Keep the page in ai_draft until a human reviews the implementation details."],
-		sections: ["Summary", "Checklist", "Decision Guidance", "Common Pitfalls", "Maintenance Notes"].map(
-			(heading, index) => ({
-				heading,
-				purpose: `Explain ${heading.toLowerCase()} with cited, readable guidance.`,
-				paragraphs: [`${heading} guidance should connect the source material to a practical reader decision.`],
-				bullets: [`Apply the cited ${heading.toLowerCase()} guidance before marking the page reviewed.`],
-				citation_urls: [
-					[
-						"https://kubernetes.io/docs/home/",
-						"https://velero.io/docs/",
-						"https://docs.github.com/en/actions",
-						"https://docs.docker.com/",
-						"https://kubernetes.io/docs/concepts/cluster-administration/backing-up/",
-					][index],
-				],
-			}),
-		),
+		sections: [
+			"Summary",
+			"Decision Matrix",
+			"Reference Architecture",
+			"Restore Runbook",
+			"Failure Scenarios",
+			"Operational Checklist",
+			"Common Pitfalls",
+			"Maintenance Notes",
+		].map((heading, index) => ({
+			heading,
+			purpose: `Explain ${heading.toLowerCase()} with cited, readable guidance.`,
+			paragraphs: [
+				`${heading} guidance should connect the source material to a practical reader decision.`,
+				`${heading} details should include enough operational context to be useful during review.`,
+			],
+			bullets: [`Apply the cited ${heading.toLowerCase()} guidance before marking the page reviewed.`],
+			citation_urls: [citationUrls[index % citationUrls.length]],
+		})),
 		confidence: 0.82,
 		...overrides,
 	};
@@ -3456,7 +3509,7 @@ function wikiResearchWorkerRunner(
 							"critic-review.json",
 						],
 						errors: [],
-						citation_count: invalid ? 1 : 8,
+						citation_count: invalid ? 1 : 12,
 						worker_id: "researcher-chatgpt-1",
 						request_id: "req-research",
 						conversation_url: "https://chatgpt.com/c/researcher",
@@ -3496,6 +3549,9 @@ function wikiResearchWorkerRunner(
 				stderr: "",
 				downloadedFiles,
 			};
+		}
+		if (input.action === "stop") {
+			return { ok: true, action: input.action, command: [], exitCode: 0, stdout: "{}", stderr: "" };
 		}
 		if (input.action === "copy_message") {
 			copyCount += 1;

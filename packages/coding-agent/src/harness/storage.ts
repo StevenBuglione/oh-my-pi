@@ -276,6 +276,7 @@ export async function bindWorkerRole(
 		modelOption?: string;
 		thinkingOption?: string;
 		skillBundles?: string[];
+		stoppedAt?: string;
 	},
 	agentDir?: string,
 ): Promise<void> {

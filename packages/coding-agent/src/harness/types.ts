@@ -330,6 +330,7 @@ export interface HarnessRunState {
 		modelOption?: string;
 		thinkingOption?: string;
 		skillBundles?: string[];
+		stoppedAt?: string;
 	}>;
 	evidencePackets: string[];
 	artifacts: Array<{
