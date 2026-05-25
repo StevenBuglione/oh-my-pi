@@ -2971,6 +2971,55 @@ describe("harness core", () => {
 		).rejects.toThrow("critic-review.json");
 	});
 
+	it("blocks ChatGPT packages that return drafting instructions instead of article prose", async () => {
+		const registryPath = path.join(tempRoot, "research-sources-instruction-voice.json");
+		const steeringPath = path.join(tempRoot, "wiki-instruction-voice.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		await expect(
+			runWikiResearchHarness("issue backed research", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({
+					draftInstructions: {
+						sections: [
+							{
+								heading: "Summary",
+								purpose: "Explain the page.",
+								paragraphs: ["Open with the practical thesis instead of publishing final prose."],
+								bullets: [],
+								citation_urls: ["https://kubernetes.io/docs/home/"],
+							},
+							...wikiResearchDraftInstructions().sections.slice(1),
+						],
+					},
+				}),
+				githubClient: wikiResearchMockClient({
+					issue: wikiResearchIssue({
+						title: "Kubernetes backup patterns",
+						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+						repo: "wiki-data-devops",
+					}),
+				}),
+			}),
+		).rejects.toThrow("instruction voice");
+	});
+
 	it("runs the wiki research queue across registry and source repos with issue leasing", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3788,6 +3837,7 @@ function wikiResearchWorkerRunner(
 		calls?: string[];
 		zipped?: boolean;
 		sourceDecision?: Partial<any>;
+		draftInstructions?: Partial<any>;
 		criticReview?: Partial<any>;
 		missingFile?: string;
 	} = {},
@@ -3866,6 +3916,7 @@ function wikiResearchWorkerRunner(
 					}),
 					"draft-instructions.json": wikiResearchDraftInstructions({
 						source_id: options.sourceDecision?.source_id ?? "devops",
+						...(options.draftInstructions ?? {}),
 					}),
 					"critic-review.json": wikiResearchReview(options.criticReview),
 					"validation.json": {

@@ -1081,6 +1081,7 @@ function wikiResearchBriefPrompt(input: {
 		`- Include at least ${CHATGPT_MIN_DEEP_RESEARCH_FINDINGS} substantive findings and claim-level citation mappings.`,
 		`- draft-instructions.json must include at least ${CHATGPT_MIN_DRAFT_SECTIONS} full sections with human-readable paragraphs, not placeholder bullets.`,
 		"- Each draft section should normally include at least two substantive paragraphs plus practical bullets where useful.",
+		'- draft-instructions sections must contain final article prose, not instructions to a future writer. Do not start paragraphs with phrases like "Open with", "Frame", "Build", "Describe", "Show", "Start", or "Then provide".',
 		"- Target professional reference quality: include decision matrices, tool comparisons, restore runbooks, failure scenarios, sample commands or command templates, storage-driver caveats, RPO/RTO examples, testing checklists, maintenance cadence, and explicit assumptions when relevant.",
 		"- Write like an experienced human operator explaining tradeoffs to another practitioner. Avoid filler, vague best practices, marketing language, and unsupported certainty.",
 		"- Use concrete examples and operational sequences, but keep commands conservative unless directly supported by official documentation.",
@@ -2113,6 +2114,11 @@ function validateChatGptDecisionPackage(
 		if (!section.paragraphs.length)
 			errors.push(`draft section ${section.heading} needs at least one prose paragraph`);
 		if (!section.citation_urls.length) errors.push(`draft section ${section.heading} needs citation URLs`);
+		for (const paragraph of section.paragraphs) {
+			if (hasDraftingInstructionVoice(paragraph)) {
+				errors.push(`draft section ${section.heading} contains instruction voice instead of final article prose`);
+			}
+		}
 	}
 	if (!decisionPackage.criticReview.approved || decisionPackage.criticReview.blocking_findings.length) {
 		errors.push("ChatGPT critic review did not approve the package");
@@ -2134,6 +2140,12 @@ function citedFinding(claim: string, research: WikiResearchBriefEnvelope, index:
 	const mapped = research.claim_citations.find(item => item.claim === claim)?.citation_urls[0];
 	const url = mapped ?? research.citations[index % Math.max(1, research.citations.length)];
 	return url ? `${claim} ${citationLink(url, research.citations)}` : claim;
+}
+
+function hasDraftingInstructionVoice(text: string): boolean {
+	return /^(Open with|Frame the|Build the|Describe the|Show the|Start the|Then provide|Make the tradeoffs explicit|Call out|Warn that)\b/i.test(
+		text.trim(),
+	);
 }
 
 function appendSectionCitations(text: string, urls: string[], citations: string[]): string {
@@ -2322,6 +2334,9 @@ function reviewDraft(draft: WikiPageDraftEnvelope, research: WikiResearchBriefEn
 	}
 	if (/To be expanded from cited source material/i.test(draft.markdown)) {
 		blocking.push("draft must not publish placeholder expansion text");
+	}
+	if (draft.markdown.split(/\n+/).some(line => hasDraftingInstructionVoice(line))) {
+		blocking.push("draft must not publish instructions to a future writer");
 	}
 	if (!/\[\d+\]\(https?:\/\/[^)]+\)/.test(draft.markdown)) blocking.push("draft needs inline citations");
 	return {
