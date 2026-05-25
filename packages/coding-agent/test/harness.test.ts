@@ -2544,6 +2544,49 @@ describe("harness core", () => {
 		).toBe(true);
 	});
 
+	it("repairs ChatGPT wiki research packages that miss finding-level citation mappings", async () => {
+		const workerCalls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner({ missingFindingMappingsFirst: true, calls: workerCalls }),
+			githubClient: wikiResearchMockClient({
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(workerCalls.filter(action => action === "send")).toHaveLength(2);
+		expect(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "responses", "researcher-repair-package-research-brief.json"),
+			).exists(),
+		).toBe(true);
+	});
+
 	it("blocks production wiki research when ChatGPT never returns schema-valid JSON", async () => {
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		const steeringPath = path.join(tempRoot, "wiki.steering.json");
@@ -3214,6 +3257,7 @@ function wikiResearchWorkerRunner(
 	options: {
 		invalidFirst?: boolean;
 		invalidAlways?: boolean;
+		missingFindingMappingsFirst?: boolean;
 		calls?: string[];
 		zipped?: boolean;
 		sourceDecision?: Partial<any>;
@@ -3271,11 +3315,25 @@ function wikiResearchWorkerRunner(
 		if (input.action === "download_artifacts") {
 			downloadCount += 1;
 			const invalid = options.invalidAlways || (options.invalidFirst && downloadCount === 1);
+			const missingFindingMappings = options.missingFindingMappingsFirst && downloadCount === 1;
 			if (input.downloadDir) {
 				await fs.mkdir(input.downloadDir, { recursive: true });
 				const packageJson: Record<string, unknown> = {
 					"source-decision.json": wikiResearchSourceDecision(options.sourceDecision),
-					"research-brief.json": invalid ? wikiResearchBrief({ citations: ["not-a-url"] }) : wikiResearchBrief(),
+					"research-brief.json": invalid
+						? wikiResearchBrief({ citations: ["not-a-url"] })
+						: wikiResearchBrief(
+								missingFindingMappings
+									? {
+											claim_citations: [
+												{
+													claim: "Kubernetes backup planning should use official documentation.",
+													citation_urls: ["https://kubernetes.io/docs/home/"],
+												},
+											],
+										}
+									: {},
+							),
 					"content-plan.json": wikiResearchContentPlan({
 						source_id: options.sourceDecision?.source_id ?? "devops",
 					}),

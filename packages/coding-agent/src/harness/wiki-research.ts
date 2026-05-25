@@ -1013,6 +1013,7 @@ function wikiResearchBriefPrompt(input: {
 		"- Write section paragraphs as a knowledgeable human would: specific, explanatory, calm, and useful. Avoid generic filler.",
 		"- Include source_quality entries for every citation and mark official/project/vendor/standards docs as official or standards.",
 		"- Every finding must be specific and supported by claim_citations.",
+		"- For every research-brief.findings string, include one claim_citations entry whose claim value is byte-for-byte identical to that finding and whose citation_urls support that finding.",
 		"- Prefer official documentation and primary sources; use blogs/forums only as supporting context.",
 		"- Do not invent citations, product facts, versions, or dates.",
 		"- Plan a page with Summary, Checklist, Decision Guidance, Common Pitfalls, Maintenance Notes, and Sources unless the issue explicitly asks for a different structure.",
@@ -1049,6 +1050,7 @@ function wikiResearchBriefRepairPrompt(invalidText: string, error: string | unde
 		"Create and attach a corrected downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
 		"Do not paste JSON into chat. The final chat message must contain only the artifact link or a one-line artifact-ready note.",
 		"Each package file must use the schema_version requested in the original prompt, and validation.json must prove you checked every file before exiting.",
+		"If the validation error mentions claim citation mapping, update research-brief.json so every findings[] string has a claim_citations[] object with claim exactly equal to that finding string and citation_urls containing supporting public URLs.",
 		`Validation error: ${error ?? "invalid JSON envelope"}`,
 		"",
 		"Previous response:",
@@ -1450,6 +1452,7 @@ async function runChatGptResearchBrief(
 		runner,
 		attempt: "initial",
 	});
+	let repaired = false;
 	if (!parsed.ok) {
 		const copied = await runner({
 			action: "copy_message",
@@ -1470,12 +1473,50 @@ async function runChatGptResearchBrief(
 			runner,
 			attempt: "repair",
 		});
+		repaired = true;
 	}
 	if (!parsed.ok) {
 		throw new Error(`ChatGPT researcher returned invalid schema JSON: ${parsed.error ?? "unknown validation error"}`);
 	}
-	const completionErrors = validateCompletedResearchBrief(parsed.research, steering, "chatgpt");
-	completionErrors.push(...validateChatGptDecisionPackage(parsed, candidateSourceDecision));
+	let completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
+	if (completionErrors.length && !repaired) {
+		const repairSent = await sendResearchPrompt(
+			state,
+			workerId,
+			wikiResearchBriefRepairPrompt(
+				JSON.stringify(
+					{
+						sourceDecision: parsed.sourceDecision,
+						research: parsed.research,
+						contentPlan: parsed.contentPlan,
+						draftInstructions: parsed.draftInstructions,
+						criticReview: parsed.criticReview,
+					},
+					null,
+					2,
+				),
+				`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`,
+			),
+			runner,
+			"repair",
+		);
+		const repairedPackage = await downloadResearchBriefPackage(state, {
+			requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,
+			conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
+			runner,
+			attempt: "repair",
+		});
+		if (!repairedPackage.ok) {
+			throw new Error(
+				`ChatGPT researcher returned invalid schema JSON after quality repair: ${
+					repairedPackage.error ?? "unknown validation error"
+				}`,
+			);
+		}
+		parsed = repairedPackage;
+		repaired = true;
+		completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
+	}
 	if (completionErrors.length) {
 		throw new Error(`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`);
 	}
@@ -1527,6 +1568,17 @@ async function runChatGptResearchBrief(
 		requestId: parsed.requestId,
 		conversationUrl: parsed.conversationUrl,
 	};
+}
+
+function validateChatGptResearchDecisionPackage(
+	decisionPackage: WikiResearchDecisionPackage,
+	steering: WikiResearchSteering,
+	candidateSourceDecision: CandidateSourceDecision,
+): string[] {
+	return [
+		...validateCompletedResearchBrief(decisionPackage.research, steering, "chatgpt"),
+		...validateChatGptDecisionPackage(decisionPackage, candidateSourceDecision),
+	];
 }
 
 function validateChatGptDecisionPackage(
