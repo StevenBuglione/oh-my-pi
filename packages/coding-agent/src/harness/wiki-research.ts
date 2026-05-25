@@ -42,6 +42,8 @@ const CHATGPT_RESEARCH_THINKING_OPTION = "Extended";
 const CHATGPT_MIN_DEEP_RESEARCH_CITATIONS = 12;
 const CHATGPT_MIN_DEEP_RESEARCH_FINDINGS = 12;
 const CHATGPT_MIN_DRAFT_SECTIONS = 8;
+const CHATGPT_RESEARCH_WATCH_SECONDS = 1_800;
+const CHATGPT_RESEARCH_WATCH_PROCESS_TIMEOUT_MS = (CHATGPT_RESEARCH_WATCH_SECONDS + 60) * 1_000;
 
 export const WIKI_RESEARCH_REQUIRED_LABELS = [
 	"wiki:research",
@@ -1626,8 +1628,8 @@ async function sendResearchPrompt(
 	const watched = await runner({
 		action: "watch",
 		worker: workerId,
-		extraArgs: ["--timeout", "600", "--json"],
-		timeoutMs: 660_000,
+		extraArgs: ["--timeout", String(CHATGPT_RESEARCH_WATCH_SECONDS), "--json"],
+		timeoutMs: CHATGPT_RESEARCH_WATCH_PROCESS_TIMEOUT_MS,
 	});
 	await writeRunFile(
 		state.runId,
@@ -1635,8 +1637,9 @@ async function sendResearchPrompt(
 		attempt === "initial" ? "researcher-watch.json" : "researcher-repair-watch.json",
 		watched.stdout || watched.stderr,
 	);
+	const watchedStatusMeta = workerStatusMeta(watched.stdout);
 	let watchMeta = responseMeta(watched.stdout);
-	if (!watched.ok) {
+	if (!watched.ok || watchedStatusMeta.isGenerating === true) {
 		const status = await runner({
 			action: "status",
 			worker: workerId,
@@ -1653,7 +1656,10 @@ async function sendResearchPrompt(
 		);
 		const statusMeta = workerStatusMeta(status.stdout);
 		if (!status.ok || !statusMeta.conversationUrl || statusMeta.isGenerating === true) {
-			const reason = watched.stderr || watched.stdout || status.stderr || status.stdout || "no watch output";
+			const reason =
+				statusMeta.isGenerating === true
+					? `researcher still generating after ${CHATGPT_RESEARCH_WATCH_SECONDS}s`
+					: watched.stderr || watched.stdout || status.stderr || status.stdout || "no watch output";
 			throw new Error(`failed while watching researcher worker: ${reason}`);
 		}
 		watchMeta = {

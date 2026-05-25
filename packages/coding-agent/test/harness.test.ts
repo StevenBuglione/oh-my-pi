@@ -2310,7 +2310,7 @@ describe("harness core", () => {
 		).toBe(true);
 		expect(sendModes).toContain("Pro:Extended");
 		expect(sendSchemaCounts).toContain(6);
-		expect(watchArgs.some(args => args.includes("--timeout") && args.includes("600"))).toBe(true);
+		expect(watchArgs.some(args => args.includes("--timeout") && args.includes("1800"))).toBe(true);
 		expect(workerCalls).toContain("stop");
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
 		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);
@@ -2346,7 +2346,7 @@ describe("harness core", () => {
 			workerRunner: async input => {
 				if (input.action === "watch") {
 					calls.push("watch-timeout");
-					expect(input.timeoutMs).toBeGreaterThan(600_000);
+					expect(input.timeoutMs).toBeGreaterThan(1_800_000);
 					return { ok: false, action: input.action, command: [], exitCode: null, stdout: "", stderr: "" };
 				}
 				if (input.action === "status") {
