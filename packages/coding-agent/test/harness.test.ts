@@ -2259,6 +2259,7 @@ describe("harness core", () => {
 		const workerCalls: string[] = [];
 		const sendModes: string[] = [];
 		const sendSchemaCounts: number[] = [];
+		const watchArgs: string[][] = [];
 		const workerRunner = wikiResearchWorkerRunner({ zipped: true, calls: workerCalls });
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		const steeringPath = path.join(tempRoot, "wiki.steering.json");
@@ -2284,6 +2285,7 @@ describe("harness core", () => {
 			workerRunner: async input => {
 				if (input.action === "send") sendModes.push(`${input.modelOption}:${input.thinkingOption}`);
 				if (input.action === "send") sendSchemaCounts.push(input.schemas?.length ?? 0);
+				if (input.action === "watch") watchArgs.push(input.extraArgs ?? []);
 				return workerRunner(input);
 			},
 			githubClient: wikiResearchMockClient({
@@ -2308,6 +2310,7 @@ describe("harness core", () => {
 		).toBe(true);
 		expect(sendModes).toContain("Pro:Extended");
 		expect(sendSchemaCounts).toContain(6);
+		expect(watchArgs.some(args => args.includes("--timeout") && args.includes("600"))).toBe(true);
 		expect(workerCalls).toContain("stop");
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
 		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);

@@ -1609,7 +1609,7 @@ async function sendResearchPrompt(
 	const watched = await runner({
 		action: "watch",
 		worker: workerId,
-		extraArgs: ["--json"],
+		extraArgs: ["--timeout", "600", "--json"],
 		timeoutMs: 600_000,
 	});
 	await writeRunFile(
