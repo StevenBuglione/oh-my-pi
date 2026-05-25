@@ -2501,6 +2501,53 @@ describe("harness core", () => {
 		expect(calls.some(call => call.startsWith("put:"))).toBe(false);
 	});
 
+	it("accepts post-merge publish verification when latest points at a descendant content commit", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources-descendant.json");
+		const steeringPath = path.join(tempRoot, "wiki-descendant.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const descendantCommit = "5".repeat(40);
+		const result = await runWikiResearchPublishVerification({
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			fetchImpl: wikiPublishFetch({ expectedCommit: descendantCommit }),
+			publishVerificationAttempts: 1,
+			publishVerificationDelayMs: 0,
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				withPublishVerification: true,
+				publishedCommit: descendantCommit,
+				compareStatus: "ahead",
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(result.status).toBe("verified");
+		expect(calls).toContain(`compare:wiki-data-devops:${"3".repeat(40)}...${descendantCommit}`);
+		expect(calls).toContain("close:wiki-data-devops#1");
+	});
+
 	it("repairs malformed ChatGPT wiki research JSON once before drafting", async () => {
 		const workerCalls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3427,9 +3474,12 @@ function wikiResearchMockClient(options: {
 	withSafeMerge?: boolean;
 	withPublishVerification?: boolean;
 	createPrWithoutHeadSha?: boolean;
+	publishedCommit?: string;
+	compareStatus?: string;
 }) {
 	const calls = options.calls ?? [];
 	const mergedSha = "3".repeat(40);
+	const publishedCommit = options.publishedCommit ?? mergedSha;
 	let createdPr = false;
 	return {
 		async getAuthenticatedUser(token?: string) {
@@ -3503,8 +3553,8 @@ function wikiResearchMockClient(options: {
 		async getFile(_token: string, input: any) {
 			calls.push(`get-file:${input.repo}:${input.branch}:${input.path}`);
 			if (options.withPublishVerification && input.branch === "published") {
-				const latest = wikiPublishedLatest("acme", input.repo, mergedSha);
-				const latestAgent = wikiPublishedLatestAgent("acme", input.repo, mergedSha);
+				const latest = wikiPublishedLatest("acme", input.repo, publishedCommit);
+				const latestAgent = wikiPublishedLatestAgent("acme", input.repo, publishedCommit);
 				if (input.path === "latest.json") return { content: JSON.stringify(latest) };
 				if (input.path === "latest-agent.json") return { content: JSON.stringify(latestAgent) };
 			}
@@ -3552,6 +3602,10 @@ function wikiResearchMockClient(options: {
 					htmlUrl: `https://github.com/${input.owner}/${input.repo}/actions/runs/123`,
 				},
 			];
+		},
+		async compareCommits(_token: string | undefined, input: any) {
+			calls.push(`compare:${input.repo}:${input.base}...${input.head}`);
+			return { status: options.compareStatus ?? "diverged" };
 		},
 		async mergePullRequest(_token: string, input: any) {
 			calls.push(`merge:${input.repo}#${input.pullNumber}`);

@@ -186,6 +186,10 @@ export interface WikiResearchGitHubClient {
 		token: string | undefined,
 		input: { owner: string; repo: string; headSha?: string; workflowName?: string; event?: string },
 	): Promise<Array<{ name: string; status: string; conclusion?: string | null; headSha?: string; htmlUrl?: string }>>;
+	compareCommits?(
+		token: string | undefined,
+		input: { owner: string; repo: string; base: string; head: string },
+	): Promise<{ status?: string }>;
 }
 
 export interface WikiResearchOptions {
@@ -2604,6 +2608,15 @@ export const fetchWikiResearchGitHubClient: WikiResearchGitHubClient = {
 			}))
 			.filter(item => !input.workflowName || item.name === input.workflowName);
 	},
+	async compareCommits(token, input) {
+		const response = await fetch(
+			`https://api.github.com/repos/${input.owner}/${input.repo}/compare/${input.base}...${input.head}`,
+			{ headers: githubHeaders(token) },
+		);
+		if (!response.ok) throw new Error(`GitHub compare failed with HTTP ${response.status}`);
+		const data = (await response.json()) as { status?: string };
+		return { status: data.status };
+	},
 	async mergePullRequest(token, input) {
 		const response = await fetch(
 			`https://api.github.com/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/merge`,
@@ -2770,14 +2783,15 @@ async function verifyPublishedWikiArtifacts(
 		const githubAgent = await readPublishedJson(token, client, input.owner, input.repo, "latest-agent.json");
 		const githubLatestCommit = stringField(githubLatest, "sourceCommit");
 		const githubAgentCommit = stringField(githubAgent, "sourceCommit");
-		if (githubLatestCommit !== input.expectedCommit) {
+		const acceptableCommit = createPublishedCommitAcceptor(token, client, input);
+		if (!(await acceptableCommit(githubLatestCommit))) {
 			errors.push(
-				`GitHub published/latest.json points at ${githubLatestCommit ?? "missing"}, expected ${input.expectedCommit}`,
+				`GitHub published/latest.json points at ${githubLatestCommit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 			);
 		}
-		if (githubAgentCommit !== input.expectedCommit) {
+		if (!(await acceptableCommit(githubAgentCommit))) {
 			errors.push(
-				`GitHub published/latest-agent.json points at ${githubAgentCommit ?? "missing"}, expected ${input.expectedCommit}`,
+				`GitHub published/latest-agent.json points at ${githubAgentCommit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 			);
 		}
 
@@ -2794,25 +2808,37 @@ async function verifyPublishedWikiArtifacts(
 			const url = latestUrls[index];
 			const commit = cdnLatestCommits[url];
 			if (!cdnLatest.ok) errors.push(`${url} fetch failed: ${cdnLatest.error}`);
-			else if (commit !== input.expectedCommit) {
-				errors.push(`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit}`);
+			else if (!(await acceptableCommit(commit))) {
+				errors.push(
+					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
+				);
 			}
 		}
 		for (const [index, cdnAgent] of cdnAgentResults.entries()) {
 			const url = latestAgentUrls[index];
 			const commit = cdnAgentCommits[url];
 			if (!cdnAgent.ok) errors.push(`${url} fetch failed: ${cdnAgent.error}`);
-			else if (commit !== input.expectedCommit) {
-				errors.push(`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit}`);
+			else if (!(await acceptableCommit(commit))) {
+				errors.push(
+					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
+				);
 			}
 		}
 
-		const latestForArtifacts = cdnLatestResults.find(
-			item => item.ok && stringField(item.value, "sourceCommit") === input.expectedCommit,
-		);
-		const agentForArtifacts = cdnAgentResults.find(
-			item => item.ok && stringField(item.value, "sourceCommit") === input.expectedCommit,
-		);
+		let latestForArtifacts: (typeof cdnLatestResults)[number] | undefined;
+		for (const item of cdnLatestResults) {
+			if (item.ok && (await acceptableCommit(stringField(item.value, "sourceCommit")))) {
+				latestForArtifacts = item;
+				break;
+			}
+		}
+		let agentForArtifacts: (typeof cdnAgentResults)[number] | undefined;
+		for (const item of cdnAgentResults) {
+			if (item.ok && (await acceptableCommit(stringField(item.value, "sourceCommit")))) {
+				agentForArtifacts = item;
+				break;
+			}
+		}
 		if (!errors.length && latestForArtifacts?.value && agentForArtifacts?.value) {
 			errors.push(
 				...(await verifyArtifactUrls(
@@ -2892,6 +2918,33 @@ async function waitForPublishWorkflow(
 		}
 		if (attempt < input.attempts && input.delayMs) await sleep(input.delayMs);
 	}
+}
+
+function createPublishedCommitAcceptor(
+	token: string | undefined,
+	client: WikiResearchGitHubClient,
+	input: { owner: string; repo: string; expectedCommit: string },
+): (candidate: string | undefined) => Promise<boolean> {
+	const cache = new Map<string, Promise<boolean>>();
+	return async candidate => {
+		if (!candidate) return false;
+		if (candidate === input.expectedCommit) return true;
+		if (!client.compareCommits) return false;
+		let cached = cache.get(candidate);
+		if (!cached) {
+			cached = client
+				.compareCommits(token, {
+					owner: input.owner,
+					repo: input.repo,
+					base: input.expectedCommit,
+					head: candidate,
+				})
+				.then(compare => compare.status === "ahead" || compare.status === "identical")
+				.catch(() => false);
+			cache.set(candidate, cached);
+		}
+		return cached;
+	};
 }
 
 async function readPublishedJson(
