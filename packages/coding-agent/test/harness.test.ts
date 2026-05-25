@@ -9,6 +9,7 @@ import { parseWikiResearchRepoFlag } from "../src/commands/wiki-research";
 import {
 	bindWorkerRole,
 	buildChatGptCommand,
+	buildChatGptWorkerEnv,
 	buildEvidencePacket,
 	bundleChatGptSkill,
 	cleanupHarnessRuns,
@@ -311,6 +312,12 @@ describe("harness core", () => {
 				extraArgs: ["--json"],
 			}),
 		).toEqual(["chatgpt", "workers", "rename", "--json", "bob-burger", "OMG run planner bob-burger"]);
+		expect(buildChatGptWorkerEnv({ COLUMNS: "120", PATH: "C:\\tools" })).toMatchObject({
+			COLUMNS: "120",
+			FORCE_COLOR: "0",
+			PYTHONIOENCODING: "utf-8",
+			PYTHONUTF8: "1",
+		});
 	});
 
 	it("validates structured ChatGPT JSON envelopes", () => {

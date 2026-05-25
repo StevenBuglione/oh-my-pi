@@ -98,6 +98,20 @@ export function buildChatGptCommand(input: ChatGptWorkerCommand): string[] {
 	return args.concat(input.extraArgs ?? []);
 }
 
+export function buildChatGptWorkerEnv(env: NodeJS.ProcessEnv = Bun.env): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [key, value] of Object.entries(env)) {
+		if (typeof value === "string") out[key] = value;
+	}
+	return {
+		...out,
+		COLUMNS: out.COLUMNS ?? "10000",
+		FORCE_COLOR: "0",
+		PYTHONIOENCODING: "utf-8",
+		PYTHONUTF8: "1",
+	};
+}
+
 async function readStream(stream: ReadableStream<Uint8Array> | null): Promise<string> {
 	if (!stream) return "";
 	return await new Response(stream).text();
@@ -109,11 +123,7 @@ export async function runChatGptWorkerCommand(input: ChatGptWorkerCommand): Prom
 		stdout: "pipe",
 		stderr: "pipe",
 		stdin: "ignore",
-		env: {
-			...Bun.env,
-			COLUMNS: Bun.env.COLUMNS ?? "10000",
-			FORCE_COLOR: "0",
-		},
+		env: buildChatGptWorkerEnv(),
 	});
 	const timeout = input.timeoutMs
 		? setTimeout(() => {
