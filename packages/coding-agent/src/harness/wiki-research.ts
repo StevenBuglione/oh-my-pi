@@ -3099,8 +3099,19 @@ export const fetchWikiResearchGitHubClient: WikiResearchGitHubClient = {
 			headers: githubHeaders(token),
 			body: JSON.stringify({ ref: `refs/heads/${input.branch}`, sha: input.fromSha }),
 		});
-		if (!response.ok && response.status !== 422)
+		if (response.status === 422) {
+			const reset = await fetch(
+				`https://api.github.com/repos/${input.owner}/${input.repo}/git/refs/heads/${input.branch}`,
+				{
+					method: "PATCH",
+					headers: githubHeaders(token),
+					body: JSON.stringify({ sha: input.fromSha, force: true }),
+				},
+			);
+			if (!reset.ok) throw new Error(`GitHub branch reset failed with HTTP ${reset.status}`);
+		} else if (!response.ok) {
 			throw new Error(`GitHub branch create failed with HTTP ${response.status}`);
+		}
 		return { ref: `refs/heads/${input.branch}` };
 	},
 	async putFile(token, input) {
@@ -3315,6 +3326,16 @@ async function trySafeAutoMerge(
 		return {
 			merged: false,
 			reason: `safe auto-merge blocked by non-content files: ${unsafe.map(file => file.filename).join(", ")}`,
+		};
+	}
+	const expectedFiles = new Set([input.draft.path]);
+	const unexpected = files.filter(file => !expectedFiles.has(file.filename));
+	if (unexpected.length || files.length !== expectedFiles.size) {
+		return {
+			merged: false,
+			reason: `safe auto-merge blocked by stale or unrelated content files: ${files
+				.map(file => file.filename)
+				.join(", ")}`,
 		};
 	}
 	if (!input.pr.headSha) return { merged: false, reason: "safe auto-merge waiting for PR head SHA" };

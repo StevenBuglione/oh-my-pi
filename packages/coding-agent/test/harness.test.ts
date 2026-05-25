@@ -2513,6 +2513,55 @@ describe("harness core", () => {
 		expect(state.gates?.find(gate => gate.id === "publish_verify")?.status).toBe("passed");
 	});
 
+	it("blocks safe auto-merge when a reused branch includes stale generated content", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources-stale-branch.json");
+		const steeringPath = path.join(tempRoot, "wiki-stale-branch.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			autoMerge: "safe",
+			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				pullFiles: [
+					{ filename: "docs/kubernetes-backup-patterns.md" },
+					{ filename: "docs/stale-retry-leftover.md" },
+				],
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(calls).not.toContain("merge:wiki-data-devops#3");
+		expect(state.gates?.find(gate => gate.id === "safe_auto_merge")?.summary).toContain(
+			"stale or unrelated content files",
+		);
+		expect(state.gates?.find(gate => gate.id === "publish_verify")?.status).toBe("skipped");
+	});
+
 	it("blocks post-merge wiki publishing when jsDelivr latest pointers stay stale", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3898,6 +3947,7 @@ function wikiResearchMockClient(options: {
 	createPrWithoutHeadSha?: boolean;
 	publishedCommit?: string;
 	compareStatus?: string;
+	pullFiles?: Array<{ filename: string; status?: string }>;
 }) {
 	const calls = options.calls ?? [];
 	const mergedSha = "3".repeat(40);
@@ -4006,7 +4056,9 @@ function wikiResearchMockClient(options: {
 		},
 		async listPullRequestFiles(_token: string, input: any) {
 			calls.push(`files:${input.repo}#${input.pullNumber}`);
-			return options.withSafeMerge ? [{ filename: "docs/kubernetes-backup-patterns.md" }] : [];
+			return options.withSafeMerge
+				? (options.pullFiles ?? [{ filename: "docs/kubernetes-backup-patterns.md" }])
+				: [];
 		},
 		async listCheckRunsForRef(_token: string, input: any) {
 			calls.push(`checks:${input.repo}:${input.ref}`);
