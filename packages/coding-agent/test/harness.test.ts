@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { getAgentDir, setAgentDir } from "@oh-my-gpt/gpt-utils/dirs";
 import { Snowflake } from "@oh-my-gpt/gpt-utils/snowflake";
 import { unzipSync, zipSync } from "fflate";
+import { parseWikiResearchRepoFlag } from "../src/commands/wiki-research";
 import {
 	bindWorkerRole,
 	buildChatGptCommand,
@@ -2160,6 +2161,24 @@ describe("harness core", () => {
 		expect(parsed.constraints).toContain("Public sources only");
 		expect(parsed.preferredSource).toBe("devops");
 		expect(parsed.citations).toContain("https://velero.io/docs/");
+	});
+
+	it("parses wiki research repo flags from comma or whitespace separated PowerShell strings", () => {
+		expect(parseWikiResearchRepoFlag("wiki-data-devops,wiki-data-homelab,wiki-data-projects")).toEqual([
+			"wiki-data-devops",
+			"wiki-data-homelab",
+			"wiki-data-projects",
+		]);
+		expect(parseWikiResearchRepoFlag("wiki-data-devops wiki-data-homelab wiki-data-projects")).toEqual([
+			"wiki-data-devops",
+			"wiki-data-homelab",
+			"wiki-data-projects",
+		]);
+		expect(parseWikiResearchRepoFlag(["wiki-data-devops", "wiki-data-homelab wiki-data-projects"])).toEqual([
+			"wiki-data-devops",
+			"wiki-data-homelab",
+			"wiki-data-projects",
+		]);
 	});
 
 	it("dry-runs issue-backed wiki research into an existing source without GitHub mutations", async () => {

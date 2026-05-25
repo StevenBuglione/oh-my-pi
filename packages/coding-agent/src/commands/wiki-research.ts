@@ -10,6 +10,16 @@ import { initTheme } from "../modes/theme/theme";
 
 const ACTIONS = ["run-queue", "autopilot", "verify-publish", "labels", "benchmark", "watchdog"] as const;
 
+export function parseWikiResearchRepoFlag(value: unknown): string[] | undefined {
+	if (!value) return undefined;
+	const raw = Array.isArray(value) ? value.join(",") : String(value);
+	const repos = raw
+		.split(/[,\s]+/)
+		.map(repo => repo.trim())
+		.filter(Boolean);
+	return repos.length ? repos : undefined;
+}
+
 export default class WikiResearch extends Command {
 	static description = "Run unattended OMG wiki research queues";
 
@@ -140,14 +150,7 @@ export default class WikiResearch extends Command {
 		const researcher =
 			flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
 		if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
-		const repos = flags.repo
-			? [flags.repo]
-			: flags.repos
-				? flags.repos
-						.split(",")
-						.map(repo => repo.trim())
-						.filter(Boolean)
-				: undefined;
+		const repos = flags.repo ? [flags.repo] : parseWikiResearchRepoFlag(flags.repos);
 		if (action === "autopilot") {
 			let cycle = 0;
 			const maxCycles = flags.cycles && flags.cycles > 0 ? flags.cycles : undefined;
