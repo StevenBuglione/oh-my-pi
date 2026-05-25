@@ -44,6 +44,7 @@ const CHATGPT_MIN_DEEP_RESEARCH_FINDINGS = 12;
 const CHATGPT_MIN_DRAFT_SECTIONS = 8;
 const CHATGPT_RESEARCH_WATCH_SECONDS = 1_800;
 const CHATGPT_RESEARCH_WATCH_PROCESS_TIMEOUT_MS = (CHATGPT_RESEARCH_WATCH_SECONDS + 60) * 1_000;
+const CHATGPT_RESEARCH_STATUS_POLL_SECONDS = 30;
 
 export const WIKI_RESEARCH_REQUIRED_LABELS = [
 	"wiki:research",
@@ -420,6 +421,7 @@ function responseMeta(raw: string): { requestId?: string; conversationUrl?: stri
 }
 
 function workerStatusMeta(raw: string): {
+	status?: string;
 	requestId?: string;
 	conversationUrl?: string;
 	isGenerating?: boolean;
@@ -428,6 +430,7 @@ function workerStatusMeta(raw: string): {
 } {
 	const parsed = safeJson(raw);
 	return {
+		status: typeof parsed?.status === "string" ? parsed.status : undefined,
 		requestId: typeof parsed?.request_id === "string" ? parsed.request_id : parsed?.last_request_id,
 		conversationUrl: typeof parsed?.conversation_url === "string" ? parsed.conversation_url : undefined,
 		isGenerating: typeof parsed?.is_generating === "boolean" ? parsed.is_generating : undefined,
@@ -445,6 +448,23 @@ function modelSelectionFailed(result: ChatGptWorkerCommandResult): boolean {
 		text.includes("not available") ||
 		text.includes("unable to select")
 	);
+}
+
+async function logResearchProgress(
+	state: HarnessRunState,
+	options: WikiResearchOptions,
+	event: string,
+	fields: Record<string, unknown> = {},
+): Promise<void> {
+	const entry = { at: new Date().toISOString(), event, ...fields };
+	const bits = Object.entries(fields)
+		.filter(([, value]) => value !== undefined && value !== "")
+		.map(([key, value]) => `${key}=${String(value)}`)
+		.join(" ");
+	emit(options, `researcher ${event}${bits ? ` ${bits}` : ""}`);
+	const logPath = path.join(getHarnessRunDir(state.runId), "responses", "researcher-progress.jsonl");
+	await fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o700 });
+	await fs.appendFile(logPath, `${JSON.stringify(entry)}\n`);
 }
 
 async function consumePromptBudget(state: HarnessRunState, role: string): Promise<void> {
@@ -1576,6 +1596,7 @@ async function writeWikiResearchSchemaFiles(
 
 async function sendResearchPrompt(
 	state: HarnessRunState,
+	options: WikiResearchOptions,
 	workerId: string,
 	prompt: string,
 	runner: WikiResearchWorkerRunner,
@@ -1587,6 +1608,13 @@ async function sendResearchPrompt(
 	await consumePromptBudget(state, "researcher");
 	let modelOption = CHATGPT_RESEARCH_MODEL_OPTION;
 	let thinkingOption = CHATGPT_RESEARCH_THINKING_OPTION;
+	await logResearchProgress(state, options, "send_start", {
+		attempt,
+		workerId,
+		modelOption,
+		thinkingOption,
+		schemaCount: schemaPaths.length,
+	});
 	let send = await runner({
 		action: "send",
 		worker: workerId,
@@ -1606,6 +1634,12 @@ async function sendResearchPrompt(
 	if (!send.ok && modelSelectionFailed(send)) {
 		modelOption = "Thinking";
 		thinkingOption = "Standard";
+		await logResearchProgress(state, options, "send_model_fallback", {
+			attempt,
+			workerId,
+			modelOption,
+			thinkingOption,
+		});
 		send = await runner({
 			action: "send",
 			worker: workerId,
@@ -1625,6 +1659,103 @@ async function sendResearchPrompt(
 	}
 	if (!send.ok) throw new Error(`failed to send researcher prompt: ${send.stderr || send.stdout}`);
 	const sent = responseMeta(send.stdout);
+	await logResearchProgress(state, options, "send_complete", {
+		attempt,
+		workerId,
+		requestId: sent.requestId,
+		conversationUrl: sent.conversationUrl,
+	});
+	const watchMeta = await waitForResearchWorker(state, options, workerId, runner, attempt, sent);
+	await bindWorkerRole(state, "researcher", {
+		workerId,
+		requestId: watchMeta.requestId ?? sent.requestId,
+		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
+		modelOption,
+		thinkingOption,
+	});
+	return {
+		requestId: watchMeta.requestId ?? sent.requestId,
+		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
+	};
+}
+
+async function waitForResearchWorker(
+	state: HarnessRunState,
+	options: WikiResearchOptions,
+	workerId: string,
+	runner: WikiResearchWorkerRunner,
+	attempt: "initial" | "repair",
+	sent: { requestId?: string; conversationUrl?: string },
+): Promise<{ requestId?: string; conversationUrl?: string }> {
+	await logResearchProgress(state, options, "watch_start", {
+		attempt,
+		workerId,
+		timeoutSeconds: CHATGPT_RESEARCH_WATCH_SECONDS,
+		pollSeconds: CHATGPT_RESEARCH_STATUS_POLL_SECONDS,
+	});
+	const deadline = Date.now() + CHATGPT_RESEARCH_WATCH_SECONDS * 1000;
+	let statusSupported = true;
+	let lastStatusText = "";
+	let lastStatusMeta: ReturnType<typeof workerStatusMeta> = {};
+	while (Date.now() < deadline) {
+		const status = await runner({
+			action: "status",
+			worker: workerId,
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		lastStatusText = status.stdout || status.stderr;
+		await writeRunFile(
+			state.runId,
+			"responses",
+			attempt === "initial" ? "researcher-status-latest.json" : "researcher-repair-status-latest.json",
+			lastStatusText,
+		);
+		if (!status.ok) {
+			statusSupported = false;
+			await logResearchProgress(state, options, "status_poll_unavailable", {
+				attempt,
+				workerId,
+				reason: status.stderr || status.stdout || "status command failed",
+			});
+			break;
+		}
+		lastStatusMeta = workerStatusMeta(status.stdout);
+		const elapsedSeconds = Math.round((Date.now() - (deadline - CHATGPT_RESEARCH_WATCH_SECONDS * 1000)) / 1000);
+		await logResearchProgress(state, options, "status_poll", {
+			attempt,
+			workerId,
+			status: lastStatusMeta.status,
+			isGenerating: lastStatusMeta.isGenerating,
+			artifactCount: lastStatusMeta.artifactCount,
+			elapsedSeconds,
+			conversationUrl: lastStatusMeta.conversationUrl,
+		});
+		if (lastStatusMeta.conversationUrl && lastStatusMeta.isGenerating !== true) {
+			await logResearchProgress(state, options, "watch_complete", {
+				attempt,
+				workerId,
+				requestId: lastStatusMeta.requestId ?? sent.requestId,
+				conversationUrl: lastStatusMeta.conversationUrl,
+				artifactCount: lastStatusMeta.artifactCount,
+			});
+			return {
+				requestId: lastStatusMeta.requestId ?? sent.requestId,
+				conversationUrl: lastStatusMeta.conversationUrl ?? sent.conversationUrl,
+			};
+		}
+		await new Promise(resolve =>
+			setTimeout(resolve, Math.min(CHATGPT_RESEARCH_STATUS_POLL_SECONDS * 1000, Math.max(0, deadline - Date.now()))),
+		);
+	}
+	if (statusSupported) {
+		const reason =
+			lastStatusMeta.isGenerating === true
+				? `researcher still generating after ${CHATGPT_RESEARCH_WATCH_SECONDS}s`
+				: lastStatusText || "status polling timed out";
+		throw new Error(`failed while watching researcher worker: ${reason}`);
+	}
+
 	const watched = await runner({
 		action: "watch",
 		worker: workerId,
@@ -1667,17 +1798,13 @@ async function sendResearchPrompt(
 			conversationUrl: statusMeta.conversationUrl ?? sent.conversationUrl,
 		};
 	}
-	await bindWorkerRole(state, "researcher", {
+	await logResearchProgress(state, options, "watch_complete", {
+		attempt,
 		workerId,
 		requestId: watchMeta.requestId ?? sent.requestId,
 		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
-		modelOption,
-		thinkingOption,
 	});
-	return {
-		requestId: watchMeta.requestId ?? sent.requestId,
-		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
-	};
+	return watchMeta;
 }
 
 function validateCompletedResearchBrief(
@@ -1743,20 +1870,36 @@ async function runChatGptResearchBrief(
 	try {
 		const sent = await sendResearchPrompt(
 			state,
+			options,
 			workerId,
 			wikiResearchBriefPrompt({ issue, body, candidateSourceDecision, registry, steering }),
 			runner,
 			"initial",
 			schemaPaths,
 		);
+		await logResearchProgress(state, options, "package_download_start", {
+			attempt: "initial",
+			workerId,
+			conversationUrl: sent.conversationUrl,
+		});
 		let parsed = await downloadResearchBriefPackage(state, {
 			requestId: sent.requestId,
 			conversationUrl: sent.conversationUrl,
 			runner,
 			attempt: "initial",
 		});
+		await logResearchProgress(state, options, "package_download_complete", {
+			attempt: "initial",
+			workerId,
+			ok: parsed.ok,
+			error: parsed.ok ? undefined : parsed.error,
+		});
 		let repaired = false;
 		if (!parsed.ok) {
+			await logResearchProgress(state, options, "repair_start", {
+				workerId,
+				reason: parsed.error,
+			});
 			const copied = await runner({
 				action: "copy_message",
 				conversationUrl: sent.conversationUrl,
@@ -1765,17 +1908,29 @@ async function runChatGptResearchBrief(
 			await writeRunFile(state.runId, "responses", "researcher-copy.txt", copied.stdout || copied.stderr);
 			const repairSent = await sendResearchPrompt(
 				state,
+				options,
 				workerId,
 				wikiResearchBriefRepairPrompt(copied.stdout || parsed.error || "", parsed.error),
 				runner,
 				"repair",
 				schemaPaths,
 			);
+			await logResearchProgress(state, options, "package_download_start", {
+				attempt: "repair",
+				workerId,
+				conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
+			});
 			parsed = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? sent.requestId,
 				conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
 				runner,
 				attempt: "repair",
+			});
+			await logResearchProgress(state, options, "package_download_complete", {
+				attempt: "repair",
+				workerId,
+				ok: parsed.ok,
+				error: parsed.ok ? undefined : parsed.error,
 			});
 			repaired = true;
 		}
@@ -1788,6 +1943,7 @@ async function runChatGptResearchBrief(
 		if (completionErrors.length && !repaired) {
 			const repairSent = await sendResearchPrompt(
 				state,
+				options,
 				workerId,
 				wikiResearchBriefRepairPrompt(
 					JSON.stringify(
@@ -1807,11 +1963,22 @@ async function runChatGptResearchBrief(
 				"repair",
 				schemaPaths,
 			);
+			await logResearchProgress(state, options, "package_download_start", {
+				attempt: "repair",
+				workerId,
+				conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
+			});
 			const repairedPackage = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,
 				conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
 				runner,
 				attempt: "repair",
+			});
+			await logResearchProgress(state, options, "package_download_complete", {
+				attempt: "repair",
+				workerId,
+				ok: repairedPackage.ok,
+				error: repairedPackage.ok ? undefined : repairedPackage.error,
 			});
 			if (!repairedPackage.ok) {
 				throw new Error(
@@ -1827,6 +1994,12 @@ async function runChatGptResearchBrief(
 		if (completionErrors.length) {
 			throw new Error(`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`);
 		}
+		await logResearchProgress(state, options, "package_schema_valid", {
+			workerId,
+			citationCount: parsed.research.citations.length,
+			findingCount: parsed.research.findings.length,
+			sectionCount: parsed.draftInstructions.sections.length,
+		});
 		const canonicalPath = await writeRunFile(
 			state.runId,
 			"responses",

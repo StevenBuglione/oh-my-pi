@@ -151,6 +151,10 @@ export default class WikiResearch extends Command {
 			flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
 		if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
 		const repos = flags.repo ? [flags.repo] : parseWikiResearchRepoFlag(flags.repos);
+		const onEvent = (message: string) => {
+			if (flags.json) process.stderr.write(`${JSON.stringify({ type: "wiki-research-event", message })}\n`);
+			else process.stdout.write(`${message}\n`);
+		};
 		if (action === "autopilot") {
 			let cycle = 0;
 			const maxCycles = flags.cycles && flags.cycles > 0 ? flags.cycles : undefined;
@@ -167,7 +171,7 @@ export default class WikiResearch extends Command {
 					allowDeterministicFallback: flags["allow-deterministic-fallback"],
 					maxIssues: flags["max-issues"],
 					seedWhenEmpty: true,
-					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
+					onEvent,
 				});
 				if (flags.json) {
 					process.stdout.write(`${JSON.stringify({ cycle, result }, null, 2)}\n`);
@@ -202,7 +206,7 @@ export default class WikiResearch extends Command {
 			researcher,
 			allowDeterministicFallback: flags["allow-deterministic-fallback"],
 			maxIssues: flags["max-issues"],
-			onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
+			onEvent,
 		});
 		if (flags.json) {
 			process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
