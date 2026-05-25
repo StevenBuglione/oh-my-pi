@@ -8,7 +8,7 @@ import {
 } from "../harness";
 import { initTheme } from "../modes/theme/theme";
 
-const ACTIONS = ["run-queue", "verify-publish", "labels", "benchmark", "watchdog"] as const;
+const ACTIONS = ["run-queue", "autopilot", "verify-publish", "labels", "benchmark", "watchdog"] as const;
 
 export default class WikiResearch extends Command {
 	static description = "Run unattended OMG wiki research queues";
@@ -34,6 +34,11 @@ export default class WikiResearch extends Command {
 		}),
 		"max-issues": Flags.integer({ description: "Maximum queued issues to process", default: 1 }),
 		"publish-attempts": Flags.integer({ description: "Maximum publish verification retry attempts", default: 12 }),
+		"interval-seconds": Flags.integer({
+			description: "Autopilot sleep interval between queue cycles",
+			default: 3600,
+		}),
+		cycles: Flags.integer({ description: "Autopilot cycles to run before exiting; omit for 24/7" }),
 		"local-model-endpoint": Flags.string({
 			description: "OpenAI-compatible local watchdog endpoint",
 			default: "http://10.10.10.8:8090/v1",
@@ -46,6 +51,7 @@ export default class WikiResearch extends Command {
 	};
 
 	static examples = [
+		"# Start the self-sufficient 24/7 wiki autopilot\n  omg wiki-research autopilot --apply --auto-merge=safe --owner StevenBuglione --researcher=chatgpt",
 		"# Run the 24/7 wiki research queue safely\n  omg wiki-research run-queue --apply --auto-merge=safe --owner StevenBuglione",
 		"# Retry a post-merge publish verification\n  omg wiki-research verify-publish --apply --owner StevenBuglione --repo wiki-data-projects --issue 5 --json",
 		"# Sync labels for a wiki repo\n  omg wiki-research labels sync --apply --owner StevenBuglione --repo wiki-data-homelab",
@@ -142,6 +148,47 @@ export default class WikiResearch extends Command {
 						.map(repo => repo.trim())
 						.filter(Boolean)
 				: undefined;
+		if (action === "autopilot") {
+			let cycle = 0;
+			const maxCycles = flags.cycles && flags.cycles > 0 ? flags.cycles : undefined;
+			while (!maxCycles || cycle < maxCycles) {
+				cycle += 1;
+				const result = await runWikiResearchQueue({
+					owner: flags.owner,
+					repos,
+					steeringPath: flags.steering,
+					registryPath: flags.registry,
+					apply: flags.apply,
+					autoMerge,
+					researcher: researcher ?? "chatgpt",
+					allowDeterministicFallback: flags["allow-deterministic-fallback"],
+					maxIssues: flags["max-issues"],
+					seedWhenEmpty: true,
+					onEvent: flags.json ? undefined : message => process.stdout.write(`${message}\n`),
+				});
+				if (flags.json) {
+					process.stdout.write(`${JSON.stringify({ cycle, result }, null, 2)}\n`);
+				} else {
+					process.stdout.write(
+						`wiki autopilot cycle ${cycle}: processed ${result.processed.length}/${result.scanned}; blocked ${result.blocked.length}\n`,
+					);
+					if (result.seeded) {
+						process.stdout.write(
+							`- seeded ${result.seeded.repo}#${result.seeded.issueNumber}: ${result.seeded.title}\n`,
+						);
+					}
+					for (const item of result.processed) {
+						process.stdout.write(
+							`- ${item.repo}#${item.issueNumber}: ${item.status}${item.prUrl ? ` ${item.prUrl}` : ""}${item.liveUrl ? ` ${item.liveUrl}` : ""}\n`,
+						);
+					}
+					for (const item of result.blocked) process.stdout.write(`- blocked ${item.repo}: ${item.reason}\n`);
+				}
+				if (maxCycles && cycle >= maxCycles) break;
+				await new Promise(resolve => setTimeout(resolve, Math.max(30, flags["interval-seconds"]) * 1000));
+			}
+			return;
+		}
 		const result = await runWikiResearchQueue({
 			owner: flags.owner,
 			repos,

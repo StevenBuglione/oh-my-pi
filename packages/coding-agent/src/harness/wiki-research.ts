@@ -218,6 +218,7 @@ export interface WikiResearchOptions {
 export interface WikiResearchQueueOptions extends WikiResearchOptions {
 	repos?: string[];
 	maxIssues?: number;
+	seedWhenEmpty?: boolean;
 }
 
 export interface WikiResearchQueueRunResult {
@@ -230,6 +231,13 @@ export interface WikiResearchQueueRunResult {
 	autoMerge: "off" | "safe";
 	researcher: WikiResearcherMode;
 	scanned: number;
+	seeded?: {
+		repo: string;
+		issueNumber: number;
+		issueUrl: string;
+		title: string;
+		sourceId: string;
+	};
 	processed: Array<{
 		repo: string;
 		issueNumber: number;
@@ -1905,6 +1913,94 @@ function wikiUrlForDraft(sourceId: string, draft: WikiPageDraftEnvelope): string
 	return `https://StevenBuglione.github.io/wiki-site/wiki/?s=${encodeURIComponent(sourceId)}&p=${encodeURIComponent(slug)}`;
 }
 
+const AUTOPILOT_TOPIC_BACKLOG: Record<string, string[]> = {
+	devops: [
+		"Kubernetes restore testing and disaster recovery runbooks",
+		"Terraform state locking, recovery, and workspace operations",
+		"GitHub Actions release governance and rollback strategy",
+		"Kubernetes ingress TLS renewal and certificate operations",
+		"Container image supply chain hardening for small teams",
+	],
+	homelab: [
+		"Proxmox backup and restore strategy for small clusters",
+		"Homelab VLAN design and firewall boundary patterns",
+		"TrueNAS snapshot replication and recovery planning",
+		"UPS shutdown automation and power resilience",
+		"Self-hosted monitoring and alert routing for homelabs",
+	],
+	projects: [
+		"Architecture decision records for solo and small-team projects",
+		"Release checklist and rollback strategy for application projects",
+		"Observability baseline for small web applications",
+		"Dependency update policy and vulnerability response workflow",
+		"Project documentation structure for maintainable handoffs",
+	],
+};
+
+function autopilotTopicsForSource(source: WikiRegistrySource): string[] {
+	return (
+		AUTOPILOT_TOPIC_BACKLOG[source.id] ?? [
+			`${source.label} operational architecture and maintenance guide`,
+			`${source.label} troubleshooting and recovery runbook`,
+			`${source.label} security baseline and review checklist`,
+		]
+	);
+}
+
+function wikiResearchSeedBody(source: WikiRegistrySource, topic: string): string {
+	return [
+		"## Objective",
+		`Create a professional, deeply researched wiki reference page for: ${topic}.`,
+		"",
+		"## Preferred source",
+		source.id,
+		"",
+		"## Expected output",
+		"A polished reference-quality Markdown page with claim-level inline citations, decision guidance, operational checklists, failure scenarios, maintenance notes, and source metadata.",
+		"",
+		"## Constraints",
+		"- Use public, non-credentialed sources only.",
+		"- Prefer official vendor, project, standards, or primary documentation.",
+		"- Include practical commands or templates only when supported by cited sources.",
+		"- Keep AI provenance metadata in frontmatter.",
+		"",
+		"## Acceptance",
+		"- At least 12 high-quality citations are discovered by ChatGPT.",
+		"- The page includes inline numeric citations near supported claims.",
+		"- The page reads like an experienced practitioner wrote it.",
+		"- The PR remains content-only and safe-auto-merge eligible if all gates pass.",
+	].join("\n");
+}
+
+async function createAutopilotSeedIssue(
+	token: string,
+	client: WikiResearchGitHubClient,
+	owner: string,
+	registry: WikiRegistrySnapshot,
+	repos: string[],
+): Promise<{ repo: string; issue: WikiResearchIssue; sourceId: string }> {
+	const enabledSources = registry.sources
+		.filter(source => source.enabled !== false)
+		.filter(source => repos.includes(`wiki-data-${source.id}`))
+		.sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || left.id.localeCompare(right.id));
+	const source = enabledSources[0];
+	if (!source) throw new Error("autopilot could not find an enabled wiki data source to seed");
+	const repo = `wiki-data-${source.id}`;
+	const existing = await client.listIssues(token, owner, repo, ["wiki:research"]);
+	const existingTitles = new Set(existing.map(issue => normalizeResearchTitle(issue.title).toLowerCase()));
+	const topic =
+		autopilotTopicsForSource(source).find(candidate => !existingTitles.has(candidate.toLowerCase())) ??
+		`${source.label} operations research note ${new Date().toISOString().slice(0, 10)}`;
+	const issue = await client.createIssue(token, {
+		owner,
+		repo,
+		title: topic,
+		body: wikiResearchSeedBody(source, topic),
+		labels: ["wiki:research", "wiki:queued", `source:${source.id}`],
+	});
+	return { repo, issue, sourceId: source.id };
+}
+
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -2068,6 +2164,32 @@ export async function runWikiResearchQueue(
 				repo,
 				reason: error instanceof Error ? error.message : String(error),
 			});
+		}
+	}
+	if (!result.scanned && !result.processed.length && !result.blocked.length && options.seedWhenEmpty) {
+		if (!options.apply || !token) {
+			result.blocked.push({
+				repo: registryRepo,
+				reason: "autopilot queue seeding requires --apply and a GitHub token",
+			});
+		} else {
+			const seeded = await createAutopilotSeedIssue(token, client, owner, registry.snapshot, repos);
+			result.seeded = {
+				repo: seeded.repo,
+				issueNumber: seeded.issue.number,
+				issueUrl: seeded.issue.htmlUrl,
+				title: seeded.issue.title,
+				sourceId: seeded.sourceId,
+			};
+			const seededRun = await runWikiResearchQueue({
+				...options,
+				repos: [seeded.repo],
+				maxIssues: 1,
+				seedWhenEmpty: false,
+			});
+			result.scanned += seededRun.scanned;
+			result.processed.push(...seededRun.processed);
+			result.blocked.push(...seededRun.blocked);
 		}
 	}
 	result.finishedAt = new Date().toISOString();

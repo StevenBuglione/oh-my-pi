@@ -2879,6 +2879,72 @@ describe("harness core", () => {
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-projects:omg/wiki-research/issue-"))).toBe(true);
 	});
 
+	it("autopilot seeds and immediately processes a research issue when the queue is empty", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		let seededIssue: any;
+		const base = wikiResearchMockClient({ calls, issue: wikiResearchIssue() });
+		const client = {
+			...base,
+			async listIssues(_token: string | undefined, owner: string, repo: string, labels: string[]) {
+				calls.push(`list:${owner}/${repo}:${labels.join(",")}`);
+				if (labels.includes("wiki:queued") && seededIssue && repo === seededIssue.repo) {
+					return [{ ...seededIssue, owner, repo }];
+				}
+				return [];
+			},
+			async getIssue(_token: string | undefined, owner: string, repo: string, issueNumber: number) {
+				calls.push(`issue:${owner}/${repo}#${issueNumber}`);
+				return { ...seededIssue, owner, repo, number: issueNumber };
+			},
+			async createIssue(_token: string, input: any) {
+				calls.push(`create-issue:${input.repo}`);
+				seededIssue = wikiResearchIssue({
+					number: 7,
+					title: input.title,
+					body: input.body,
+					labels: input.labels,
+					htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/7`,
+					owner: input.owner,
+					repo: input.repo,
+				});
+				return seededIssue;
+			},
+		};
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			repos: ["wiki-data-devops"],
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			autoMerge: "off",
+			researcher: "chatgpt",
+			seedWhenEmpty: true,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: client,
+		});
+
+		expect(result.seeded?.repo).toBe("wiki-data-devops");
+		expect(result.seeded?.issueNumber).toBe(7);
+		expect(result.processed[0]?.issueNumber).toBe(7);
+		expect(result.processed[0]?.status).toBe("good_enough");
+		expect(calls).toContain("create-issue:wiki-data-devops");
+	});
+
 	it("resumes wiki research with the previously fetched issue when no override is provided", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
