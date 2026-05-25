@@ -2170,8 +2170,12 @@ function draftMarkdown(
 	const draftPath = instructions?.path?.startsWith("docs/") ? instructions.path : stableDraftPath(issue);
 	const description = instructions?.description || body.expectedOutput || body.objective;
 	const tags = [...new Set([...(instructions?.tags ?? []), "research", sourceId])].filter(Boolean);
+	const authoredHeadingKeys = new Set(
+		(instructions?.sections ?? []).map(section => section.heading.trim().toLowerCase()),
+	);
 	const requiredSections = (instructions?.required_sections ?? []).filter(
 		section =>
+			!authoredHeadingKeys.has(section.trim().toLowerCase()) &&
 			![
 				"Summary",
 				"Checklist",
@@ -2544,6 +2548,7 @@ export async function runWikiResearchQueue(
 				continue;
 			}
 			if (contentIssuesProcessed >= maxIssues) continue;
+			contentIssuesProcessed += 1;
 			const state = await runWikiResearchHarness(`queue ${owner}/${repo}#${issue.number}`, {
 				...options,
 				owner,
@@ -2591,7 +2596,6 @@ export async function runWikiResearchQueue(
 					researchGate?.status === "passed" ? "passed" : researchGate?.status === "failed" ? "failed" : "skipped",
 				citationCount: Array.isArray(researchBrief?.citations) ? researchBrief.citations.length : undefined,
 			});
-			contentIssuesProcessed += 1;
 		} catch (error) {
 			result.blocked.push({
 				repo,

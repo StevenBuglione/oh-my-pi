@@ -2972,6 +2972,57 @@ describe("harness core", () => {
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-projects:omg/wiki-research/issue-"))).toBe(true);
 	});
 
+	it("does not start a second content issue after the first queued issue blocks", async () => {
+		const calls: string[] = [];
+		const workerCalls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+			{
+				id: "homelab",
+				label: "Homelab",
+				description: "Self-hosting networking storage",
+				enabled: true,
+				order: 20,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-homelab@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath, maxIssuesPerRun: 1 });
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			repos: ["wiki-data-devops", "wiki-data-homelab"],
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			autoMerge: "off",
+			researcher: "chatgpt",
+			workerRunner: wikiResearchWorkerRunner({ invalidAlways: true, calls: workerCalls }),
+			githubClient: wikiResearchMockClient({
+				calls,
+				issue: wikiResearchIssue({
+					title: "Blocked content",
+					body: "## Objective\nResearch a page.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(result.processed).toHaveLength(0);
+		expect(result.blocked).toHaveLength(1);
+		expect(workerCalls.filter(call => call === "create")).toHaveLength(1);
+		expect(calls.some(call => call.includes("wiki-data-homelab") && call.startsWith("issue:"))).toBe(false);
+	});
+
 	it("autopilot seeds and immediately processes a research issue when the queue is empty", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3633,7 +3684,17 @@ function wikiResearchDraftInstructions(overrides: Partial<any> = {}) {
 		title: "Kubernetes backup patterns",
 		description: "Research Kubernetes backup patterns.",
 		tags: ["research", "devops", "kubernetes"],
-		required_sections: ["Summary", "Research Notes", "Sources"],
+		required_sections: [
+			"Summary",
+			"Decision Matrix",
+			"Reference Architecture",
+			"Restore Runbook",
+			"Failure Scenarios",
+			"Operational Checklist",
+			"Common Pitfalls",
+			"Maintenance Notes",
+			"Sources",
+		],
 		notes: ["Keep the page in ai_draft until a human reviews the implementation details."],
 		sections: [
 			"Summary",
