@@ -2320,6 +2320,72 @@ describe("harness core", () => {
 		expect(reportText).not.toContain("ghp_super_secret_token");
 	});
 
+	it("recovers ChatGPT research packages when worker watch times out after completion", async () => {
+		const calls: string[] = [];
+		const baseRunner = wikiResearchWorkerRunner({ zipped: true, calls });
+		const registryPath = path.join(tempRoot, "research-sources.json");
+		const steeringPath = path.join(tempRoot, "wiki.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath, sourceMatchThreshold: 0.99 });
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-registry",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			workerRunner: async input => {
+				if (input.action === "watch") {
+					calls.push("watch-timeout");
+					expect(input.timeoutMs).toBeGreaterThan(600_000);
+					return { ok: false, action: input.action, command: [], exitCode: null, stdout: "", stderr: "" };
+				}
+				if (input.action === "status") {
+					calls.push("status-after-watch");
+					return {
+						ok: true,
+						action: input.action,
+						command: [],
+						exitCode: 0,
+						stdout: JSON.stringify({
+							request_id: "req-research",
+							conversation_url: "https://chatgpt.com/c/researcher",
+							is_generating: false,
+							artifact_count: 1,
+						}),
+						stderr: "",
+					};
+				}
+				return baseRunner(input);
+			},
+			githubClient: wikiResearchMockClient({
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops\n\nhttps://kubernetes.io/docs/",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		expect(calls).toContain("watch-timeout");
+		expect(calls).toContain("status-after-watch");
+		expect(calls).toContain("download_artifacts");
+		expect(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "responses", "researcher-watch-status-after-failure.json"),
+			).exists(),
+		).toBe(true);
+	});
+
 	it("discovers public citations when queued wiki research issues do not include URLs", async () => {
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		await writeWikiRegistry(registryPath, [

@@ -417,6 +417,23 @@ function responseMeta(raw: string): { requestId?: string; conversationUrl?: stri
 	};
 }
 
+function workerStatusMeta(raw: string): {
+	requestId?: string;
+	conversationUrl?: string;
+	isGenerating?: boolean;
+	artifactCount?: number;
+	error?: string;
+} {
+	const parsed = safeJson(raw);
+	return {
+		requestId: typeof parsed?.request_id === "string" ? parsed.request_id : parsed?.last_request_id,
+		conversationUrl: typeof parsed?.conversation_url === "string" ? parsed.conversation_url : undefined,
+		isGenerating: typeof parsed?.is_generating === "boolean" ? parsed.is_generating : undefined,
+		artifactCount: typeof parsed?.artifact_count === "number" ? parsed.artifact_count : undefined,
+		error: typeof parsed?.error === "string" ? parsed.error : undefined,
+	};
+}
+
 function modelSelectionFailed(result: ChatGptWorkerCommandResult): boolean {
 	const text = `${result.stdout}\n${result.stderr}`.toLowerCase();
 	return (
@@ -1610,7 +1627,7 @@ async function sendResearchPrompt(
 		action: "watch",
 		worker: workerId,
 		extraArgs: ["--timeout", "600", "--json"],
-		timeoutMs: 600_000,
+		timeoutMs: 660_000,
 	});
 	await writeRunFile(
 		state.runId,
@@ -1618,8 +1635,32 @@ async function sendResearchPrompt(
 		attempt === "initial" ? "researcher-watch.json" : "researcher-repair-watch.json",
 		watched.stdout || watched.stderr,
 	);
-	if (!watched.ok) throw new Error(`failed while watching researcher worker: ${watched.stderr || watched.stdout}`);
-	const watchMeta = responseMeta(watched.stdout);
+	let watchMeta = responseMeta(watched.stdout);
+	if (!watched.ok) {
+		const status = await runner({
+			action: "status",
+			worker: workerId,
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(
+			state.runId,
+			"responses",
+			attempt === "initial"
+				? "researcher-watch-status-after-failure.json"
+				: "researcher-repair-watch-status-after-failure.json",
+			status.stdout || status.stderr,
+		);
+		const statusMeta = workerStatusMeta(status.stdout);
+		if (!status.ok || !statusMeta.conversationUrl || statusMeta.isGenerating === true) {
+			const reason = watched.stderr || watched.stdout || status.stderr || status.stdout || "no watch output";
+			throw new Error(`failed while watching researcher worker: ${reason}`);
+		}
+		watchMeta = {
+			requestId: statusMeta.requestId ?? sent.requestId,
+			conversationUrl: statusMeta.conversationUrl ?? sent.conversationUrl,
+		};
+	}
 	await bindWorkerRole(state, "researcher", {
 		workerId,
 		requestId: watchMeta.requestId ?? sent.requestId,
