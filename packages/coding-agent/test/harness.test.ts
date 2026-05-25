@@ -2548,6 +2548,51 @@ describe("harness core", () => {
 		expect(calls).toContain("close:wiki-data-devops#1");
 	});
 
+	it("warns but does not block when non-primary jsDelivr edge pointers lag", async () => {
+		const calls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources-edge-lag.json");
+		const steeringPath = path.join(tempRoot, "wiki-edge-lag.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const result = await runWikiResearchPublishVerification({
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			fetchImpl: wikiPublishFetch({ staleEdgeLatest: true }),
+			publishVerificationAttempts: 1,
+			publishVerificationDelayMs: 0,
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				withPublishVerification: true,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(result.status).toBe("verified");
+		expect(result.verification.errors).toHaveLength(0);
+		expect(result.verification.warnings.some(warning => warning.includes("gcore.jsdelivr.net"))).toBe(true);
+		expect(calls).toContain("close:wiki-data-devops#1");
+	});
+
 	it("repairs malformed ChatGPT wiki research JSON once before drafting", async () => {
 		const workerCalls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3644,7 +3689,9 @@ function wikiPublishedLatestAgent(owner: string, repo: string, sourceCommit: str
 	};
 }
 
-function wikiPublishFetch(options: { expectedCommit?: string; staleLatest?: boolean } = {}): typeof fetch {
+function wikiPublishFetch(
+	options: { expectedCommit?: string; staleLatest?: boolean; staleEdgeLatest?: boolean } = {},
+): typeof fetch {
 	const expectedCommit = options.expectedCommit ?? "3".repeat(40);
 	return (async (input: string | URL | Request) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -3653,7 +3700,9 @@ function wikiPublishFetch(options: { expectedCommit?: string; staleLatest?: bool
 			return Response.json(wikiPublishedLatestAgent("acme", "wiki-data-devops", expectedCommit));
 		}
 		if (url.includes("@published/latest.json")) {
-			const sourceCommit = options.staleLatest ? "4".repeat(40) : expectedCommit;
+			const edgeHost = /https:\/\/(?:fastly|gcore|testingcf)\.jsdelivr\.net/.test(url);
+			const sourceCommit =
+				options.staleLatest || (options.staleEdgeLatest && edgeHost) ? "4".repeat(40) : expectedCommit;
 			return Response.json(wikiPublishedLatest("acme", "wiki-data-devops", sourceCommit));
 		}
 		if (url.endsWith("/wiki-manifest.json")) {

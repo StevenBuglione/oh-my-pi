@@ -315,10 +315,12 @@ interface WikiPublishVerificationResult {
 	latestUrl: string;
 	latestAgentUrl: string;
 	workflowUrl?: string;
+	warnings: string[];
 	attempts: Array<{
 		attempt: number;
 		ok: boolean;
 		errors: string[];
+		warnings: string[];
 		githubLatestCommit?: string;
 		githubAgentCommit?: string;
 		cdnLatestCommit?: string;
@@ -2092,6 +2094,9 @@ export async function runWikiResearchPublishVerification(
 					`Live page: ${liveUrl}`,
 					`Workflow: ${verification.workflowUrl ?? "not found"}`,
 					"",
+					...(verification.warnings.length
+						? ["Warnings:", ...verification.warnings.map(warning => `- ${warning}`), ""]
+						: []),
 					"Checked URLs:",
 					...verification.checkedUrls.map(url => `- ${url}`),
 				].join("\n"),
@@ -2114,6 +2119,9 @@ export async function runWikiResearchPublishVerification(
 					"Errors:",
 					...(verification.errors.length ? verification.errors.map(error => `- ${error}`) : ["- unknown"]),
 					"",
+					...(verification.warnings.length
+						? ["Warnings:", ...verification.warnings.map(warning => `- ${warning}`), ""]
+						: []),
 					"Checked URLs:",
 					...verification.checkedUrls.map(url => `- ${url}`),
 				].join("\n"),
@@ -2758,6 +2766,7 @@ async function verifyPublishedWikiArtifacts(
 		latestAgentUrl,
 		attempts: [],
 		errors: [],
+		warnings: [],
 		checkedUrls: [...latestUrls, ...latestAgentUrls],
 	};
 
@@ -2779,6 +2788,7 @@ async function verifyPublishedWikiArtifacts(
 	for (let attempt = 1; attempt <= attempts; attempt += 1) {
 		const checkedUrls = [...latestUrls, ...latestAgentUrls];
 		const errors: string[] = [...workflowErrors];
+		const warnings: string[] = [];
 		const githubLatest = await readPublishedJson(token, client, input.owner, input.repo, "latest.json");
 		const githubAgent = await readPublishedJson(token, client, input.owner, input.repo, "latest-agent.json");
 		const githubLatestCommit = stringField(githubLatest, "sourceCommit");
@@ -2807,9 +2817,10 @@ async function verifyPublishedWikiArtifacts(
 		for (const [index, cdnLatest] of cdnLatestResults.entries()) {
 			const url = latestUrls[index];
 			const commit = cdnLatestCommits[url];
-			if (!cdnLatest.ok) errors.push(`${url} fetch failed: ${cdnLatest.error}`);
+			const pointerIssues = index === 0 ? errors : warnings;
+			if (!cdnLatest.ok) pointerIssues.push(`${url} fetch failed: ${cdnLatest.error}`);
 			else if (!(await acceptableCommit(commit))) {
-				errors.push(
+				pointerIssues.push(
 					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 				);
 			}
@@ -2817,9 +2828,10 @@ async function verifyPublishedWikiArtifacts(
 		for (const [index, cdnAgent] of cdnAgentResults.entries()) {
 			const url = latestAgentUrls[index];
 			const commit = cdnAgentCommits[url];
-			if (!cdnAgent.ok) errors.push(`${url} fetch failed: ${cdnAgent.error}`);
+			const pointerIssues = index === 0 ? errors : warnings;
+			if (!cdnAgent.ok) pointerIssues.push(`${url} fetch failed: ${cdnAgent.error}`);
 			else if (!(await acceptableCommit(commit))) {
-				errors.push(
+				pointerIssues.push(
 					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 				);
 			}
@@ -2855,6 +2867,7 @@ async function verifyPublishedWikiArtifacts(
 			attempt,
 			ok: errors.length === 0,
 			errors,
+			warnings,
 			githubLatestCommit,
 			githubAgentCommit,
 			cdnLatestCommit: cdnLatestCommits[latestUrl],
@@ -2867,12 +2880,14 @@ async function verifyPublishedWikiArtifacts(
 		result.checkedUrls = [...new Set([...result.checkedUrls, ...checkedUrls])];
 		if (attemptResult.ok) {
 			result.ok = true;
+			result.warnings = warnings;
 			return result;
 		}
 		if (attempt < attempts && delayMs) await sleep(delayMs);
 	}
 
 	result.errors = result.attempts.at(-1)?.errors ?? ["publish verification did not complete"];
+	result.warnings = result.attempts.at(-1)?.warnings ?? [];
 	return result;
 }
 
