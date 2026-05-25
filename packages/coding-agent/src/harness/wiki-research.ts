@@ -908,9 +908,10 @@ function wikiResearchBriefPrompt(input: {
 		"You are the research backend for OMG unattended wiki publishing.",
 		"You are running as the Pro Extended research worker. Spend the effort needed to produce a professional reference-quality package, not a thin canary draft.",
 		"ChatGPT is the only content decision engine. Local Qwen/watchdog models are not allowed to approve source, draft, critic, merge, or publishing decisions.",
+		"A zip file named chatgpt-schema-bundle.zip is attached. Extract it, use the JSON schemas in schemas/, and run validate_schema_package.py against your completed package before you return.",
 		"Create and attach a downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
 		"Do not paste any JSON into chat.",
-		"Before exiting, validate every JSON file against its required schema yourself and record the result in validation.json.",
+		"Before exiting, validate every JSON file with the attached validator and record the validator result in validation.json.",
 		"Your final chat message must contain only the downloadable package/artifact link or a one-line artifact-ready note.",
 		"",
 		"source-decision.json required schema:",
@@ -1081,6 +1082,7 @@ function wikiResearchBriefPrompt(input: {
 function wikiResearchBriefRepairPrompt(invalidText: string, error: string | undefined): string {
 	return [
 		"Your previous response was rejected by the OMG schema validator.",
+		"The chat still has chatgpt-schema-bundle.zip attached. Use its JSON schemas and validate_schema_package.py before replying.",
 		"Create and attach a corrected downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
 		"Do not paste JSON into chat. The final chat message must contain only the artifact link or a one-line artifact-ready note.",
 		"Each package file must use the schema_version requested in the original prompt, and validation.json must prove you checked every file before exiting.",
@@ -1355,12 +1357,211 @@ function findPackageFile(files: string[], filename: string): string | undefined 
 	return files.find(file => path.basename(file).toLowerCase() === target);
 }
 
+function stringArraySchema(minItems = 1): Record<string, unknown> {
+	return { type: "array", minItems, items: { type: "string" } };
+}
+
+function objectSchema(
+	required: string[],
+	properties: Record<string, unknown>,
+	extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+	return {
+		$schema: "https://json-schema.org/draft/2020-12/schema",
+		type: "object",
+		required,
+		properties,
+		additionalProperties: true,
+		...extra,
+	};
+}
+
+function wikiResearchPackageSchemas(sourceId: string, repoName: string): Record<string, Record<string, unknown>> {
+	const sourceQuality = {
+		type: "object",
+		required: ["url", "title", "source_type", "why_it_matters"],
+		properties: {
+			url: { type: "string" },
+			title: { type: "string" },
+			source_type: { type: "string", enum: ["official", "standards", "reference", "supporting"] },
+			why_it_matters: { type: "string" },
+		},
+	};
+	return {
+		"source-decision.schema.json": objectSchema(
+			[
+				"schema_version",
+				"status",
+				"recommended_action",
+				"source_id",
+				"repo_name",
+				"domain_label",
+				"reason",
+				"existing_source_candidates",
+				"confidence",
+				"required_seed_files",
+			],
+			{
+				schema_version: { const: "omg.wiki.source_decision.v1" },
+				status: { type: "string", enum: ["complete", "blocked", "needs_user_decision"] },
+				recommended_action: { type: "string", enum: ["use_existing_source", "create_new_source", "blocked"] },
+				source_id: { type: "string", const: sourceId },
+				repo_name: { type: "string", const: repoName },
+				domain_label: { type: "string" },
+				reason: { type: "string" },
+				existing_source_candidates: stringArraySchema(0),
+				confidence: { type: "number" },
+				required_seed_files: stringArraySchema(0),
+			},
+		),
+		"research-brief.schema.json": objectSchema(
+			[
+				"schema_version",
+				"status",
+				"topic",
+				"summary",
+				"citations",
+				"source_quality",
+				"claim_citations",
+				"findings",
+				"reader_takeaways",
+				"confidence",
+			],
+			{
+				schema_version: { const: "omg.wiki.research_brief.v1" },
+				status: { type: "string", enum: ["complete", "blocked", "needs_more_context"] },
+				topic: { type: "string" },
+				summary: { type: "string" },
+				citations: stringArraySchema(CHATGPT_MIN_DEEP_RESEARCH_CITATIONS),
+				source_quality: { type: "array", minItems: CHATGPT_MIN_DEEP_RESEARCH_CITATIONS, items: sourceQuality },
+				claim_citations: {
+					type: "array",
+					minItems: CHATGPT_MIN_DEEP_RESEARCH_FINDINGS,
+					items: {
+						type: "object",
+						required: ["claim", "citation_urls"],
+						properties: { claim: { type: "string" }, citation_urls: stringArraySchema() },
+					},
+				},
+				findings: stringArraySchema(CHATGPT_MIN_DEEP_RESEARCH_FINDINGS),
+				reader_takeaways: stringArraySchema(3),
+				confidence: { type: "number" },
+			},
+		),
+		"content-plan.schema.json": objectSchema(["schema_version", "status", "source_id", "pages"], {
+			schema_version: { const: "omg.wiki.content_plan.v1" },
+			status: { type: "string", enum: ["complete", "blocked"] },
+			source_id: { type: "string", const: sourceId },
+			pages: {
+				type: "array",
+				minItems: 1,
+				items: {
+					type: "object",
+					required: ["title", "slug", "description", "tags", "reader_value", "outline"],
+					properties: {
+						title: { type: "string" },
+						slug: { type: "string" },
+						description: { type: "string" },
+						tags: stringArraySchema(),
+						reader_value: { type: "string" },
+						outline: stringArraySchema(CHATGPT_MIN_DRAFT_SECTIONS),
+					},
+				},
+			},
+		}),
+		"draft-instructions.schema.json": objectSchema(
+			[
+				"schema_version",
+				"status",
+				"source_id",
+				"path",
+				"title",
+				"description",
+				"tags",
+				"required_sections",
+				"notes",
+				"sections",
+				"confidence",
+			],
+			{
+				schema_version: { const: "omg.wiki.draft_instructions.v1" },
+				status: { type: "string", enum: ["complete", "blocked"] },
+				source_id: { type: "string", const: sourceId },
+				path: { type: "string" },
+				title: { type: "string" },
+				description: { type: "string" },
+				tags: stringArraySchema(),
+				required_sections: stringArraySchema(CHATGPT_MIN_DRAFT_SECTIONS),
+				notes: stringArraySchema(0),
+				sections: {
+					type: "array",
+					minItems: CHATGPT_MIN_DRAFT_SECTIONS,
+					items: {
+						type: "object",
+						required: ["heading", "purpose", "paragraphs", "bullets", "citation_urls"],
+						properties: {
+							heading: { type: "string" },
+							purpose: { type: "string" },
+							paragraphs: stringArraySchema(2),
+							bullets: stringArraySchema(0),
+							citation_urls: stringArraySchema(),
+						},
+					},
+				},
+				confidence: { type: "number" },
+			},
+		),
+		"critic-review.schema.json": objectSchema(
+			["schema_version", "approved", "blocking_findings", "non_blocking_findings", "verdict"],
+			{
+				schema_version: { const: "omg.wiki.research_review.v1" },
+				approved: { type: "boolean", const: true },
+				blocking_findings: stringArraySchema(0),
+				non_blocking_findings: stringArraySchema(0),
+				verdict: { type: "string", const: "good_enough" },
+			},
+		),
+		"validation.schema.json": objectSchema(["ok", "schema_version", "checked_files", "errors", "citation_count"], {
+			ok: { type: "boolean", const: true },
+			schema_version: { type: "string" },
+			checked_files: stringArraySchema(6),
+			errors: stringArraySchema(0),
+			citation_count: { type: "number" },
+			worker_id: { type: "string" },
+			request_id: { type: "string" },
+			conversation_url: { type: "string" },
+		}),
+	};
+}
+
+async function writeWikiResearchSchemaFiles(
+	state: HarnessRunState,
+	candidateSourceDecision: CandidateSourceDecision,
+): Promise<string[]> {
+	const sourceId = candidateSourceDecision.sourceId ?? "undecided";
+	const repoName = candidateSourceDecision.repoName ?? "";
+	const schemas = wikiResearchPackageSchemas(sourceId, repoName);
+	const out: string[] = [];
+	for (const [filename, schema] of Object.entries(schemas)) {
+		out.push(
+			await writeRunFile(
+				state.runId,
+				"artifacts",
+				`research-schema/${filename}`,
+				`${JSON.stringify(schema, null, 2)}\n`,
+			),
+		);
+	}
+	return out;
+}
+
 async function sendResearchPrompt(
 	state: HarnessRunState,
 	workerId: string,
 	prompt: string,
 	runner: WikiResearchWorkerRunner,
 	attempt: "initial" | "repair",
+	schemaPaths: string[],
 ): Promise<{ requestId?: string; conversationUrl?: string }> {
 	const promptName = attempt === "initial" ? "researcher.md" : "researcher-repair.md";
 	await writeRunFile(state.runId, "prompts", promptName, prompt);
@@ -1373,6 +1574,7 @@ async function sendResearchPrompt(
 		prompt,
 		modelOption,
 		thinkingOption,
+		schemas: schemaPaths,
 		extraArgs: ["--json"],
 		timeoutMs: 120_000,
 	});
@@ -1391,6 +1593,7 @@ async function sendResearchPrompt(
 			prompt,
 			modelOption,
 			thinkingOption,
+			schemas: schemaPaths,
 			extraArgs: ["--json"],
 			timeoutMs: 120_000,
 		});
@@ -1489,6 +1692,7 @@ async function runChatGptResearchBrief(
 }> {
 	const runner = options.workerRunner ?? runChatGptWorkerCommand;
 	const workerId = await createResearchWorker(state, runner);
+	const schemaPaths = await writeWikiResearchSchemaFiles(state, candidateSourceDecision);
 	try {
 		const sent = await sendResearchPrompt(
 			state,
@@ -1496,6 +1700,7 @@ async function runChatGptResearchBrief(
 			wikiResearchBriefPrompt({ issue, body, candidateSourceDecision, registry, steering }),
 			runner,
 			"initial",
+			schemaPaths,
 		);
 		let parsed = await downloadResearchBriefPackage(state, {
 			requestId: sent.requestId,
@@ -1517,6 +1722,7 @@ async function runChatGptResearchBrief(
 				wikiResearchBriefRepairPrompt(copied.stdout || parsed.error || "", parsed.error),
 				runner,
 				"repair",
+				schemaPaths,
 			);
 			parsed = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? sent.requestId,
@@ -1552,6 +1758,7 @@ async function runChatGptResearchBrief(
 				),
 				runner,
 				"repair",
+				schemaPaths,
 			);
 			const repairedPackage = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,

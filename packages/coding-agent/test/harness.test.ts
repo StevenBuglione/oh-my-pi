@@ -268,6 +268,7 @@ describe("harness core", () => {
 				worker: "critic-1",
 				prompt: "Return JSON only",
 				files: ["packet.zip"],
+				schemas: ["research-brief.schema.json"],
 				skills: ["critic-review"],
 				modelOption: "Thinking",
 				thinkingOption: "Standard",
@@ -283,6 +284,8 @@ describe("harness core", () => {
 			"Standard",
 			"--file",
 			"packet.zip",
+			"--schema",
+			"research-brief.schema.json",
 			"--skill",
 			"critic-review",
 			"--json",
@@ -2255,6 +2258,7 @@ describe("harness core", () => {
 		const calls: string[] = [];
 		const workerCalls: string[] = [];
 		const sendModes: string[] = [];
+		const sendSchemaCounts: number[] = [];
 		const workerRunner = wikiResearchWorkerRunner({ zipped: true, calls: workerCalls });
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		const steeringPath = path.join(tempRoot, "wiki.steering.json");
@@ -2279,6 +2283,7 @@ describe("harness core", () => {
 			githubToken: "ghp_super_secret_token",
 			workerRunner: async input => {
 				if (input.action === "send") sendModes.push(`${input.modelOption}:${input.thinkingOption}`);
+				if (input.action === "send") sendSchemaCounts.push(input.schemas?.length ?? 0);
 				return workerRunner(input);
 			},
 			githubClient: wikiResearchMockClient({
@@ -2302,6 +2307,7 @@ describe("harness core", () => {
 			),
 		).toBe(true);
 		expect(sendModes).toContain("Pro:Extended");
+		expect(sendSchemaCounts).toContain(6);
 		expect(workerCalls).toContain("stop");
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
 		expect(calls.some(call => call === "put:wiki-data-devops:docs/kubernetes-backup-patterns.md")).toBe(true);

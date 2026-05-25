@@ -20,6 +20,7 @@ export interface ChatGptWorkerCommand {
 	prompt?: string;
 	conversationUrl?: string;
 	files?: string[];
+	schemas?: string[];
 	skills?: string[];
 	modelOption?: string;
 	thinkingOption?: string;
@@ -65,6 +66,7 @@ export function buildChatGptCommand(input: ChatGptWorkerCommand): string[] {
 		if (input.modelOption) args.push("--model-option", input.modelOption);
 		if (input.thinkingOption) args.push("--thinking-option", input.thinkingOption);
 		for (const file of input.files ?? []) args.push("--file", file);
+		for (const schema of input.schemas ?? []) args.push("--schema", schema);
 		for (const skill of input.skills ?? []) args.push("--skill", skill);
 		args.push(...(input.extraArgs ?? []));
 		args.push(input.worker!, input.prompt);
