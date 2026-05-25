@@ -2542,6 +2542,18 @@ describe("harness core", () => {
 				path.join(getHarnessRunDir(state.runId), "responses", "researcher-repair-package-research-brief.json"),
 			).exists(),
 		).toBe(true);
+		const draftPath = path.join(
+			getHarnessRunDir(state.runId),
+			"artifacts",
+			"draft",
+			"docs",
+			"kubernetes-backup-patterns.md",
+		);
+		const draft = await Bun.file(draftPath).text();
+		expect(draft).not.toContain("## Research Notes");
+		expect(draft).not.toContain("## Drafting Notes");
+		expect(draft.match(/^## Sources$/gm)?.length).toBe(1);
+		expect(draft).not.toContain("To be expanded from cited source material");
 	});
 
 	it("repairs ChatGPT wiki research packages that miss finding-level citation mappings", async () => {

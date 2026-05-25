@@ -1682,9 +1682,16 @@ function draftMarkdown(
 	const tags = [...new Set([...(instructions?.tags ?? []), "research", sourceId])].filter(Boolean);
 	const requiredSections = (instructions?.required_sections ?? []).filter(
 		section =>
-			!["Summary", "Checklist", "Decision Guidance", "Common Pitfalls", "Maintenance Notes", "Sources"].includes(
-				section,
-			),
+			![
+				"Summary",
+				"Checklist",
+				"Decision Guidance",
+				"Common Pitfalls",
+				"Maintenance Notes",
+				"Sources",
+				"Research Notes",
+				"Drafting Notes",
+			].includes(section),
 	);
 	const today = new Date().toISOString().slice(0, 10);
 	const citationLines = research.citations.map(
@@ -1697,7 +1704,13 @@ function draftMarkdown(
 		.join(" ");
 	const checklistItems = citedFindings.slice(0, 6);
 	const authoredSections = instructions?.sections.length
-		? renderInstructionSections(instructions, research.citations)
+		? renderInstructionSections(
+				{
+					...instructions,
+					sections: instructions.sections.filter(section => section.heading !== "Sources"),
+				},
+				research.citations,
+			)
 		: [];
 	const markdown = [
 		"---",
@@ -1718,8 +1731,6 @@ function draftMarkdown(
 		"---",
 		"",
 		`# ${title}`,
-		"",
-		body.objective,
 		"",
 		...(authoredSections.length
 			? authoredSections
@@ -1750,9 +1761,6 @@ function draftMarkdown(
 					"",
 				]),
 		...requiredSections.flatMap(section => [`## ${section}`, "", "- To be expanded from cited source material.", ""]),
-		...(instructions?.notes.length
-			? ["## Drafting Notes", "", ...instructions.notes.map(note => `- ${note}`), ""]
-			: []),
 		"## Sources",
 		"",
 		...(research.citations.length
@@ -1812,6 +1820,13 @@ function reviewDraft(draft: WikiPageDraftEnvelope, research: WikiResearchBriefEn
 	if (research.confidence < 0.5) blocking.push("research confidence is too low");
 	if (!research.citations.length) blocking.push("research brief has no citations");
 	if (!/^## Sources\s*$/m.test(draft.markdown)) blocking.push("draft must include a Sources section");
+	if ((draft.markdown.match(/^## Sources\s*$/gm) ?? []).length > 1) blocking.push("draft must not duplicate Sources");
+	if (/^## (Research Notes|Drafting Notes)\s*$/m.test(draft.markdown)) {
+		blocking.push("draft must not publish internal research or drafting notes sections");
+	}
+	if (/To be expanded from cited source material/i.test(draft.markdown)) {
+		blocking.push("draft must not publish placeholder expansion text");
+	}
 	if (!/\[\d+\]\(https?:\/\/[^)]+\)/.test(draft.markdown)) blocking.push("draft needs inline citations");
 	return {
 		schema_version: "omg.wiki.research_review.v1",
