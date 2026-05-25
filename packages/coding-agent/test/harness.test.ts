@@ -2964,6 +2964,107 @@ describe("harness core", () => {
 		expect(calls).toContain("create-issue:wiki-data-devops");
 	});
 
+	it("autopilot does not let stale publish retries delay fresh research seeding", async () => {
+		const calls: string[] = [];
+		let latestPointerFetches = 0;
+		const registryPath = path.join(tempRoot, "research-sources-with-publish-retry.json");
+		const steeringPath = path.join(tempRoot, "wiki-publish-retry.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+			{
+				id: "homelab",
+				label: "Homelab",
+				description: "Self-hosting networking storage disaster recovery",
+				enabled: true,
+				order: 20,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-homelab@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		let seededIssue: any;
+		const blockedIssue = wikiResearchIssue({
+			number: 8,
+			title: "Kubernetes backup publish retry",
+			body: "## Objective\nVerify a merged Kubernetes backup page.\n\n## Preferred source\nhomelab",
+			labels: ["wiki:research", "wiki:blocked", "source:homelab"],
+			repo: "wiki-data-homelab",
+		});
+		const base = wikiResearchMockClient({
+			calls,
+			issue: blockedIssue,
+			withSafeMerge: true,
+			withPublishVerification: true,
+		});
+		const client = {
+			...base,
+			async listIssues(_token: string | undefined, owner: string, repo: string, labels: string[]) {
+				calls.push(`list:${owner}/${repo}:${labels.join(",")}`);
+				if (repo === "wiki-data-homelab" && labels.includes("wiki:blocked")) {
+					return [{ ...blockedIssue, owner, repo }];
+				}
+				if (repo === "wiki-data-devops" && labels.includes("wiki:queued") && seededIssue) {
+					return [{ ...seededIssue, owner, repo }];
+				}
+				return [];
+			},
+			async getIssue(_token: string | undefined, owner: string, repo: string, issueNumber: number) {
+				calls.push(`issue:${owner}/${repo}#${issueNumber}`);
+				if (repo === "wiki-data-devops" && seededIssue) return { ...seededIssue, owner, repo, number: issueNumber };
+				return { ...blockedIssue, owner, repo, number: issueNumber };
+			},
+			async createIssue(_token: string, input: any) {
+				calls.push(`create-issue:${input.repo}`);
+				seededIssue = wikiResearchIssue({
+					number: 9,
+					title: input.title,
+					body: input.body,
+					labels: input.labels,
+					htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/9`,
+					owner: input.owner,
+					repo: input.repo,
+				});
+				return seededIssue;
+			},
+		};
+		const fetchImpl = (async (input: string | URL | Request) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url.includes("@published/latest.json")) latestPointerFetches += 1;
+			return wikiPublishFetch({ staleLatest: true })(input);
+		}) as typeof fetch;
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			repos: ["wiki-data-homelab", "wiki-data-devops"],
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			autoMerge: "off",
+			researcher: "chatgpt",
+			seedWhenEmpty: true,
+			publishVerificationAttempts: 3,
+			publishVerificationDelayMs: 0,
+			fetchImpl,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: client,
+		});
+
+		expect(result.seeded?.repo).toBe("wiki-data-devops");
+		expect(result.processed.some(item => item.repo === "wiki-data-homelab")).toBe(true);
+		expect(result.processed.some(item => item.repo === "wiki-data-devops" && item.status === "good_enough")).toBe(
+			true,
+		);
+		expect(latestPointerFetches).toBe(8);
+		expect(calls).toContain("create-issue:wiki-data-devops");
+	});
+
 	it("resumes wiki research with the previously fetched issue when no override is provided", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");

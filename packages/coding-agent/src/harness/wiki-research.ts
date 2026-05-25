@@ -2090,11 +2090,14 @@ export async function runWikiResearchQueue(
 			)[0];
 			if (!issue) continue;
 			if (issueMode === "publish_retry" && publishBlocked.some(item => item.number === issue.number)) {
+				const quickPublishRetry = Boolean(options.seedWhenEmpty);
 				const verification = await runWikiResearchPublishVerification({
 					...options,
 					owner,
 					repo,
 					issue: `${owner}/${repo}#${issue.number}`,
+					publishVerificationAttempts: quickPublishRetry ? 1 : options.publishVerificationAttempts,
+					publishVerificationDelayMs: quickPublishRetry ? 0 : options.publishVerificationDelayMs,
 				});
 				result.processed.push({
 					repo,
