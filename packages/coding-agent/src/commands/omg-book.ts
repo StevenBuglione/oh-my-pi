@@ -545,6 +545,7 @@ function stageInstructions(ctx: StageContext): string {
 	if (ctx.action === "expand-world") {
 		return [
 			`Expand worldbuilding records for ${ctx.bookId}/${ctx.chapterId}.`,
+			"If the named chapter does not already exist in the uploaded context, treat this as book-level foundation work: do not set chapter_id in the decision file.",
 			"Prefer places, factions, institutions, cultures, laws, economy, and technology/memory systems that create story constraints.",
 			"Every new world record must affect access, power, safety, grief, money, or memory.",
 			"Create an omg.book.llm_decision.v2 decision explaining the new canon impact.",
@@ -553,6 +554,7 @@ function stageInstructions(ctx: StageContext): string {
 	if (ctx.action === "expand-characters") {
 		return [
 			`Expand character and relationship records for ${ctx.bookId}/${ctx.chapterId}.`,
+			"If the named chapter does not already exist in the uploaded context, treat this as book-level foundation work: do not set chapter_id in the decision file.",
 			"Track want, need, fear, lie, wound, agency, voice, arc state, relationship tension, secrets, and reversals.",
 			"Do not add a character unless they create pressure on an existing plot, institution, or relationship.",
 			"Create an omg.book.llm_decision.v2 decision explaining the character-layer change.",
@@ -561,6 +563,7 @@ function stageInstructions(ctx: StageContext): string {
 	if (ctx.action === "expand-timeline") {
 		return [
 			`Expand timeline and continuity records for ${ctx.bookId}/${ctx.chapterId}.`,
+			"If the named chapter does not already exist in the uploaded context, treat this as book-level foundation work: do not set chapter_id in the decision file.",
 			"Add causally ordered events that explain present pressure, unresolved consequences, and future constraints.",
 			"Flag contradictions instead of smoothing them silently.",
 			"Create an omg.book.llm_decision.v2 decision explaining the timeline-layer change.",
@@ -569,6 +572,7 @@ function stageInstructions(ctx: StageContext): string {
 	if (ctx.action === "plan-arc") {
 		return [
 			`Plan plot threads, mysteries, promises, and arc movement for ${ctx.bookId}/${ctx.chapterId}.`,
+			"If the named chapter does not already exist in the uploaded context, treat this as book-level foundation work: do not set chapter_id in the decision file.",
 			"Each thread should name the promise, current pressure, next turn, and risk of reader disappointment.",
 			"Prefer story decisions that strengthen character agency and continuity.",
 			"Create an omg.book.llm_decision.v2 decision explaining the arc choice.",
@@ -653,7 +657,7 @@ function normalizePackageJson(ctx: StageContext, file: string, parsed: unknown):
 		const isKnownDecision = ["create", "revise", "approve", "reject", "needs_more_context", "ask_user"].includes(
 			decisionValue,
 		);
-		return {
+		const normalized: Record<string, unknown> = {
 			...obj,
 			decision: isKnownDecision ? decisionValue : "approve",
 			confidence: typeof obj.confidence === "number" ? obj.confidence : 0.82,
@@ -674,6 +678,10 @@ function normalizePackageJson(ctx: StageContext, file: string, parsed: unknown):
 					: ctx.action === "plan-chapter"
 						? "draft-chapter"
 						: "continue",
+		};
+		if (!actionRequiresExistingChapter(ctx.action)) delete normalized.chapter_id;
+		return {
+			...normalized,
 		};
 	}
 	if (file.endsWith(".packet.json") && obj.schema_version === "omg.book.chapter_packet.v1") {
@@ -1515,6 +1523,10 @@ function normalizeNextStage(value: string | undefined): OmgBookAction | undefine
 		"draft-chapter": "draft-chapter",
 	};
 	return map[value];
+}
+
+function actionRequiresExistingChapter(action: OmgBookAction): boolean {
+	return ["plan-chapter", "draft-chapter", "revise-chapter", "generate-art", "review", "repair"].includes(action);
 }
 
 async function readQuality(ctx: StageContext): Promise<{
