@@ -24,6 +24,7 @@ const ACTIONS = [
 	"generate-art",
 	"review",
 	"repair",
+	"watchdog",
 	"autopilot",
 	"publish",
 ] as const;
@@ -79,6 +80,12 @@ interface StageContext {
 	workerTimeoutSeconds: number;
 	workflow: string;
 	json: boolean;
+	maxFailuresPerCycle: number;
+	maxStagesPerCycle: number;
+	artTargetNode?: string;
+	artTargetType?: "character" | "location" | "item";
+	artTargetSlug?: string;
+	artTargetLabel?: string;
 }
 
 interface StageResult {
@@ -109,10 +116,6 @@ async function runProcess(
 	return { stdout, stderr, exitCode };
 }
 
-function posix(value: string): string {
-	return value.replaceAll(path.sep, "/");
-}
-
 function repoPath(seriesRepo: string, rel: string): string {
 	return path.join(seriesRepo, ...rel.split("/"));
 }
@@ -124,6 +127,32 @@ function safeRepoPath(seriesRepo: string, rel: string): string {
 	const resolved = path.resolve(absolute);
 	if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) throw new Error(`unsafe repo path ${rel}`);
 	return resolved;
+}
+
+function slugify(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 80);
+}
+
+function isProductionCanon(value: Record<string, unknown>): boolean {
+	return value.production_approved === true || value.visual_status === "approved";
+}
+
+function artAssetRel(ctx: StageContext): string {
+	if (ctx.artTargetType === "character") return `assets/characters/${ctx.artTargetSlug}/portrait.svg`;
+	if (ctx.artTargetType === "location") return `assets/locations/${ctx.artTargetSlug}/location.svg`;
+	if (ctx.artTargetType === "item") return `assets/items/${ctx.artTargetSlug}/item.svg`;
+	return `assets/${ctx.bookId}/${ctx.chapterId}/chapter-hero.svg`;
+}
+
+function artVisualDir(ctx: StageContext): string {
+	if (ctx.artTargetType === "character") return `visuals/characters/${ctx.artTargetSlug}`;
+	if (ctx.artTargetType === "location") return `visuals/locations/${ctx.artTargetSlug}`;
+	if (ctx.artTargetType === "item") return `visuals/items/${ctx.artTargetSlug}`;
+	return `visuals/chapters/${ctx.bookId}/${ctx.chapterId}`;
 }
 
 async function readJson<T>(file: string): Promise<T> {
@@ -138,6 +167,23 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 async function writeText(file: string, value: string): Promise<void> {
 	await mkdir(path.dirname(file), { recursive: true });
 	await writeFile(file, value);
+}
+
+async function fileExists(file: string): Promise<boolean> {
+	return await Bun.file(file).exists();
+}
+
+async function listRepoJson(
+	seriesRepo: string,
+	pattern: string,
+): Promise<Array<{ rel: string; data: Record<string, unknown> }>> {
+	const out: Array<{ rel: string; data: Record<string, unknown> }> = [];
+	for await (const file of new Bun.Glob(pattern).scan({ cwd: seriesRepo, onlyFiles: true })) {
+		const rel = file.replaceAll("\\", "/");
+		const data = await readJson<Record<string, unknown>>(safeRepoPath(seriesRepo, rel));
+		out.push({ rel, data });
+	}
+	return out;
 }
 
 async function writeStageReport(ctx: StageContext, result: Record<string, unknown>): Promise<string> {
@@ -197,20 +243,31 @@ function firstWorkerId(stdout: string): string | undefined {
 	return stdout.match(/"worker_id"\s*:\s*"([^"]+)"/)?.[1] ?? stdout.match(/\b[a-z]+-[a-z]+-\d+\b/)?.[0];
 }
 
-function responseMeta(stdout: string): { requestId?: string; conversationUrl?: string; soulId?: string; soulVersion?: string } {
+function responseMeta(stdout: string): {
+	requestId?: string;
+	conversationUrl?: string;
+	soulId?: string;
+	soulVersion?: string;
+} {
 	const parsed = jsonFromStdout(stdout);
 	const obj = Array.isArray(parsed) ? parsed[0] : parsed;
 	if (obj && typeof obj === "object") {
 		const data = obj as Record<string, unknown>;
 		return {
-			requestId: typeof data.request_id === "string" ? data.request_id : typeof data.requestId === "string" ? data.requestId : undefined,
+			requestId:
+				typeof data.request_id === "string"
+					? data.request_id
+					: typeof data.requestId === "string"
+						? data.requestId
+						: undefined,
 			conversationUrl:
 				typeof data.conversation_url === "string"
 					? data.conversation_url
 					: typeof data.conversationUrl === "string"
 						? data.conversationUrl
 						: undefined,
-			soulId: typeof data.soulId === "string" ? data.soulId : typeof data.soul_id === "string" ? data.soul_id : undefined,
+			soulId:
+				typeof data.soulId === "string" ? data.soulId : typeof data.soul_id === "string" ? data.soul_id : undefined,
 			soulVersion:
 				typeof data.soulVersion === "string"
 					? data.soulVersion
@@ -225,25 +282,45 @@ function responseMeta(stdout: string): { requestId?: string; conversationUrl?: s
 function expectedFiles(ctx: StageContext): string[] {
 	const chapterBase = `books/${ctx.bookId}/chapters/${ctx.chapterId}`;
 	if (ctx.action === "research-dossier") {
-		return [`research/plausibility/${ctx.bookId}-${ctx.chapterId}-dossier.json`, `decisions/${ctx.chapterId}-research-llm.json`];
+		const dossierId = `${ctx.bookId}-${ctx.chapterId}-dossier`;
+		return [
+			`research/plausibility/${dossierId}/dossier.json`,
+			`research/plausibility/${dossierId}/dossier.md`,
+			`decisions/${ctx.chapterId}-research-llm.json`,
+		];
 	}
 	if (ctx.action === "expand-world") {
-		return [`world/places/${ctx.bookId}-${ctx.chapterId}-places.json`, `world/magic-or-technology/${ctx.bookId}-${ctx.chapterId}-systems.json`, `decisions/${ctx.chapterId}-world-llm.json`];
+		return [
+			`world/places/${ctx.bookId}-${ctx.chapterId}-places.json`,
+			`world/magic-or-technology/${ctx.bookId}-${ctx.chapterId}-systems.json`,
+			`decisions/${ctx.chapterId}-world-llm.json`,
+		];
 	}
 	if (ctx.action === "expand-characters") {
-		return [`characters/arcs/${ctx.bookId}-${ctx.chapterId}-arcs.json`, `relationships/${ctx.bookId}-${ctx.chapterId}-relationships.json`, `decisions/${ctx.chapterId}-characters-llm.json`];
+		return [
+			`characters/arcs/${ctx.bookId}-${ctx.chapterId}-arcs.json`,
+			`relationships/${ctx.bookId}-${ctx.chapterId}-relationships.json`,
+			`decisions/${ctx.chapterId}-characters-llm.json`,
+		];
 	}
 	if (ctx.action === "expand-timeline") {
 		return [`timeline/${ctx.bookId}-${ctx.chapterId}-timeline.json`, `decisions/${ctx.chapterId}-timeline-llm.json`];
 	}
 	if (ctx.action === "plan-arc") {
-		return [`plot/threads/${ctx.bookId}-${ctx.chapterId}-threads.json`, `plot/promises/${ctx.bookId}-${ctx.chapterId}-promises.json`, `decisions/${ctx.chapterId}-arc-llm.json`];
+		return [
+			`plot/threads/${ctx.bookId}-${ctx.chapterId}-threads.json`,
+			`plot/promises/${ctx.bookId}-${ctx.chapterId}-promises.json`,
+			`decisions/${ctx.chapterId}-arc-llm.json`,
+		];
 	}
 	if (ctx.action === "studio-assess") {
 		return ["quality/studio-editorial-assessment.json", "decisions/studio-editorial-assessment-llm.json"];
 	}
 	if (ctx.action === "review" || ctx.action === "repair") {
-		return [`quality/${ctx.bookId}-${ctx.chapterId}-${ctx.action}.json`, `decisions/${ctx.chapterId}-${ctx.action}-llm.json`];
+		return [
+			`quality/${ctx.bookId}-${ctx.chapterId}-${ctx.action}.json`,
+			`decisions/${ctx.chapterId}-${ctx.action}-llm.json`,
+		];
 	}
 	if (ctx.action === "plan-chapter") {
 		return [`${chapterBase}.packet.json`, `books/${ctx.bookId}/book.json`, `decisions/${ctx.chapterId}-llm.json`];
@@ -259,6 +336,16 @@ function expectedFiles(ctx: StageContext): string[] {
 		];
 	}
 	if (ctx.action === "generate-art") {
+		if (ctx.artTargetNode && ctx.artTargetType && ctx.artTargetSlug) {
+			const visualDir = artVisualDir(ctx);
+			return [
+				`${visualDir}/visual-profile.json`,
+				`${visualDir}/art-brief.json`,
+				`${visualDir}/art-decision.json`,
+				`${visualDir}/art-review.json`,
+				artAssetRel(ctx),
+			];
+		}
 		return [
 			`${chapterBase}.art-brief.json`,
 			`decisions/${ctx.chapterId}-art.json`,
@@ -268,7 +355,11 @@ function expectedFiles(ctx: StageContext): string[] {
 	return [];
 }
 
-async function buildContextZip(ctx: StageContext, runDir: string, maxBytes: number): Promise<{ path: string; bytes: number; files: string[] }> {
+async function buildContextZip(
+	ctx: StageContext,
+	runDir: string,
+	maxBytes: number,
+): Promise<{ path: string; bytes: number; files: string[] }> {
 	const include = [
 		"series.json",
 		"story_bible.json",
@@ -277,16 +368,20 @@ async function buildContextZip(ctx: StageContext, runDir: string, maxBytes: numb
 		`books/${ctx.bookId}/outline.json`,
 		`books/${ctx.bookId}/chapters/**/*.json`,
 		`books/${ctx.bookId}/chapters/**/*.md`,
+		`books/${ctx.bookId}/docs/**/*.md`,
 		"canon/**/*.json",
 		"characters/**/*.json",
 		"relationships/**/*.json",
 		"timeline/**/*.json",
 		"lore/**/*.json",
 		"research/**/*.json",
+		"research/**/*.md",
 		"world/**/*.json",
 		"plot/**/*.json",
 		"continuity/**/*.json",
 		"quality/**/*.json",
+		"visuals/**/*.json",
+		"assets/**/*.svg",
 		"craft/**/*.json",
 		"schemas/**/*.json",
 		"decisions/**/*.json",
@@ -331,7 +426,13 @@ async function buildContextZip(ctx: StageContext, runDir: string, maxBytes: numb
 	return { path: contextPath, bytes: zipBytes.byteLength, files: [...rels].sort() };
 }
 
-function stagePrompt(ctx: StageContext, packageId: string, runId: string, expected: string[], contextZipName: string): string {
+function stagePrompt(
+	ctx: StageContext,
+	packageId: string,
+	runId: string,
+	expected: string[],
+	contextZipName: string,
+): string {
 	const expectedArtifactName = `omg-book-${ctx.action}-${packageId}.zip`;
 	return [
 		"You are an OMG Book Engine worker. Return a strict artifact package, not prose in chat.",
@@ -352,6 +453,15 @@ function stagePrompt(ctx: StageContext, packageId: string, runId: string, expect
 		"",
 		"Required files:",
 		...expected.map(file => `- ${file}`),
+		"",
+		"Decision menu:",
+		...decisionMenu(ctx).map(item => `- ${item}`),
+		"",
+		"Post-turn routing rules:",
+		"- Your decision file must choose exactly one decision and exactly one next_action from the menu.",
+		"- If the task is not good enough, say reject or needs_more_context and route to the smallest useful next_action.",
+		"- If more development is needed before prose, route to research-dossier, expand-world, expand-characters, expand-timeline, plan-arc, repair, or ask-user.",
+		"- Do not use complete as a substitute for judgment. Explain why the next action moves the story system forward.",
 		"",
 		"package-manifest.json shape:",
 		JSON.stringify(
@@ -380,12 +490,55 @@ function stagePrompt(ctx: StageContext, packageId: string, runId: string, expect
 	].join("\n");
 }
 
+function decisionMenu(ctx: StageContext): string[] {
+	const common = [
+		"decision=create: create missing artifacts named in required_files.",
+		"decision=revise: improve existing artifacts without changing unrelated files.",
+		"decision=approve: assert the artifacts are good enough for local validation and reviewer scrutiny.",
+		"decision=reject: block because the layer is not good enough.",
+		"decision=needs_more_context: block because the uploaded context is insufficient or contradictory.",
+		"decision=ask_user: block only when a human creative choice is genuinely required.",
+		"next_action=research-dossier: gather or deepen readable, cited research.",
+		"next_action=expand-world: deepen places, factions, institutions, culture, laws, economy, lore, or constraints.",
+		"next_action=expand-characters: deepen character wants, fears, agency, voice, arcs, and relationships.",
+		"next_action=expand-timeline: repair or extend causality, sequence, consequences, and continuity.",
+		"next_action=plan-arc: strengthen plot threads, mysteries, promises, reversals, and stakes.",
+		"next_action=studio-assess: ask a senior editor to audit readiness and weakest layer.",
+		"next_action=plan-chapter: create or revise a chapter packet only after foundations are strong.",
+		"next_action=draft-chapter: draft prose only when world maturity and editorial assessment allow it.",
+		"next_action=generate-art: generate or repair canon art after the target canon node is approved.",
+		"next_action=review: run reviewer scrutiny on completed artifacts.",
+		"next_action=repair: fix the smallest locally validated failure.",
+		"next_action=publish: publish only after local validation and required reviewers pass.",
+		"next_action=ask-user: stop for human direction.",
+	];
+	if (ctx.action === "studio-assess") {
+		return [
+			...common,
+			"studio-assess decisions must be one of ready_for_drafting, expand_world, expand_characters, expand_timeline, research_more, plan_arc, revise_existing, ask_user in quality/studio-editorial-assessment.json.",
+		];
+	}
+	if (ctx.action === "generate-art" && ctx.artTargetNode) {
+		return [
+			...common,
+			`current_art_target=${ctx.artTargetNode}`,
+			`current_art_target_type=${ctx.artTargetType}`,
+			`current_art_target_label=${ctx.artTargetLabel}`,
+		];
+	}
+	return common;
+}
+
 function stageInstructions(ctx: StageContext): string {
 	if (ctx.action === "research-dossier") {
 		return [
 			`Create or revise research dossiers for ${ctx.bookId}/${ctx.chapterId}.`,
 			"Focus on craft, plausibility, worldbuilding, and visual-reference gaps that affect the next chapter.",
 			"Write curated public research notes with source_families and chapter/book applicability, not raw logs.",
+			"Return both dossier.md and dossier.json. The Markdown is for the human Studio reader and must be readable on its own.",
+			"dossier.md must include: thesis, why it matters, source notes, claims, story implications, contradictions and risks, open questions, and what this enables in fiction.",
+			"dossier.json must use schema_version omg.book.research_dossier.v1 and include dossier_id, title, domain, summary, markdown_path, citations, claim_map, source_quality, fiction_applications, linked_nodes, review_status approved, book_ids, and chapter_ids.",
+			"Each citation must include title, url, source_type, reliability, and note. Each claim must connect to citation_ids and story_use.",
 			"Create an omg.book.llm_decision.v2 decision explaining why this research layer was chosen.",
 		].join("\n");
 	}
@@ -457,6 +610,17 @@ function stageInstructions(ctx: StageContext): string {
 		].join("\n");
 	}
 	if (ctx.action === "generate-art") {
+		if (ctx.artTargetNode) {
+			return [
+				`Create canon-node visual contracts and one text-free SVG asset for ${ctx.artTargetLabel} (${ctx.artTargetNode}).`,
+				"This is not a chapter hero stage. The image must illustrate the approved character, location, or special/mystical item target without inventing new canon.",
+				"Create visual-profile.json with schema_version omg.book.visual_profile.v1, visual_id, target_node_id, target_type, title, status approved, canon_constraints, visual_motifs, color_language, silhouette_or_shape_language, forbidden_elements, and open_questions.",
+				"Create art-brief.json with schema_version omg.book.node_art_brief.v1, target_node_id, target_type, title, prompt, negative_prompt, required_canon_details, composition, and asset_path.",
+				"Create art-decision.json with schema_version omg.book.node_art_decision.v1, decision_id, status approved, target_node_id, target_type, title, asset_kind, asset_path, alt_text, prompt, reason, and review_ids.",
+				"Create art-review.json with schema_version omg.book.node_art_review.v1, review_id, reviewer art_direction, approved true, verdict good_enough, target_node_id, blocking_findings, non_blocking_findings, and review_basis.",
+				`Create ${artAssetRel(ctx)} as an original text-free SVG. No visible words, letters, logos, signatures, franchise references, or living-artist imitation.`,
+			].join("\n");
+		}
 		return [
 			`Create chapter art direction and a text-free SVG hero image for ${ctx.chapterId}.`,
 			"SVG must be original, atmospheric, no visible words/letters/logos, and safe to publish.",
@@ -486,7 +650,9 @@ function normalizePackageJson(ctx: StageContext, file: string, parsed: unknown):
 	const obj = parsed as Record<string, unknown>;
 	if (obj.schema_version === "omg.book.llm_decision.v2") {
 		const decisionValue = typeof obj.decision === "string" ? obj.decision : "approve";
-		const isKnownDecision = ["create", "revise", "approve", "reject", "needs_more_context", "ask_user"].includes(decisionValue);
+		const isKnownDecision = ["create", "revise", "approve", "reject", "needs_more_context", "ask_user"].includes(
+			decisionValue,
+		);
 		return {
 			...obj,
 			decision: isKnownDecision ? decisionValue : "approve",
@@ -502,7 +668,12 @@ function normalizePackageJson(ctx: StageContext, file: string, parsed: unknown):
 			created_files: Array.isArray(obj.created_files) ? obj.created_files : [file],
 			updated_files: Array.isArray(obj.updated_files) ? obj.updated_files : [],
 			blocked_by: Array.isArray(obj.blocked_by) ? obj.blocked_by : [],
-			next_action: typeof obj.next_action === "string" ? obj.next_action : ctx.action === "plan-chapter" ? "draft-chapter" : "continue",
+			next_action:
+				typeof obj.next_action === "string"
+					? obj.next_action
+					: ctx.action === "plan-chapter"
+						? "draft-chapter"
+						: "continue",
 		};
 	}
 	if (file.endsWith(".packet.json") && obj.schema_version === "omg.book.chapter_packet.v1") {
@@ -526,7 +697,12 @@ async function runChatGptStage(ctx: StageContext): Promise<StageResult> {
 	const prompt = stagePrompt(ctx, packageId, runId, expected, path.basename(contextZip.path));
 	const promptBytes = Buffer.byteLength(prompt, "utf8");
 	if (promptBytes > maxBytes) {
-		return { ok: false, packageId, expectedArtifactName, error: `prompt is ${promptBytes} bytes over max ${maxBytes}` };
+		return {
+			ok: false,
+			packageId,
+			expectedArtifactName,
+			error: `prompt is ${promptBytes} bytes over max ${maxBytes}`,
+		};
 	}
 	const promptPath = path.join(runDir, "prompt.md");
 	await writeText(promptPath, prompt);
@@ -570,7 +746,8 @@ async function runChatGptStage(ctx: StageContext): Promise<StageResult> {
 		timeoutMs: (ctx.workerTimeoutSeconds + 90) * 1000,
 	});
 	await writeJson(path.join(runDir, "watch.json"), watched);
-	if (!watched.ok) return { ok: false, workerId, packageId, expectedArtifactName, error: watched.stderr || watched.stdout };
+	if (!watched.ok)
+		return { ok: false, workerId, packageId, expectedArtifactName, error: watched.stderr || watched.stdout };
 	const watchedMeta = responseMeta(watched.stdout);
 	const watchedStatus = jsonFromStdout(watched.stdout) as { status?: string; error?: string } | undefined;
 	if (watchedStatus?.status && watchedStatus.status !== "complete") {
@@ -595,7 +772,8 @@ async function runChatGptStage(ctx: StageContext): Promise<StageResult> {
 		timeoutMs: 180_000,
 	});
 	await writeJson(path.join(runDir, "download.json"), downloaded);
-	if (!downloaded.ok) return { ok: false, workerId, packageId, expectedArtifactName, error: downloaded.stderr || downloaded.stdout };
+	if (!downloaded.ok)
+		return { ok: false, workerId, packageId, expectedArtifactName, error: downloaded.stderr || downloaded.stdout };
 	const apply = await applyPackage(ctx, downloadDir, expectedArtifactName, packageId, runId, expected);
 	return {
 		ok: apply.ok,
@@ -630,13 +808,18 @@ async function applyPackage(
 		}
 		if (zipLike.length === 1) selected = zipLike[0];
 	}
-	if (!selected) return { ok: false, error: `expected one exact ${expectedArtifactName} or one manifest-verified zip, got ${matches.length} exact` };
+	if (!selected)
+		return {
+			ok: false,
+			error: `expected one exact ${expectedArtifactName} or one manifest-verified zip, got ${matches.length} exact`,
+		};
 	const zipPath = path.join(downloadDir, ...selected.split("/"));
 	const entries = unzipSync(new Uint8Array(await Bun.file(zipPath).arrayBuffer()));
 	const texts = new Map<string, string | Uint8Array>();
 	for (const [name, bytes] of Object.entries(entries)) {
 		const normalized = name.replaceAll("\\", "/");
-		if (normalized.includes("..") || normalized.startsWith("/")) return { ok: false, error: `unsafe zip entry ${name}` };
+		if (normalized.includes("..") || normalized.startsWith("/"))
+			return { ok: false, error: `unsafe zip entry ${name}` };
 		texts.set(normalized, bytes);
 	}
 	const manifestBytes = texts.get("package-manifest.json");
@@ -647,7 +830,8 @@ async function applyPackage(
 		return { ok: false, error: "package-manifest.json does not match expected run/package/stage" };
 	}
 	const required = new Set(expected);
-	for (const file of expected) if (!texts.has(file)) return { ok: false, error: `missing required package file ${file}` };
+	for (const file of expected)
+		if (!texts.has(file)) return { ok: false, error: `missing required package file ${file}` };
 	for (const entry of texts.keys()) {
 		if (entry === "package-manifest.json") continue;
 		if (!required.has(entry)) return { ok: false, error: `unexpected package file ${entry}` };
@@ -678,6 +862,99 @@ async function applyPackage(
 		await writeText(safeRepoPath(ctx.seriesRepo, write.file), write.content);
 	}
 	return { ok: true, files: expected };
+}
+
+async function findNextCanonArtTarget(ctx: StageContext): Promise<Partial<StageContext> | undefined> {
+	const existing = new Set<string>();
+	for (const { data } of await listRepoJson(ctx.seriesRepo, "visuals/**/*.json").catch(() => [])) {
+		if (
+			data.schema_version === "omg.book.node_art_decision.v1" &&
+			data.status === "approved" &&
+			typeof data.target_node_id === "string"
+		) {
+			const assetPath = typeof data.asset_path === "string" ? data.asset_path : "";
+			if (!assetPath || (await fileExists(safeRepoPath(ctx.seriesRepo, assetPath))))
+				existing.add(data.target_node_id);
+		}
+	}
+	for (const { data } of await listRepoJson(ctx.seriesRepo, "characters/**/*.json").catch(() => [])) {
+		if (!isProductionCanon(data) || typeof data.character_id !== "string") continue;
+		const node = `character:${data.character_id}`;
+		if (existing.has(node)) continue;
+		return {
+			artTargetNode: node,
+			artTargetType: "character",
+			artTargetSlug: slugify(data.character_id),
+			artTargetLabel: typeof data.name === "string" ? data.name : data.character_id,
+		};
+	}
+	for (const { data } of await listRepoJson(ctx.seriesRepo, "world/places/**/*.json").catch(() => [])) {
+		const places = Array.isArray(data.places) ? (data.places as Record<string, unknown>[]) : [data];
+		for (const place of places) {
+			if (!isProductionCanon(place) || typeof place.place_id !== "string") continue;
+			const node = `place:${place.place_id}`;
+			if (existing.has(node)) continue;
+			return {
+				artTargetNode: node,
+				artTargetType: "location",
+				artTargetSlug: slugify(place.place_id),
+				artTargetLabel: typeof place.name === "string" ? place.name : place.place_id,
+			};
+		}
+	}
+	for (const { data } of await listRepoJson(ctx.seriesRepo, "lore/**/*.json").catch(() => [])) {
+		if (!isProductionCanon(data) || typeof data.lore_id !== "string") continue;
+		if (!["object", "place_object", "mystical_item", "special_item"].includes(String(data.type ?? ""))) continue;
+		const node = `lore:${data.lore_id}`;
+		if (existing.has(node)) continue;
+		return {
+			artTargetNode: node,
+			artTargetType: "item",
+			artTargetSlug: slugify(data.lore_id),
+			artTargetLabel: typeof data.title === "string" ? data.title : data.lore_id,
+		};
+	}
+	return undefined;
+}
+
+async function withPreparedStage(ctx: StageContext): Promise<StageContext> {
+	if (ctx.action !== "generate-art" || ctx.artTargetNode) return ctx;
+	const target = await findNextCanonArtTarget(ctx);
+	return { ...ctx, ...target };
+}
+
+async function postStageReview(
+	ctx: StageContext,
+	stage: StageResult,
+): Promise<{ ok: boolean; report: string; errors: string[]; warnings: string[] }> {
+	const build = await runProcess(ctx.seriesRepo, "bun", ["run", "build"]);
+	const errors: string[] = [];
+	const warnings: string[] = [];
+	if (build.exitCode !== 0) errors.push(build.stderr.trim() || build.stdout.trim() || "book build failed after stage");
+	if (stage.ok && !stage.created?.length && !stage.updated?.length && !stage.note)
+		warnings.push("stage completed without created/updated artifacts");
+	const report = path.join(ctx.seriesRepo, "runs", `stage-${ctx.action}-post-review.json`);
+	await writeJson(report, {
+		schema_version: "omg.book.stage_post_review.v1",
+		action: ctx.action,
+		generated_at: new Date().toISOString(),
+		stage_ok: stage.ok,
+		ok: errors.length === 0,
+		errors,
+		warnings,
+		build: {
+			exitCode: build.exitCode,
+			stdout: build.stdout.trim().slice(0, 8000),
+			stderr: build.stderr.trim().slice(0, 8000),
+		},
+		created: stage.created ?? [],
+		updated: stage.updated ?? [],
+		packageId: stage.packageId,
+		workerId: stage.workerId,
+		requestId: stage.requestId,
+		conversationUrl: stage.conversationUrl,
+	});
+	return { ok: errors.length === 0, report, errors, warnings };
 }
 
 function decision(ctx: StageContext, id: string, reason: string, created: string[], nextAction: string) {
@@ -715,7 +992,8 @@ async function localPlanChapter(ctx: StageContext): Promise<StageResult> {
 		scene_ids: [`${ctx.chapterId}-scene-001`, `${ctx.chapterId}-scene-002`],
 		title,
 		status: "planned",
-		objective: "Escalate the gatehouse contradiction into a civic record conflict and force Mira to choose between procedure and truth.",
+		objective:
+			"Escalate the gatehouse contradiction into a civic record conflict and force Mira to choose between procedure and truth.",
 		pov_character_id: "mira-vale",
 		active_character_ids: ["mira-vale", "tovan-ire"],
 		canon_node_ids: ["living-lanterns", "archive-council"],
@@ -756,8 +1034,21 @@ async function localPlanChapter(ctx: StageContext): Promise<StageResult> {
 		],
 	});
 	const decisionPath = `decisions/${ctx.chapterId}-llm.json`;
-	await writeJson(repoPath(ctx.seriesRepo, decisionPath), decision(ctx, `${ctx.chapterId}-planning-decision`, "Local deterministic planner created the next chapter packet for regression proof.", [`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`], "draft-chapter"));
-	return { ok: true, created: [`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`, decisionPath], updated: [`books/${ctx.bookId}/book.json`] };
+	await writeJson(
+		repoPath(ctx.seriesRepo, decisionPath),
+		decision(
+			ctx,
+			`${ctx.chapterId}-planning-decision`,
+			"Local deterministic planner created the next chapter packet for regression proof.",
+			[`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`],
+			"draft-chapter",
+		),
+	);
+	return {
+		ok: true,
+		created: [`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`, decisionPath],
+		updated: [`books/${ctx.bookId}/book.json`],
+	};
 }
 
 async function localDraftChapter(ctx: StageContext): Promise<StageResult> {
@@ -793,13 +1084,13 @@ async function localDraftChapter(ctx: StageContext): Promise<StageResult> {
 		"",
 		"Tovan Ire stood on the public side of the archive grille with rain darkening his coat and no patience left for institutions that called grief a filing error. He did not ask whether she had slept. He looked at the ledger, then at her ink-stained thumb.",
 		"",
-		"\"They changed it,\" he said.",
+		'"They changed it," he said.',
 		"",
-		"Mira closed the ledger before the grille attendant could lean closer. \"The record was normalized.\"",
+		'Mira closed the ledger before the grille attendant could lean closer. "The record was normalized."',
 		"",
-		"\"That word sounds expensive.\"",
+		'"That word sounds expensive."',
 		"",
-		"\"It is cheaper than panic.\"",
+		'"It is cheaper than panic."',
 		"",
 		"The gatehouse lantern waited in the restricted alcove behind her, hooded now in inspection cloth. Even covered, it warmed the room with the stubborn patience of a coal that remembered being a signal fire. Mira had spent seven years learning the lawful shapes of memory. None of them explained heat that survived a failed bell, a dead witness chain, and a council correction before breakfast.",
 		"",
@@ -813,11 +1104,11 @@ async function localDraftChapter(ctx: StageContext): Promise<StageResult> {
 		"",
 		"Mira breathed once, carefully. The city had not become honest. But for one page, it had failed to be thorough.",
 		"",
-		"Tovan's anger did not soften. It steadied. \"What happens now?\"",
+		'Tovan\'s anger did not soften. It steadied. "What happens now?"',
 		"",
 		"She sanded the ink, folded the form into the maintenance queue, and felt the first clean terror of choosing her own evidence.",
 		"",
-		"\"Now,\" Mira said, \"we find out what the council needed the lantern to forget.\"",
+		'"Now," Mira said, "we find out what the council needed the lantern to forget."',
 		"",
 	].join("\n");
 	const chapterRel = `books/${ctx.bookId}/chapters/${ctx.chapterId}.md`;
@@ -829,27 +1120,137 @@ async function localDraftChapter(ctx: StageContext): Promise<StageResult> {
 		["line_edit", "Line level is clean enough for publication."],
 	] as const;
 	for (const [reviewer, basis] of reviews) {
-		await writeJson(repoPath(ctx.seriesRepo, `decisions/review-${ctx.chapterId}-${reviewer.replaceAll("_", "-")}.json`), {
-			schema_version: "omg.book.review.v1",
-			series_id: "lantern-archive",
-			book_id: ctx.bookId,
-			chapter_id: ctx.chapterId,
-			review_id: `review-${ctx.chapterId}-${reviewer.replaceAll("_", "-")}`,
-			reviewer,
-			approved: true,
-			verdict: "good_enough",
-			blocking_findings: [],
-			non_blocking_findings: [],
-			review_basis: basis,
-		});
+		await writeJson(
+			repoPath(ctx.seriesRepo, `decisions/review-${ctx.chapterId}-${reviewer.replaceAll("_", "-")}.json`),
+			{
+				schema_version: "omg.book.review.v1",
+				series_id: "lantern-archive",
+				book_id: ctx.bookId,
+				chapter_id: ctx.chapterId,
+				review_id: `review-${ctx.chapterId}-${reviewer.replaceAll("_", "-")}`,
+				reviewer,
+				approved: true,
+				verdict: "good_enough",
+				blocking_findings: [],
+				non_blocking_findings: [],
+				review_basis: basis,
+			},
+		);
 	}
 	const decisionRel = `decisions/${ctx.chapterId}-prose-llm.json`;
-	await writeJson(repoPath(ctx.seriesRepo, decisionRel), decision(ctx, `${ctx.chapterId}-prose-draft`, "Local deterministic writer produced a complete chapter draft after planning gates.", [chapterRel], ctx.creativeMode === "illustrated" ? "generate-art" : "publish"));
-	return { ok: true, created: [chapterRel, decisionRel], updated: [`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`] };
+	await writeJson(
+		repoPath(ctx.seriesRepo, decisionRel),
+		decision(
+			ctx,
+			`${ctx.chapterId}-prose-draft`,
+			"Local deterministic writer produced a complete chapter draft after planning gates.",
+			[chapterRel],
+			ctx.creativeMode === "illustrated" ? "generate-art" : "publish",
+		),
+	);
+	return {
+		ok: true,
+		created: [chapterRel, decisionRel],
+		updated: [`books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`],
+	};
 }
 
 async function localGenerateArt(ctx: StageContext): Promise<StageResult> {
-	const packet = await readJson<{ title: string }>(repoPath(ctx.seriesRepo, `books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`));
+	if (ctx.artTargetNode && ctx.artTargetType && ctx.artTargetSlug) {
+		const visualDir = artVisualDir(ctx);
+		const assetRel = artAssetRel(ctx);
+		const visualId = `visual-${ctx.artTargetType}-${ctx.artTargetSlug}`;
+		const decisionId = `art-${ctx.artTargetType}-${ctx.artTargetSlug}`;
+		const reviewId = `review-art-${ctx.artTargetType}-${ctx.artTargetSlug}`;
+		const label = ctx.artTargetLabel ?? ctx.artTargetSlug;
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Text-free canon art for ${label}">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#111820"/><stop offset="1" stop-color="#25343a"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="42%"><stop offset="0" stop-color="#e7a84e" stop-opacity=".84"/><stop offset=".5" stop-color="#8f5d34" stop-opacity=".28"/><stop offset="1" stop-color="#111820" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="360" r="330" fill="url(#glow)"/>
+  <path d="M250 620c160-54 290-54 450 0s250 54 250 0" fill="none" stroke="#53666d" stroke-width="26" opacity=".55"/>
+  <path d="M390 560h420l-58-260H448z" fill="#1d2a31" stroke="#d19a4a" stroke-width="10"/>
+  <path d="M500 330h200l36 190H464z" fill="#f0ae4f" opacity=".46"/>
+  <path d="M320 230h560M370 280h460M420 665h360" stroke="#8ca0a6" stroke-width="12" opacity=".36"/>
+</svg>
+`;
+		await writeText(repoPath(ctx.seriesRepo, assetRel), svg);
+		await writeJson(repoPath(ctx.seriesRepo, `${visualDir}/visual-profile.json`), {
+			schema_version: "omg.book.visual_profile.v1",
+			series_id: "lantern-archive",
+			visual_id: visualId,
+			target_node_id: ctx.artTargetNode,
+			target_type: ctx.artTargetType === "item" ? "mystical_item" : ctx.artTargetType,
+			title: `${label} visual profile`,
+			status: "approved",
+			canon_constraints: [
+				"Must preserve existing canon facts and avoid inventing new symbols, text, uniforms, or technology.",
+			],
+			visual_motifs: ["ember warmth", "civic archive restraint", "witness memory"],
+			color_language: "Deep teal civic shadow with restrained ember-gold pressure.",
+			silhouette_or_shape_language: "Clear central silhouette, no readable marks.",
+			forbidden_elements: ["visible text", "logos", "franchise motifs", "living-artist imitation"],
+			open_questions: [],
+		});
+		await writeJson(repoPath(ctx.seriesRepo, `${visualDir}/art-brief.json`), {
+			schema_version: "omg.book.node_art_brief.v1",
+			series_id: "lantern-archive",
+			target_node_id: ctx.artTargetNode,
+			target_type: ctx.artTargetType === "item" ? "mystical_item" : ctx.artTargetType,
+			title: `${label} canon art brief`,
+			prompt: `Text-free original canon art for ${label}, restrained civic dark fantasy, ember memory pressure, no words, no logos.`,
+			negative_prompt:
+				"No readable text, letters, signage, logos, celebrity likenesses, franchise references, or living-artist imitation.",
+			required_canon_details: ["Use only approved canon details from the uploaded context."],
+			composition: "One focused subject with readable silhouette and restrained atmosphere.",
+			asset_path: assetRel,
+		});
+		await writeJson(repoPath(ctx.seriesRepo, `${visualDir}/art-review.json`), {
+			schema_version: "omg.book.node_art_review.v1",
+			series_id: "lantern-archive",
+			review_id: reviewId,
+			reviewer: "art_direction",
+			approved: true,
+			verdict: "good_enough",
+			target_node_id: ctx.artTargetNode,
+			blocking_findings: [],
+			non_blocking_findings: [
+				"Local placeholder art proves the canon-node art pipeline; live image worker should replace it with richer production art.",
+			],
+			review_basis:
+				"Asset exists, is text-free SVG, targets an approved canon node, and avoids unsafe or derivative elements.",
+		});
+		await writeJson(repoPath(ctx.seriesRepo, `${visualDir}/art-decision.json`), {
+			schema_version: "omg.book.node_art_decision.v1",
+			series_id: "lantern-archive",
+			decision_id: decisionId,
+			status: "approved",
+			target_node_id: ctx.artTargetNode,
+			target_type: ctx.artTargetType === "item" ? "mystical_item" : ctx.artTargetType,
+			title: `${label} canon art`,
+			asset_kind: ctx.artTargetType,
+			asset_path: assetRel,
+			alt_text: `Text-free canon illustration for ${label}`,
+			prompt: `Text-free original canon art for ${label}, restrained civic dark fantasy, ember memory pressure.`,
+			reason: "Creates mandatory visual canon for an approved production node without introducing new story facts.",
+			review_ids: [reviewId],
+		});
+		return {
+			ok: true,
+			created: [
+				`${visualDir}/visual-profile.json`,
+				`${visualDir}/art-brief.json`,
+				`${visualDir}/art-review.json`,
+				`${visualDir}/art-decision.json`,
+				assetRel,
+			],
+		};
+	}
+	const packet = await readJson<{ title: string }>(
+		repoPath(ctx.seriesRepo, `books/${ctx.bookId}/chapters/${ctx.chapterId}.packet.json`),
+	);
 	const assetRel = `assets/${ctx.bookId}/${ctx.chapterId}/chapter-hero.svg`;
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Text-free archive lantern illustration">
   <defs>
@@ -891,16 +1292,26 @@ async function localGenerateArt(ctx: StageContext): Promise<StageResult> {
 		asset_filename: "chapter-hero.svg",
 		asset_path: assetRel,
 		placement: "chapter_header",
-		prompt: "Text-free cinematic civic archive at night, emberglass lantern glowing over a corrected ledger, no words, no logos.",
+		prompt:
+			"Text-free cinematic civic archive at night, emberglass lantern glowing over a corrected ledger, no words, no logos.",
 		reason: "The art reinforces the chapter's central image without spoiling plot.",
 		review_ids: ["review-art-direction"],
 	});
-	return { ok: true, created: [assetRel, `books/${ctx.bookId}/chapters/${ctx.chapterId}.art-brief.json`, `decisions/${ctx.chapterId}-art.json`] };
+	return {
+		ok: true,
+		created: [
+			assetRel,
+			`books/${ctx.bookId}/chapters/${ctx.chapterId}.art-brief.json`,
+			`decisions/${ctx.chapterId}-art.json`,
+		],
+	};
 }
 
 async function localStudioAssess(ctx: StageContext): Promise<StageResult> {
 	const qualityPath = repoPath(ctx.seriesRepo, "dist/quality-report.json");
-	const quality = await readJson<{ status?: string; gates?: Array<{ id: string; passed: boolean }> }>(qualityPath).catch(() => ({
+	const quality = await readJson<{ status?: string; gates?: Array<{ id: string; passed: boolean }> }>(
+		qualityPath,
+	).catch(() => ({
 		status: "unknown",
 		gates: [],
 	}));
@@ -929,11 +1340,19 @@ async function localStudioAssess(ctx: StageContext): Promise<StageResult> {
 			"The story has named institutions, civic stakes, memory-object rules, and a relationship web that can create pressure.",
 			"The current world data exposes enough places, factions, timeline events, and plot promises for an editor to make a concrete next decision.",
 		],
-		weak_spots: failed.length ? failed : ["Local mode refuses to certify production readiness; use ChatGPT studio-assess for a real aggressive editorial audit."],
-		missing_questions: failed.length ? ["Which missing layer most directly blocks the next chapter's emotional turn?"] : ["What new obligation should the next chapter leave behind?"],
+		weak_spots: failed.length
+			? failed
+			: [
+					"Local mode refuses to certify production readiness; use ChatGPT studio-assess for a real aggressive editorial audit.",
+				],
+		missing_questions: failed.length
+			? ["Which missing layer most directly blocks the next chapter's emotional turn?"]
+			: ["What new obligation should the next chapter leave behind?"],
 		recommended_development: failed.length
 			? ["Repair the failed quality gates before drafting prose."]
-			: ["Run ChatGPT studio-assess before drafting; local mode can only prove wiring, not taste, depth, or story readiness."],
+			: [
+					"Run ChatGPT studio-assess before drafting; local mode can only prove wiring, not taste, depth, or story readiness.",
+				],
 		audit_scores: {
 			world_depth: 5,
 			causality: 6,
@@ -959,9 +1378,19 @@ async function localStudioAssess(ctx: StageContext): Promise<StageResult> {
 	});
 	await writeJson(
 		repoPath(ctx.seriesRepo, "decisions/studio-editorial-assessment-llm.json"),
-		decision(ctx, "studio-editorial-assessment", "Editorial assessment selected the next story-development stage instead of relying on numeric gates alone.", ["quality/studio-editorial-assessment.json"], nextStage),
+		decision(
+			ctx,
+			"studio-editorial-assessment",
+			"Editorial assessment selected the next story-development stage instead of relying on numeric gates alone.",
+			["quality/studio-editorial-assessment.json"],
+			nextStage,
+		),
 	);
-	return { ok: true, created: ["quality/studio-editorial-assessment.json", "decisions/studio-editorial-assessment-llm.json"], selectedStage: nextStage };
+	return {
+		ok: true,
+		created: ["quality/studio-editorial-assessment.json", "decisions/studio-editorial-assessment-llm.json"],
+		selectedStage: nextStage,
+	};
 }
 
 async function localStage(ctx: StageContext): Promise<StageResult> {
@@ -988,9 +1417,20 @@ async function localStage(ctx: StageContext): Promise<StageResult> {
 }
 
 async function runStage(ctx: StageContext): Promise<StageResult> {
-	const stage = ctx.researcher === "chatgpt" ? await runChatGptStage(ctx) : await localStage(ctx);
-	const report = await writeStageReport(ctx, stage);
-	return { ...stage, report };
+	const prepared = await withPreparedStage(ctx);
+	if (prepared.action === "generate-art" && !prepared.artTargetNode && prepared.researcher === "chatgpt") {
+		const noTarget = { ok: true, note: "all approved canon art targets already have approved assets" };
+		const report = await writeStageReport(prepared, noTarget);
+		return { ...noTarget, report };
+	}
+	const stage = prepared.researcher === "chatgpt" ? await runChatGptStage(prepared) : await localStage(prepared);
+	const review = stage.ok ? await postStageReview(prepared, stage) : undefined;
+	const result =
+		review && !review.ok
+			? { ...stage, ok: false, error: review.errors.join("\n"), postReview: review }
+			: { ...stage, postReview: review };
+	const report = await writeStageReport(prepared, result);
+	return { ...result, report };
 }
 
 async function publish(ctx: StageContext): Promise<StageResult> {
@@ -1004,7 +1444,11 @@ async function publish(ctx: StageContext): Promise<StageResult> {
 		| undefined;
 	if (ctx.commit) {
 		await runProcess(ctx.seriesRepo, "git", ["add", "."]);
-		const commitResult = await runProcess(ctx.seriesRepo, "git", ["commit", "-m", "Publish OMG book studio artifacts"]);
+		const commitResult = await runProcess(ctx.seriesRepo, "git", [
+			"commit",
+			"-m",
+			"Publish OMG book studio artifacts",
+		]);
 		git = { commit: commitResult };
 		if (ctx.push) git = { ...git, push: await runProcess(ctx.seriesRepo, "git", ["push"]) };
 	}
@@ -1012,7 +1456,13 @@ async function publish(ctx: StageContext): Promise<StageResult> {
 		ok: true,
 		build,
 		git,
-		decision: decision(ctx, `publish-${Date.now()}`, "Validated, built, and prepared static book data for publication.", ["dist/book-graph.json", "dist/reader-manifest.json", "dist/library-index.json"], "continue"),
+		decision: decision(
+			ctx,
+			`publish-${Date.now()}`,
+			"Validated, built, and prepared static book data for publication.",
+			["dist/book-graph.json", "dist/reader-manifest.json", "dist/library-index.json"],
+			"continue",
+		),
 	};
 	const report = await writeStageReport(ctx, result);
 	return { ...result, report };
@@ -1027,60 +1477,126 @@ async function nextChapterId(ctx: StageContext): Promise<string> {
 	return `chapter-${String(max + 1).padStart(3, "0")}`;
 }
 
+function stageForQualityGate(gateId: string | undefined): OmgBookAction {
+	const stageForGate: Record<string, OmgBookAction> = {
+		research_domains: "research-dossier",
+		maturity_research_domains: "research-dossier",
+		visual_language: "research-dossier",
+		lore_canon_nodes: "expand-world",
+		maturity_lore_canon_nodes: "expand-world",
+		major_places: "expand-world",
+		maturity_major_places: "expand-world",
+		factions_or_institutions: "expand-world",
+		maturity_factions_or_institutions: "expand-world",
+		character_sheets: "expand-characters",
+		maturity_character_sheets: "expand-characters",
+		relationships: "expand-characters",
+		maturity_relationships: "expand-characters",
+		timeline_events: "expand-timeline",
+		maturity_timeline_events: "expand-timeline",
+		active_plot_threads: "plan-arc",
+		maturity_active_plot_threads: "plan-arc",
+	};
+	return gateId ? (stageForGate[gateId] ?? "repair") : "studio-assess";
+}
+
+function normalizeNextStage(value: string | undefined): OmgBookAction | undefined {
+	if (!value) return undefined;
+	const map: Record<string, OmgBookAction> = {
+		"expand-world": "expand-world",
+		"expand-characters": "expand-characters",
+		"expand-timeline": "expand-timeline",
+		"research-dossier": "research-dossier",
+		"plan-arc": "plan-arc",
+		repair: "repair",
+		review: "review",
+		"generate-art": "generate-art",
+		"plan-chapter": "plan-chapter",
+		"draft-chapter": "draft-chapter",
+	};
+	return map[value];
+}
+
+async function readQuality(ctx: StageContext): Promise<{
+	status?: string;
+	gates?: Array<{ id: string; passed: boolean }>;
+	maturityScore?: number;
+	editorialAssessment?: { next_stage?: string; ready_for_drafting?: boolean; decision?: string } | null;
+}> {
+	return await readJson<{
+		status?: string;
+		gates?: Array<{ id: string; passed: boolean }>;
+		maturityScore?: number;
+		editorialAssessment?: { next_stage?: string; ready_for_drafting?: boolean; decision?: string } | null;
+	}>(repoPath(ctx.seriesRepo, "dist/quality-report.json")).catch(() => ({ status: "unknown", gates: [] }));
+}
+
 async function autopilot(ctx: StageContext): Promise<StageResult> {
 	const chapterId = ctx.chapterId === "next" ? await nextChapterId(ctx) : ctx.chapterId;
 	if (ctx.workflow === "studio") {
+		const stages: Array<Record<string, unknown>> = [];
+		const qualityTrend: Array<Record<string, unknown>> = [];
+		let failures = 0;
 		const preflight = await publish({ ...ctx, action: "publish", chapterId, commit: false, push: false });
-		const quality = await readJson<{ status?: string; gates?: Array<{ id: string; passed: boolean }> }>(
-			repoPath(ctx.seriesRepo, "dist/quality-report.json"),
-		).catch(() => ({ status: "unknown", gates: [] }));
-		const failedGate = quality.gates?.find(gate => !gate.passed);
-		const stageForGate: Record<string, OmgBookAction> = {
-			research_domains: "research-dossier",
-			visual_language: "research-dossier",
-			lore_canon_nodes: "expand-world",
-			major_places: "expand-world",
-			factions_or_institutions: "expand-world",
-			character_sheets: "expand-characters",
-			relationships: "expand-characters",
-			timeline_events: "expand-timeline",
-			active_plot_threads: "plan-arc",
-		};
-		const stage = failedGate ? (stageForGate[failedGate.id] ?? "repair") : "studio-assess";
-		const stageResult = await runStage({ ...ctx, action: stage, chapterId });
-		const assessment = await readJson<{ decision?: string; next_stage?: string; ready_for_drafting?: boolean }>(
-			repoPath(ctx.seriesRepo, "quality/studio-editorial-assessment.json"),
-		).catch(() => undefined);
-		const nextStageMap: Record<string, OmgBookAction> = {
-			"expand-world": "expand-world",
-			"expand-characters": "expand-characters",
-			"expand-timeline": "expand-timeline",
-			"research-dossier": "research-dossier",
-			"plan-arc": "plan-arc",
-			repair: "repair",
-			"plan-chapter": "plan-chapter",
-			"draft-chapter": "draft-chapter",
-		};
-		const assessmentNext = assessment?.next_stage ? nextStageMap[assessment.next_stage] : undefined;
-		const followup =
-			stageResult.ok && !failedGate && assessmentNext && !["plan-chapter", "draft-chapter"].includes(assessmentNext)
-				? await runStage({ ...ctx, action: assessmentNext, chapterId })
-				: undefined;
-		const finalPublish = stageResult.ok && (followup?.ok ?? true) ? await publish({ ...ctx, action: "publish", chapterId }) : undefined;
+		stages.push({ action: "publish-preflight", ...preflight });
+		for (let index = 0; index < ctx.maxStagesPerCycle; index++) {
+			const quality = await readQuality({ ...ctx, chapterId });
+			const failedGate = quality.gates?.find(gate => !gate.passed);
+			const assessment = await readJson<{ decision?: string; next_stage?: string; ready_for_drafting?: boolean }>(
+				repoPath(ctx.seriesRepo, "quality/studio-editorial-assessment.json"),
+			).catch(() => undefined);
+			qualityTrend.push({
+				index,
+				status: quality.status,
+				maturityScore: quality.maturityScore,
+				failedGate: failedGate?.id,
+				editorialDecision: assessment?.decision ?? quality.editorialAssessment?.decision,
+				editorialNextStage: assessment?.next_stage ?? quality.editorialAssessment?.next_stage,
+				readyForDrafting: assessment?.ready_for_drafting ?? quality.editorialAssessment?.ready_for_drafting,
+			});
+			const assessedNext = normalizeNextStage(assessment?.next_stage ?? quality.editorialAssessment?.next_stage);
+			let stage = failedGate ? stageForQualityGate(failedGate.id) : (assessedNext ?? "studio-assess");
+			if (
+				stage === "draft-chapter" &&
+				!(assessment?.ready_for_drafting ?? quality.editorialAssessment?.ready_for_drafting)
+			)
+				stage = "studio-assess";
+			if (stage === "generate-art") {
+				const target = await findNextCanonArtTarget({ ...ctx, chapterId, action: "generate-art" });
+				if (!target) {
+					stages.push({
+						action: "generate-art",
+						ok: true,
+						note: "all approved canon art targets already have approved assets",
+					});
+					break;
+				}
+			}
+			const stageResult = await runStage({ ...ctx, action: stage, chapterId });
+			stages.push({ action: stage, ...stageResult });
+			if (!stageResult.ok) {
+				failures++;
+				if (failures >= ctx.maxFailuresPerCycle) break;
+				continue;
+			}
+			if (stage === "studio-assess" && !assessedNext) break;
+		}
+		const finalPublish =
+			failures < ctx.maxFailuresPerCycle ? await publish({ ...ctx, action: "publish", chapterId }) : undefined;
+		if (finalPublish) stages.push({ action: "publish", ...finalPublish });
+		const latestQuality = await readQuality({ ...ctx, chapterId });
 		return {
-			ok: Boolean(preflight.ok && stageResult.ok && (followup?.ok ?? true) && (finalPublish?.ok ?? true)),
+			ok: Boolean(preflight.ok && failures < ctx.maxFailuresPerCycle && (finalPublish?.ok ?? true)),
 			chapterId,
-			qualityStatus: quality.status,
-			editorialDecision: assessment?.decision,
-			editorialNextStage: assessment?.next_stage,
-			selectedStage: stage,
-			stages: [
-				{ action: "publish-preflight", ...preflight },
-				{ action: stage, ...stageResult },
-				...(followup ? [{ action: assessmentNext, ...followup }] : []),
-				...(finalPublish ? [{ action: "publish", ...finalPublish }] : []),
-			],
-			error: stageResult.error ?? followup?.error ?? finalPublish?.error,
+			qualityStatus: latestQuality.status,
+			failures,
+			maxFailuresPerCycle: ctx.maxFailuresPerCycle,
+			maxStagesPerCycle: ctx.maxStagesPerCycle,
+			qualityTrend,
+			stages,
+			error:
+				(stages.find(stage => (stage as { ok?: unknown }).ok === false) as { error?: string } | undefined)?.error ??
+				finalPublish?.error,
 		};
 	}
 	const stages: OmgBookAction[] = ["plan-chapter", "draft-chapter"];
@@ -1095,6 +1611,66 @@ async function autopilot(ctx: StageContext): Promise<StageResult> {
 	const publishResult = await publish({ ...ctx, action: "publish", chapterId });
 	results.push({ action: "publish", ...publishResult });
 	return { ok: publishResult.ok, chapterId, stages: results, error: publishResult.error };
+}
+
+async function watchdog(ctx: StageContext): Promise<StageResult> {
+	const build = await runProcess(ctx.seriesRepo, "bun", ["run", "build"]);
+	const quality = await readQuality(ctx);
+	const status = await runProcess(ctx.seriesRepo, "git", ["status", "--short"]);
+	const rateLimit = await runProcess(path.resolve(ctx.seriesRepo, "..", ".."), "uv", [
+		"run",
+		"chatgpt",
+		"rate-limit",
+		"status",
+		"--json",
+	]).catch(error => ({
+		stdout: "",
+		stderr: error instanceof Error ? error.message : String(error),
+		exitCode: 1,
+	}));
+	const runFiles = await Array.fromAsync(
+		new Bun.Glob("runs/*.json").scan({ cwd: ctx.seriesRepo, onlyFiles: true }),
+	).catch(() => []);
+	const recentRuns = runFiles.sort().slice(-12);
+	const failedGates = quality.gates?.filter(gate => !gate.passed).map(gate => gate.id) ?? [];
+	const findings = [
+		build.exitCode === 0 ? "book data build is healthy" : "book data build is failing",
+		status.stdout.trim() ? "series repo has uncommitted changes" : "series repo worktree is clean",
+		...(failedGates.length
+			? [`quality gates failing: ${failedGates.join(", ")}`]
+			: ["quality gates pass structurally"]),
+		rateLimit.exitCode === 0 ? "ChatGPT rate-limit status reachable" : "ChatGPT rate-limit status unavailable",
+	];
+	const payload = {
+		schema_version: "omg.book.watchdog_report.v1",
+		generated_at: new Date().toISOString(),
+		ok: build.exitCode === 0,
+		series_repo: ctx.seriesRepo,
+		quality_status: quality.status ?? "unknown",
+		maturity_score: quality.maturityScore ?? null,
+		failed_gates: failedGates,
+		git_dirty: Boolean(status.stdout.trim()),
+		recent_runs: recentRuns,
+		findings,
+		chatgpt_rate_limit: {
+			ok: rateLimit.exitCode === 0,
+			stdout: rateLimit.stdout.trim().slice(0, 4000),
+			stderr: rateLimit.stderr.trim().slice(0, 4000),
+		},
+		build: {
+			exitCode: build.exitCode,
+			stdout: build.stdout.trim().slice(0, 8000),
+			stderr: build.stderr.trim().slice(0, 8000),
+		},
+	};
+	const report = path.join(ctx.seriesRepo, "runs", `watchdog-${Date.now()}.json`);
+	await writeJson(report, payload);
+	return {
+		ok: build.exitCode === 0,
+		report,
+		health: payload,
+		error: build.exitCode === 0 ? undefined : build.stderr || build.stdout,
+	};
 }
 
 export default class OmgBook extends Command {
@@ -1115,10 +1691,18 @@ export default class OmgBook extends Command {
 		check: Flags.boolean({ description: "Validate only; do not rebuild dist artifacts for the plan action" }),
 		commit: Flags.boolean({ description: "For publish/autopilot, commit generated changes after build" }),
 		push: Flags.boolean({ description: "For publish/autopilot, push after commit" }),
-		researcher: Flags.string({ description: "Worker backend: local or chatgpt", default: "local", options: ["local", "chatgpt"] }),
+		researcher: Flags.string({
+			description: "Worker backend: local or chatgpt",
+			default: "local",
+			options: ["local", "chatgpt"],
+		}),
 		soul: Flags.string({ description: "Soul id or SOUL.md path" }),
 		"soul-repo": Flags.string({ description: "Soul repository path" }),
-		"creative-mode": Flags.string({ description: "Creative output mode", default: "off", options: ["off", "illustrated"] }),
+		"creative-mode": Flags.string({
+			description: "Creative output mode",
+			default: "off",
+			options: ["off", "illustrated"],
+		}),
 		"model-option": Flags.string({ description: "ChatGPT model option", default: "Thinking" }),
 		"thinking-option": Flags.string({ description: "ChatGPT thinking option", default: "Heavy" }),
 		"worker-timeout-seconds": Flags.string({ description: "ChatGPT worker watch timeout", default: "1800" }),
@@ -1129,6 +1713,17 @@ export default class OmgBook extends Command {
 		"max-context-mb": Flags.string({
 			description: "Maximum context package size for worker uploads",
 			default: "128",
+		}),
+		"max-failures-per-cycle": Flags.string({
+			description: "Maximum failed stages before a studio autopilot cycle stops",
+			default: "2",
+		}),
+		"max-stages-per-cycle": Flags.string({
+			description: "Maximum development stages a studio autopilot cycle may run",
+			default: "3",
+		}),
+		"art-target-node": Flags.string({
+			description: "Optional graph node id for generate-art, for example character:mira-vale",
 		}),
 	};
 
@@ -1162,8 +1757,23 @@ export default class OmgBook extends Command {
 			workerTimeoutSeconds: Number(flags["worker-timeout-seconds"]),
 			workflow: String(flags.workflow),
 			json: Boolean(flags.json),
+			maxFailuresPerCycle: Number(flags["max-failures-per-cycle"]),
+			maxStagesPerCycle: Number(flags["max-stages-per-cycle"]),
+			artTargetNode: flags["art-target-node"] ? String(flags["art-target-node"]) : undefined,
 		};
-		let result: StageResult & { stdout?: string; stderr?: string; exitCode?: number; counts?: Record<string, unknown> };
+		if (ctx.artTargetNode) {
+			const [kind, id] = ctx.artTargetNode.split(":");
+			ctx.artTargetSlug = slugify(id || ctx.artTargetNode);
+			ctx.artTargetLabel = id || ctx.artTargetNode;
+			ctx.artTargetType =
+				kind === "character" ? "character" : kind === "place" ? "location" : kind === "lore" ? "item" : undefined;
+		}
+		let result: StageResult & {
+			stdout?: string;
+			stderr?: string;
+			exitCode?: number;
+			counts?: Record<string, unknown>;
+		};
 		if (action === "plan") {
 			const proc = await runProcess(ctx.seriesRepo, "bun", flags.check ? ["run", "test"] : ["run", "build"]);
 			result = {
@@ -1178,6 +1788,8 @@ export default class OmgBook extends Command {
 			result = await publish(ctx);
 		} else if (action === "autopilot") {
 			result = await autopilot(ctx);
+		} else if (action === "watchdog") {
+			result = await watchdog(ctx);
 		} else {
 			result = await runStage(ctx);
 		}
@@ -1189,6 +1801,8 @@ export default class OmgBook extends Command {
 			researcher: ctx.researcher,
 			creativeMode: ctx.creativeMode,
 			maxContextMb: ctx.maxContextMb,
+			maxFailuresPerCycle: ctx.maxFailuresPerCycle,
+			maxStagesPerCycle: ctx.maxStagesPerCycle,
 			...result,
 		};
 		if (flags.json) {
