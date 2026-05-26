@@ -18,10 +18,16 @@ export interface ChatGptWorkerCommand {
 	profile?: string;
 	title?: string;
 	prompt?: string;
+	promptFile?: string;
+	soul?: string;
+	soulRepo?: string;
+	packageId?: string;
+	expectedArtifactName?: string;
 	conversationUrl?: string;
 	files?: string[];
 	schemas?: string[];
 	skills?: string[];
+	connectors?: string[];
 	modelOption?: string;
 	thinkingOption?: string;
 	downloadDir?: string;
@@ -62,14 +68,19 @@ export function buildChatGptCommand(input: ChatGptWorkerCommand): string[] {
 		throw new Error(`chatgpt workers ${normalizeAction(input.action)} requires a worker id`);
 	}
 	if (input.action === "send") {
-		if (!input.prompt) throw new Error("chatgpt workers send requires a prompt");
+		if (!input.prompt && !input.promptFile) throw new Error("chatgpt workers send requires a prompt or promptFile");
 		if (input.modelOption) args.push("--model-option", input.modelOption);
 		if (input.thinkingOption) args.push("--thinking-option", input.thinkingOption);
+		if (input.promptFile) args.push("--prompt-file", input.promptFile);
+		if (input.soul) args.push("--soul", input.soul);
+		if (input.soulRepo) args.push("--soul-repo", input.soulRepo);
+		for (const connector of input.connectors ?? []) args.push("--connector", connector);
 		for (const file of input.files ?? []) args.push("--file", file);
 		for (const schema of input.schemas ?? []) args.push("--schema", schema);
 		for (const skill of input.skills ?? []) args.push("--skill", skill);
 		args.push(...(input.extraArgs ?? []));
-		args.push(input.worker!, input.prompt);
+		args.push(input.worker!);
+		if (input.prompt) args.push(input.prompt);
 		return args;
 	}
 	if (input.action === "upload") {

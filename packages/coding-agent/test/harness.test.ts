@@ -270,6 +270,7 @@ describe("harness core", () => {
 				files: ["packet.zip"],
 				schemas: ["research-brief.schema.json"],
 				skills: ["critic-review"],
+				connectors: ["GitHub"],
 				modelOption: "Thinking",
 				thinkingOption: "Standard",
 				extraArgs: ["--json"],
@@ -282,6 +283,8 @@ describe("harness core", () => {
 			"Thinking",
 			"--thinking-option",
 			"Standard",
+			"--connector",
+			"GitHub",
 			"--file",
 			"packet.zip",
 			"--schema",
@@ -291,6 +294,28 @@ describe("harness core", () => {
 			"--json",
 			"critic-1",
 			"Return JSON only",
+		]);
+		expect(
+			buildChatGptCommand({
+				action: "send",
+				worker: "writer-1",
+				promptFile: "prompt.md",
+				soul: "lantern",
+				soulRepo: "omg-souls",
+				extraArgs: ["--json"],
+			}),
+		).toEqual([
+			"chatgpt",
+			"workers",
+			"send",
+			"--prompt-file",
+			"prompt.md",
+			"--soul",
+			"lantern",
+			"--soul-repo",
+			"omg-souls",
+			"--json",
+			"writer-1",
 		]);
 		expect(
 			buildChatGptCommand({
@@ -306,6 +331,22 @@ describe("harness core", () => {
 			"--download-artifacts",
 			"--download-dir",
 			"artifacts",
+		]);
+		expect(
+			buildChatGptCommand({
+				action: "send",
+				worker: "researcher-1",
+				promptFile: "D:\\temp\\research-prompt.txt",
+				extraArgs: ["--json"],
+			}),
+		).toEqual([
+			"chatgpt",
+			"workers",
+			"send",
+			"--prompt-file",
+			"D:\\temp\\research-prompt.txt",
+			"--json",
+			"researcher-1",
 		]);
 		expect(
 			buildChatGptCommand({
@@ -2259,6 +2300,7 @@ describe("harness core", () => {
 		const workerCalls: string[] = [];
 		const sendModes: string[] = [];
 		const sendSchemaCounts: number[] = [];
+		const sendConnectors: string[][] = [];
 		const watchArgs: string[][] = [];
 		const workerRunner = wikiResearchWorkerRunner({ zipped: true, calls: workerCalls });
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -2285,6 +2327,7 @@ describe("harness core", () => {
 			workerRunner: async input => {
 				if (input.action === "send") sendModes.push(`${input.modelOption}:${input.thinkingOption}`);
 				if (input.action === "send") sendSchemaCounts.push(input.schemas?.length ?? 0);
+				if (input.action === "send") sendConnectors.push(input.connectors ?? []);
 				if (input.action === "watch") watchArgs.push(input.extraArgs ?? []);
 				return workerRunner(input);
 			},
@@ -2308,8 +2351,9 @@ describe("harness core", () => {
 				worker => worker.role === "researcher" && worker.workerId === "researcher-chatgpt-1" && worker.stoppedAt,
 			),
 		).toBe(true);
-		expect(sendModes).toContain("Pro:Extended");
-		expect(sendSchemaCounts).toContain(6);
+		expect(sendModes).toContain("Thinking:Heavy");
+		expect(sendSchemaCounts).toContain(8);
+		expect(sendConnectors).toContainEqual(["GitHub"]);
 		expect(watchArgs.some(args => args.includes("--timeout") && args.includes("1800"))).toBe(true);
 		expect(workerCalls).toContain("stop");
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-devops:omg/wiki-research/"))).toBe(true);
@@ -2562,7 +2606,7 @@ describe("harness core", () => {
 		expect(state.gates?.find(gate => gate.id === "publish_verify")?.status).toBe("skipped");
 	});
 
-	it("blocks post-merge wiki publishing when jsDelivr latest pointers stay stale", async () => {
+	it("warns but does not block post-merge wiki publishing when jsDelivr latest pointers stay stale", async () => {
 		const calls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
 		const steeringPath = path.join(tempRoot, "wiki.steering.json");
@@ -2578,36 +2622,43 @@ describe("harness core", () => {
 		]);
 		await writeWikiSteering(steeringPath, { registryPath });
 
-		await expect(
-			runWikiResearchHarness("issue backed research", {
-				owner: "acme",
-				repo: "wiki-data-devops",
-				issue: "1",
-				steeringPath,
-				registryPath,
-				apply: true,
-				autoMerge: "safe",
-				githubToken: "ghp_super_secret_token",
-				fetchImpl: wikiPublishFetch({ staleLatest: true }),
-				publishVerificationAttempts: 2,
-				publishVerificationDelayMs: 0,
-				workerRunner: wikiResearchWorkerRunner(),
-				githubClient: wikiResearchMockClient({
-					calls,
-					withSafeMerge: true,
-					withPublishVerification: true,
-					issue: wikiResearchIssue({
-						title: "Kubernetes backup patterns",
-						body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
-						repo: "wiki-data-devops",
-					}),
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			autoMerge: "safe",
+			githubToken: "ghp_super_secret_token",
+			fetchImpl: wikiPublishFetch({ staleLatest: true }),
+			publishVerificationAttempts: 2,
+			publishVerificationDelayMs: 0,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: wikiResearchMockClient({
+				calls,
+				withSafeMerge: true,
+				withPublishVerification: true,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
 				}),
 			}),
-		).rejects.toThrow("latest.json");
+		});
+		const verification = JSON.parse(
+			await Bun.file(
+				path.join(getHarnessRunDir(state.runId), "validation", "wiki-publish-verification.json"),
+			).text(),
+		);
 
 		expect(calls).toContain("merge:wiki-data-devops#3");
-		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:blocked")).toBe(true);
-		expect(calls.some(call => call === "remove-label:wiki-data-devops:wiki:merged")).toBe(true);
+		expect(calls).toContain("close:wiki-data-devops#1");
+		expect(calls.some(call => call === "label:wiki-data-devops:wiki:research,wiki:blocked")).toBe(false);
+		expect(verification.ok).toBe(true);
+		expect(verification.errors).toHaveLength(0);
+		expect(verification.warnings.some((warning: string) => warning.includes("cdn.jsdelivr.net"))).toBe(true);
+		expect(state.gates?.find(gate => gate.id === "publish_verify")?.status).toBe("passed");
 	});
 
 	it("retries post-merge publish verification without redrafting", async () => {
@@ -2971,6 +3022,162 @@ describe("harness core", () => {
 		).rejects.toThrow("critic-review.json");
 	});
 
+	it("accepts only the UUID-named ChatGPT research artifact and normalizes harmless metadata", async () => {
+		const registryPath = path.join(tempRoot, "research-sources-uuid.json");
+		const steeringPath = path.join(tempRoot, "wiki-uuid.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("issue backed research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			workerRunner: wikiResearchWorkerRunner({ includeStaleArtifact: true, extraMetadata: true }),
+			githubClient: wikiResearchMockClient({
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		expect(state.status).toBe("good_enough");
+		const canonicalResearch = await Bun.file(
+			path.join(getHarnessRunDir(state.runId), "responses", "wiki-research-brief.json"),
+		).json();
+		expect(canonicalResearch.citation_index).toBeUndefined();
+	});
+
+	it("builds an illustrated soul-driven wiki draft with a separate image worker", async () => {
+		const calls: string[] = [];
+		const githubCalls: string[] = [];
+		const registryPath = path.join(tempRoot, "research-sources-illustrated.json");
+		const steeringPath = path.join(tempRoot, "wiki-illustrated.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+
+		const state = await runWikiResearchHarness("illustrated soul research", {
+			owner: "acme",
+			repo: "wiki-data-devops",
+			issue: "1",
+			steeringPath,
+			registryPath,
+			apply: true,
+			autoMerge: "off",
+			githubToken: "ghp_super_secret_token",
+			creativeMode: "illustrated",
+			soul: "lantern",
+			soulRepo: "D:/souls/omg-souls",
+			workerRunner: wikiResearchWorkerRunner({ calls, artBrief: {} }),
+			githubClient: wikiResearchMockClient({
+				calls: githubCalls,
+				issue: wikiResearchIssue({
+					title: "Kubernetes backup patterns",
+					body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+					repo: "wiki-data-devops",
+				}),
+			}),
+		});
+
+		const draft = await Bun.file(
+			path.join(getHarnessRunDir(state.runId), "artifacts", "draft", "docs", "kubernetes-backup-patterns.md"),
+		).text();
+
+		expect(state.status).toBe("good_enough");
+		expect(calls.filter(call => call === "create")).toHaveLength(2);
+		expect(draft).toContain('soul_id: "lantern"');
+		expect(draft).toContain("creative_mode: illustrated");
+		expect(draft).toContain("generated_art: true");
+		expect(draft).toContain(
+			"![Lantern-lit platform recovery map](../assets/kubernetes-backup-patterns/page-hero.png)",
+		);
+		expect(
+			await Bun.file(
+				path.join(
+					getHarnessRunDir(state.runId),
+					"artifacts",
+					"draft",
+					"assets",
+					"kubernetes-backup-patterns",
+					"page-hero.png",
+				),
+			).exists(),
+		).toBe(true);
+		expect(githubCalls).toContain("put:wiki-data-devops:assets/kubernetes-backup-patterns/page-hero.png");
+	});
+
+	it("rejects ChatGPT research artifacts with duplicate UUID filenames or wrong manifests", async () => {
+		const registryPath = path.join(tempRoot, "research-sources-manifest.json");
+		const steeringPath = path.join(tempRoot, "wiki-manifest.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		const issue = wikiResearchIssue({
+			title: "Kubernetes backup patterns",
+			body: "## Objective\nResearch Kubernetes backup patterns.\n\n## Preferred source\ndevops",
+			repo: "wiki-data-devops",
+		});
+
+		await expect(
+			runWikiResearchHarness("duplicate artifact", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({ duplicateExactArtifact: true }),
+				githubClient: wikiResearchMockClient({ issue }),
+			}),
+		).rejects.toThrow("refusing to guess");
+
+		await expect(
+			runWikiResearchHarness("wrong manifest", {
+				owner: "acme",
+				repo: "wiki-data-devops",
+				issue: "1",
+				steeringPath,
+				registryPath,
+				apply: true,
+				githubToken: "ghp_super_secret_token",
+				workerRunner: wikiResearchWorkerRunner({ wrongManifestPackageId: true }),
+				githubClient: wikiResearchMockClient({ issue }),
+			}),
+		).rejects.toThrow("package-manifest.json does not match");
+	});
+
 	it("blocks ChatGPT packages that return drafting instructions instead of article prose", async () => {
 		const registryPath = path.join(tempRoot, "research-sources-instruction-voice.json");
 		const steeringPath = path.join(tempRoot, "wiki-instruction-voice.steering.json");
@@ -3070,7 +3277,7 @@ describe("harness core", () => {
 		expect(calls.some(call => call.startsWith("branch:acme/wiki-data-projects:omg/wiki-research/issue-"))).toBe(true);
 	});
 
-	it("does not start a second content issue after the first queued issue blocks", async () => {
+	it("continues to the next repo after a queued issue blocks until the failure cap is reached", async () => {
 		const calls: string[] = [];
 		const workerCalls: string[] = [];
 		const registryPath = path.join(tempRoot, "research-sources.json");
@@ -3116,9 +3323,9 @@ describe("harness core", () => {
 		});
 
 		expect(result.processed).toHaveLength(0);
-		expect(result.blocked).toHaveLength(1);
-		expect(workerCalls.filter(call => call === "create")).toHaveLength(1);
-		expect(calls.some(call => call.includes("wiki-data-homelab") && call.startsWith("issue:"))).toBe(false);
+		expect(result.blocked).toHaveLength(2);
+		expect(workerCalls.filter(call => call === "create")).toHaveLength(2);
+		expect(calls.some(call => call.includes("wiki-data-homelab") && call.startsWith("issue:"))).toBe(true);
 	});
 
 	it("autopilot seeds and immediately processes a research issue when the queue is empty", async () => {
@@ -3182,9 +3389,143 @@ describe("harness core", () => {
 
 		expect(result.seeded?.repo).toBe("wiki-data-devops");
 		expect(result.seeded?.issueNumber).toBe(7);
+		expect(result.seeded?.title).toBe("Kubernetes Platform Recovery Decision Matrix");
+		expect(result.seeded?.ideationDecisionPath).toContain("ideation-decision.json");
+		expect(result.seeded?.confidence).toBeGreaterThanOrEqual(0.75);
+		expect(result.ideation?.status).toBe("created");
 		expect(result.processed[0]?.issueNumber).toBe(7);
 		expect(result.processed[0]?.status).toBe("good_enough");
 		expect(calls).toContain("create-issue:wiki-data-devops");
+		expect(seededIssue.body).toContain("## Why this matters");
+		expect(seededIssue.body).toContain("## Required source families");
+	});
+
+	it("autopilot falls back to deterministic seeding when ideation is disabled or ineligible", async () => {
+		const registryPath = path.join(tempRoot, "research-sources-fallback.json");
+		const steeringPath = path.join(tempRoot, "wiki-fallback.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		let seededIssue: any;
+		const client = {
+			...wikiResearchMockClient({ calls: [], issue: wikiResearchIssue() }),
+			async listIssues(_token: string | undefined, owner: string, repo: string, labels: string[]) {
+				if (labels.includes("wiki:queued") && seededIssue && repo === seededIssue.repo) {
+					return [{ ...seededIssue, owner, repo }];
+				}
+				return [];
+			},
+			async getIssue(_token: string | undefined, owner: string, repo: string, issueNumber: number) {
+				return { ...seededIssue, owner, repo, number: issueNumber };
+			},
+			async createIssue(_token: string, input: any) {
+				seededIssue = wikiResearchIssue({
+					number: 11,
+					title: input.title,
+					body: input.body,
+					labels: input.labels,
+					htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/11`,
+					owner: input.owner,
+					repo: input.repo,
+				});
+				return seededIssue;
+			},
+		};
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			repos: ["wiki-data-devops"],
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			autoMerge: "off",
+			researcher: "chatgpt",
+			seedWhenEmpty: true,
+			ideationMinConfidence: 0.99,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: client,
+		});
+
+		expect(result.ideation?.status).toBe("fallback");
+		expect(result.seeded?.title).toBe("Kubernetes restore testing and disaster recovery runbooks");
+		expect(result.seeded?.reason).toContain("deterministic fallback");
+	});
+
+	it("autopilot rejects duplicate published ideation titles before creating issues", async () => {
+		const registryPath = path.join(tempRoot, "research-sources-duplicate-ideation.json");
+		const steeringPath = path.join(tempRoot, "wiki-duplicate-ideation.steering.json");
+		await writeWikiRegistry(registryPath, [
+			{
+				id: "devops",
+				label: "DevOps",
+				description: "Kubernetes CI CD automation infrastructure",
+				enabled: true,
+				order: 10,
+				latestUrl: "https://cdn.jsdelivr.net/gh/acme/wiki-data-devops@published/latest.json",
+			},
+		]);
+		await writeWikiSteering(steeringPath, { registryPath });
+		let seededIssue: any;
+		const fetchImpl = (async (input: string | URL | Request) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url.includes("latest.json")) {
+				return new Response(JSON.stringify({ catalogUrl: "https://example.test/catalog.json" }), { status: 200 });
+			}
+			return new Response(JSON.stringify({ pages: [{ title: "Kubernetes Platform Recovery Decision Matrix" }] }), {
+				status: 200,
+			});
+		}) as typeof fetch;
+		const client = {
+			...wikiResearchMockClient({ calls: [], issue: wikiResearchIssue() }),
+			async listIssues(_token: string | undefined, owner: string, repo: string, labels: string[]) {
+				if (labels.includes("wiki:queued") && seededIssue && repo === seededIssue.repo) {
+					return [{ ...seededIssue, owner, repo }];
+				}
+				return [];
+			},
+			async getIssue(_token: string | undefined, owner: string, repo: string, issueNumber: number) {
+				return { ...seededIssue, owner, repo, number: issueNumber };
+			},
+			async createIssue(_token: string, input: any) {
+				seededIssue = wikiResearchIssue({
+					number: 12,
+					title: input.title,
+					body: input.body,
+					labels: input.labels,
+					htmlUrl: `https://github.com/${input.owner}/${input.repo}/issues/12`,
+					owner: input.owner,
+					repo: input.repo,
+				});
+				return seededIssue;
+			},
+		};
+
+		const result = await runWikiResearchQueue({
+			owner: "acme",
+			repos: ["wiki-data-devops"],
+			steeringPath,
+			registryPath,
+			apply: true,
+			githubToken: "ghp_super_secret_token",
+			autoMerge: "off",
+			researcher: "chatgpt",
+			seedWhenEmpty: true,
+			fetchImpl,
+			workerRunner: wikiResearchWorkerRunner(),
+			githubClient: client,
+		});
+
+		expect(result.ideation?.status).toBe("fallback");
+		expect(result.seeded?.title).toBe("Kubernetes restore testing and disaster recovery runbooks");
 	});
 
 	it("autopilot does not let stale publish retries delay fresh research seeding", async () => {
@@ -3840,22 +4181,34 @@ function wikiResearchWorkerRunner(
 		draftInstructions?: Partial<any>;
 		criticReview?: Partial<any>;
 		missingFile?: string;
+		extraMetadata?: boolean;
+		wrongManifestPackageId?: boolean;
+		duplicateExactArtifact?: boolean;
+		includeStaleArtifact?: boolean;
+		ideationDecision?: Partial<any>;
+		invalidIdeation?: boolean;
+		artBrief?: Partial<any>;
+		invalidImageArtifact?: boolean;
 	} = {},
 ) {
 	let copyCount = 0;
 	let downloadCount = 0;
+	let lastSendKind: "ideation" | "research" | "image" = "research";
 	const calls = options.calls ?? [];
 	return async (input: any) => {
 		calls.push(input.action);
 		if (input.action === "create") {
+			const workerId = input.profile === "omg-wiki-image" ? "image-chatgpt-1" : "researcher-chatgpt-1";
+			const conversationUrl =
+				input.profile === "omg-wiki-image"
+					? "https://chatgpt.com/c/image-worker"
+					: "https://chatgpt.com/c/researcher";
 			return {
 				ok: true,
 				action: input.action,
 				command: [],
 				exitCode: 0,
-				stdout: JSON.stringify([
-					{ worker_id: "researcher-chatgpt-1", conversation_url: "https://chatgpt.com/c/researcher" },
-				]),
+				stdout: JSON.stringify([{ worker_id: workerId, conversation_url: conversationUrl }]),
 				stderr: "",
 			};
 		}
@@ -3863,19 +4216,72 @@ function wikiResearchWorkerRunner(
 			return { ok: true, action: input.action, command: [], exitCode: 0, stdout: "{}", stderr: "" };
 		}
 		if (input.action === "send") {
+			lastSendKind = String(input.promptFile ?? "").includes("ideation")
+				? "ideation"
+				: String(input.promptFile ?? "").includes("image")
+					? "image"
+					: "research";
 			return {
 				ok: true,
 				action: input.action,
 				command: [],
 				exitCode: 0,
 				stdout: JSON.stringify({
-					request_id: input.prompt?.includes("previous response") ? "req-repair" : "req-research",
-					conversation_url: "https://chatgpt.com/c/researcher",
+					request_id: input.packageId ? `req-${input.packageId}` : "req-research",
+					conversation_url:
+						lastSendKind === "image" ? "https://chatgpt.com/c/image-worker" : "https://chatgpt.com/c/researcher",
+					soulId: input.soul ? "lantern" : undefined,
+					soulName: input.soul ? "Lantern Keeper" : undefined,
+					soulVersion: input.soul ? "1.0.0" : undefined,
+					soulPath: input.soul ? "omg-souls/souls/lantern/SOUL.md" : undefined,
+					soulPromptBytes: input.soul ? 42 : undefined,
 				}),
 				stderr: "",
 			};
 		}
 		if (input.action === "watch") {
+			if (lastSendKind === "ideation") {
+				const decision = {
+					schema_version: "omg.wiki.ideation_decision.v1",
+					status: "complete",
+					summary: "Selected a high-value DevOps planning page.",
+					proposals: [
+						{
+							source_id: "devops",
+							repo_name: "wiki-data-devops",
+							title: "Kubernetes Platform Recovery Decision Matrix",
+							objective: "Create a decision matrix for Kubernetes platform recovery planning.",
+							why_now: "The DevOps source has room for deeper operational recovery guidance.",
+							reader_value: "Readers can compare recovery patterns and choose a safe operational approach.",
+							novelty_check: "No open issue or published page in the packet uses this title.",
+							required_citation_families: [
+								"Kubernetes official docs",
+								"Velero documentation",
+								"cloud provider backup docs",
+							],
+							risk: "low",
+							confidence: 0.91,
+							decision: "create_issue",
+						},
+					],
+					...(options.ideationDecision ?? {}),
+				};
+				return {
+					ok: true,
+					action: input.action,
+					command: [],
+					exitCode: 0,
+					stdout: options.invalidIdeation
+						? "not json"
+						: JSON.stringify({
+								request_id: "req-ideation",
+								conversation_url: "https://chatgpt.com/c/ideation",
+								is_generating: false,
+								assistant_text: JSON.stringify(decision),
+							}),
+					stderr: "",
+				};
+			}
 			return {
 				ok: true,
 				action: input.action,
@@ -3891,11 +4297,48 @@ function wikiResearchWorkerRunner(
 		}
 		if (input.action === "download_artifacts") {
 			downloadCount += 1;
+			if (input.expectedArtifactName && String(input.expectedArtifactName).match(/\.(png|jpe?g|webp)$/i)) {
+				if (input.downloadDir) {
+					await fs.mkdir(input.downloadDir, { recursive: true });
+					const bytes = options.invalidImageArtifact
+						? new TextEncoder().encode("not an image")
+						: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+					await Bun.write(path.join(input.downloadDir, input.expectedArtifactName), bytes);
+				}
+				return {
+					ok: true,
+					action: input.action,
+					command: [],
+					exitCode: 0,
+					stdout: JSON.stringify({ downloaded: [input.expectedArtifactName] }),
+					stderr: "",
+					downloadedFiles: [input.expectedArtifactName],
+				};
+			}
 			const invalid = options.invalidAlways || (options.invalidFirst && downloadCount === 1);
 			const missingFindingMappings = options.missingFindingMappingsFirst && downloadCount === 1;
 			if (input.downloadDir) {
 				await fs.mkdir(input.downloadDir, { recursive: true });
+				const packageId = input.packageId ?? "test-package";
+				const expectedArtifactName = input.expectedArtifactName ?? `omg-wiki-research-${packageId}.zip`;
 				const packageJson: Record<string, unknown> = {
+					"package-manifest.json": {
+						schema_version: "omg.wiki.research_package_manifest.v1",
+						package_id: options.wrongManifestPackageId ? "wrong-package" : packageId,
+						run_id: String(input.downloadDir).match(/runs[\\/](.*?)[\\/]responses/)?.[1] ?? "test-run",
+						attempt: downloadCount === 1 ? "initial" : "repair",
+						issue_url: "https://github.com/acme/wiki-data-registry/issues/1",
+						created_at: "2026-05-25T00:00:00Z",
+						required_files: [
+							"package-manifest.json",
+							"source-decision.json",
+							"research-brief.json",
+							"content-plan.json",
+							"draft-instructions.json",
+							"critic-review.json",
+							"validation.json",
+						],
+					},
 					"source-decision.json": wikiResearchSourceDecision(options.sourceDecision),
 					"research-brief.json": invalid
 						? wikiResearchBrief({ citations: ["not-a-url"] })
@@ -3919,10 +4362,28 @@ function wikiResearchWorkerRunner(
 						...(options.draftInstructions ?? {}),
 					}),
 					"critic-review.json": wikiResearchReview(options.criticReview),
+					...(options.artBrief
+						? {
+								"art-brief.json": {
+									schema_version: "omg.wiki.art_brief.v1",
+									status: "complete",
+									page_path: "docs/kubernetes-backup-patterns.md",
+									asset_filename: "page-hero.png",
+									alt: "Lantern-lit platform recovery map",
+									prompt:
+										"Text-free editorial illustration of an abstract recovery map, no logos, no lettering.",
+									placement: "after_h1",
+									aspect_ratio: "16:9",
+									style_notes: ["warm mythic clarity"],
+									...options.artBrief,
+								},
+							}
+						: {}),
 					"validation.json": {
 						ok: true,
 						schema_version: "omg.wiki.decision_package_validation.v1",
 						checked_files: [
+							"package-manifest.json",
 							"source-decision.json",
 							"research-brief.json",
 							"content-plan.json",
@@ -3936,6 +4397,14 @@ function wikiResearchWorkerRunner(
 						conversation_url: "https://chatgpt.com/c/researcher",
 					},
 				};
+				if (options.extraMetadata) {
+					(packageJson["research-brief.json"] as any).citation_index = { c1: "https://kubernetes.io/docs/home/" };
+					(packageJson["research-brief.json"] as any).research_date = "2026-05-25";
+					(packageJson["draft-instructions.json"] as any).frontmatter = { draft: true };
+					(packageJson["draft-instructions.json"] as any).citation_index = {
+						c1: "https://kubernetes.io/docs/home/",
+					};
+				}
 				if (options.missingFile) delete packageJson[options.missingFile];
 				const entries = Object.fromEntries(
 					Object.entries(packageJson).map(([name, value]) => [
@@ -3943,24 +4412,25 @@ function wikiResearchWorkerRunner(
 						new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`),
 					]),
 				);
-				if (options.zipped) {
-					await Bun.write(path.join(input.downloadDir, "research-package.zip"), zipSync(entries));
-				} else {
-					for (const [name, bytes] of Object.entries(entries)) {
-						await Bun.write(path.join(input.downloadDir, name), bytes);
-					}
+				if (options.includeStaleArtifact) {
+					await Bun.write(
+						path.join(input.downloadDir, "omg-wiki-research-stale.zip"),
+						zipSync({
+							"research-brief.json": new TextEncoder().encode(
+								`${JSON.stringify(wikiResearchBrief({ citations: ["not-a-url"] }), null, 2)}\n`,
+							),
+						}),
+					);
 				}
+				await Bun.write(path.join(input.downloadDir, expectedArtifactName), zipSync(entries));
 			}
-			const downloadedFiles = options.zipped
-				? ["research-package.zip"]
-				: [
-						"source-decision.json",
-						"research-brief.json",
-						"content-plan.json",
-						"draft-instructions.json",
-						"critic-review.json",
-						"validation.json",
-					].filter(file => file !== options.missingFile);
+			const packageId = input.packageId ?? "test-package";
+			const exactName = input.expectedArtifactName ?? `omg-wiki-research-${packageId}.zip`;
+			const downloadedFiles = [
+				...(options.includeStaleArtifact ? ["omg-wiki-research-stale.zip"] : []),
+				exactName,
+				...(options.duplicateExactArtifact ? [exactName] : []),
+			];
 			return {
 				ok: true,
 				action: input.action,
@@ -4177,7 +4647,8 @@ function wikiPublishFetch(
 		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 		if (url.startsWith("https://purge.jsdelivr.net/")) return new Response("ok", { status: 200 });
 		if (url.includes("@published/latest-agent.json")) {
-			return Response.json(wikiPublishedLatestAgent("acme", "wiki-data-devops", expectedCommit));
+			const sourceCommit = options.staleLatest ? "4".repeat(40) : expectedCommit;
+			return Response.json(wikiPublishedLatestAgent("acme", "wiki-data-devops", sourceCommit));
 		}
 		if (url.includes("@published/latest.json")) {
 			const edgeHost = /https:\/\/(?:fastly|gcore|testingcf)\.jsdelivr\.net/.test(url);

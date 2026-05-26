@@ -1,9 +1,10 @@
 import { Buffer } from "node:buffer";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { unzipSync } from "fflate";
+import * as z from "zod/v4";
 import { type ChatGptWorkerCommand, type ChatGptWorkerCommandResult, runChatGptWorkerCommand } from "./chatgpt-cli";
-import { parseChatGptJsonEnvelope } from "./json-contracts";
 import {
 	bindWorkerRole,
 	createHarnessRun,
@@ -18,14 +19,21 @@ import {
 import {
 	type HarnessDoctorCheck,
 	type HarnessRunState,
+	type WikiArtBriefEnvelope,
+	WikiArtBriefEnvelopeSchema,
 	type WikiContentPlanEnvelope,
 	WikiContentPlanEnvelopeSchema,
 	type WikiDraftInstructionsEnvelope,
 	WikiDraftInstructionsEnvelopeSchema,
+	type WikiIdeationDecisionEnvelope,
+	WikiIdeationDecisionEnvelopeSchema,
+	type WikiIdeationPacket,
+	type WikiIdeationProposal,
 	type WikiPageDraftEnvelope,
 	WikiPageDraftEnvelopeSchema,
 	type WikiResearchBriefEnvelope,
 	WikiResearchBriefEnvelopeSchema,
+	WikiResearchPackageManifestSchema,
 	type WikiResearchReviewEnvelope,
 	WikiResearchReviewEnvelopeSchema,
 	type WikiSourceDecisionEnvelope,
@@ -35,16 +43,35 @@ import {
 export type WikiResearcherMode = "chatgpt" | "deterministic";
 export type WikiResearchWorkerRunner = (input: ChatGptWorkerCommand) => Promise<ChatGptWorkerCommandResult>;
 
+type WikiResearchPackageAttempt = {
+	attempt: "initial" | "repair";
+	packageId: string;
+	expectedArtifactName: string;
+	issueUrl: string;
+};
+
 const DEFAULT_QWEN_BASE_URL = "http://10.10.10.8:8090/v1";
 const DEFAULT_QWEN_MODEL = "qwen3.6-35b-a3b-mtp-q4k-xl";
-const CHATGPT_RESEARCH_MODEL_OPTION = "Pro";
-const CHATGPT_RESEARCH_THINKING_OPTION = "Extended";
+const CHATGPT_RESEARCH_MODEL_OPTION = "Thinking";
+const CHATGPT_RESEARCH_THINKING_OPTION = "Heavy";
+const CHATGPT_RESEARCH_CONNECTORS = ["GitHub"] as const;
+const CHATGPT_IDEATION_WATCH_SECONDS = 900;
+const IDEATION_MIN_CONFIDENCE = 0.75;
 const CHATGPT_MIN_DEEP_RESEARCH_CITATIONS = 12;
 const CHATGPT_MIN_DEEP_RESEARCH_FINDINGS = 12;
 const CHATGPT_MIN_DRAFT_SECTIONS = 8;
 const CHATGPT_RESEARCH_WATCH_SECONDS = 1_800;
 const CHATGPT_RESEARCH_WATCH_PROCESS_TIMEOUT_MS = (CHATGPT_RESEARCH_WATCH_SECONDS + 60) * 1_000;
 const CHATGPT_RESEARCH_STATUS_POLL_SECONDS = 30;
+const WIKI_RESEARCH_PACKAGE_REQUIRED_FILES = [
+	"package-manifest.json",
+	"source-decision.json",
+	"research-brief.json",
+	"content-plan.json",
+	"draft-instructions.json",
+	"critic-review.json",
+	"validation.json",
+] as const;
 
 export const WIKI_RESEARCH_REQUIRED_LABELS = [
 	"wiki:research",
@@ -157,7 +184,7 @@ export interface WikiResearchGitHubClient {
 			repo: string;
 			branch: string;
 			path: string;
-			content: string;
+			content: string | Uint8Array;
 			message: string;
 			sha?: string;
 		},
@@ -215,12 +242,20 @@ export interface WikiResearchOptions {
 	fetchImpl?: typeof fetch;
 	publishVerificationAttempts?: number;
 	publishVerificationDelayMs?: number;
+	ideationMode?: "auto" | "off";
+	ideationMinConfidence?: number;
+	soul?: string;
+	soulRepo?: string;
+	creativeMode?: "off" | "illustrated";
+	chatGptModelOption?: string;
+	chatGptThinkingOption?: string;
 	onEvent?: (message: string) => void;
 }
 
 export interface WikiResearchQueueOptions extends WikiResearchOptions {
 	repos?: string[];
 	maxIssues?: number;
+	maxFailuresPerCycle?: number;
 	seedWhenEmpty?: boolean;
 }
 
@@ -240,6 +275,18 @@ export interface WikiResearchQueueRunResult {
 		issueUrl: string;
 		title: string;
 		sourceId: string;
+		ideationDecisionPath?: string;
+		confidence?: number;
+		reason?: string;
+	};
+	ideation?: {
+		status: "created" | "fallback" | "skipped" | "failed";
+		runId?: string;
+		decisionPath?: string;
+		reason?: string;
+		selectedTitle?: string;
+		selectedSourceId?: string;
+		confidence?: number;
 	};
 	processed: Array<{
 		repo: string;
@@ -252,6 +299,8 @@ export interface WikiResearchQueueRunResult {
 		workerId?: string;
 		requestId?: string;
 		conversationUrl?: string;
+		packageId?: string;
+		expectedArtifactName?: string;
 		schemaValidation?: "passed" | "failed" | "skipped";
 		citationCount?: number;
 		error?: string;
@@ -317,6 +366,7 @@ interface WikiResearchDecisionPackage {
 	contentPlan: WikiContentPlanEnvelope;
 	draftInstructions: WikiDraftInstructionsEnvelope;
 	criticReview: WikiResearchReviewEnvelope;
+	artBrief?: WikiArtBriefEnvelope;
 	responsePaths: string[];
 	requestId?: string;
 	conversationUrl?: string;
@@ -366,6 +416,9 @@ interface WikiResearchSteering {
 	blockedDomains: string[];
 	closeBehavior: "after_pr_merge" | "manual";
 	sourceMatchThreshold: number;
+	operatorGoals: string[];
+	ideationBlockedTopics: string[];
+	ideationPreferredSources: string[];
 }
 
 const DEFAULT_STEERING: WikiResearchSteering = {
@@ -376,6 +429,9 @@ const DEFAULT_STEERING: WikiResearchSteering = {
 	blockedDomains: [],
 	closeBehavior: "after_pr_merge",
 	sourceMatchThreshold: 0.16,
+	operatorGoals: [],
+	ideationBlockedTopics: [],
+	ideationPreferredSources: [],
 };
 
 const STATE_LABELS: WikiIssueStateLabel[] = [
@@ -412,11 +468,24 @@ function firstWorkerId(raw: string): string | undefined {
 	return undefined;
 }
 
-function responseMeta(raw: string): { requestId?: string; conversationUrl?: string } {
+function responseMeta(raw: string): {
+	requestId?: string;
+	conversationUrl?: string;
+	soulId?: string;
+	soulName?: string;
+	soulPath?: string;
+	soulVersion?: string;
+	soulPromptBytes?: number;
+} {
 	const parsed = safeJson(raw);
 	return {
 		requestId: typeof parsed?.request_id === "string" ? parsed.request_id : parsed?.last_request_id,
 		conversationUrl: typeof parsed?.conversation_url === "string" ? parsed.conversation_url : undefined,
+		soulId: typeof parsed?.soulId === "string" ? parsed.soulId : undefined,
+		soulName: typeof parsed?.soulName === "string" ? parsed.soulName : undefined,
+		soulPath: typeof parsed?.soulPath === "string" ? parsed.soulPath : undefined,
+		soulVersion: typeof parsed?.soulVersion === "string" ? parsed.soulVersion : undefined,
+		soulPromptBytes: typeof parsed?.soulPromptBytes === "number" ? parsed.soulPromptBytes : undefined,
 	};
 }
 
@@ -426,6 +495,8 @@ function workerStatusMeta(raw: string): {
 	conversationUrl?: string;
 	isGenerating?: boolean;
 	artifactCount?: number;
+	thinking?: string;
+	thinkingDetails?: string;
 	error?: string;
 } {
 	const parsed = safeJson(raw);
@@ -435,6 +506,8 @@ function workerStatusMeta(raw: string): {
 		conversationUrl: typeof parsed?.conversation_url === "string" ? parsed.conversation_url : undefined,
 		isGenerating: typeof parsed?.is_generating === "boolean" ? parsed.is_generating : undefined,
 		artifactCount: typeof parsed?.artifact_count === "number" ? parsed.artifact_count : undefined,
+		thinking: typeof parsed?.thinking === "string" ? parsed.thinking : undefined,
+		thinkingDetails: typeof parsed?.thinking_details === "string" ? parsed.thinking_details : undefined,
 		error: typeof parsed?.error === "string" ? parsed.error : undefined,
 	};
 }
@@ -448,6 +521,43 @@ function modelSelectionFailed(result: ChatGptWorkerCommandResult): boolean {
 		text.includes("not available") ||
 		text.includes("unable to select")
 	);
+}
+
+function chatGptModelOption(options: WikiResearchOptions): string {
+	return (
+		options.chatGptModelOption?.trim() ||
+		Bun.env.OMG_WIKI_CHATGPT_MODEL_OPTION?.trim() ||
+		Bun.env.CHATGPT_MODEL_OPTION?.trim() ||
+		CHATGPT_RESEARCH_MODEL_OPTION
+	);
+}
+
+function chatGptThinkingOption(options: WikiResearchOptions): string {
+	return (
+		options.chatGptThinkingOption?.trim() ||
+		Bun.env.OMG_WIKI_CHATGPT_THINKING_OPTION?.trim() ||
+		Bun.env.CHATGPT_THINKING_OPTION?.trim() ||
+		CHATGPT_RESEARCH_THINKING_OPTION
+	);
+}
+
+function chatGptModelFallbacks(
+	modelOption: string,
+	thinkingOption: string,
+): Array<{ modelOption: string; thinkingOption: string }> {
+	const candidates = [
+		{ modelOption, thinkingOption },
+		{ modelOption: "Thinking", thinkingOption: "Heavy" },
+		{ modelOption: "Thinking", thinkingOption: "Extended" },
+		{ modelOption: "Thinking", thinkingOption: "Standard" },
+	];
+	const seen = new Set<string>();
+	return candidates.filter(candidate => {
+		const key = `${candidate.modelOption}:${candidate.thinkingOption}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
 }
 
 async function logResearchProgress(
@@ -815,6 +925,9 @@ async function loadSteering(
 				registryPath,
 				prLabels: parsed.prLabels ?? DEFAULT_STEERING.prLabels,
 				blockedDomains: parsed.blockedDomains ?? DEFAULT_STEERING.blockedDomains,
+				operatorGoals: parsed.operatorGoals ?? DEFAULT_STEERING.operatorGoals,
+				ideationBlockedTopics: parsed.ideationBlockedTopics ?? DEFAULT_STEERING.ideationBlockedTopics,
+				ideationPreferredSources: parsed.ideationPreferredSources ?? DEFAULT_STEERING.ideationPreferredSources,
 			},
 			path: steeringPath,
 			defaulted: false,
@@ -846,14 +959,20 @@ function issueStateLabels(next: WikiIssueStateLabel): string[] {
 }
 
 function compactStatusComment(state: HarnessRunState, status: string, details: string): string {
+	const compactDetails =
+		details.length > 2_000 ? `${details.slice(0, 2_000)}\n\n[truncated; see run report for full details]` : details;
 	return [
 		`OMG wiki research ${status}`,
 		"",
 		`Run: ${state.runId}`,
 		`Report: ${path.join(getHarnessRunDir(state.runId), "report.md")}`,
 		"",
-		details,
+		compactDetails,
 	].join("\n");
+}
+
+function compactFailureReason(details: string): string {
+	return details.length > 2_000 ? `${details.slice(0, 2_000)} [truncated]` : details;
 }
 
 function citationSeedUrls(sourceId: string | undefined, topic: string): string[] {
@@ -940,18 +1059,44 @@ function wikiResearchBriefPrompt(input: {
 	candidateSourceDecision: CandidateSourceDecision;
 	registry: WikiRegistrySnapshot;
 	steering: WikiResearchSteering;
+	runId: string;
+	packageAttempt: WikiResearchPackageAttempt;
+	creativeMode?: "off" | "illustrated";
 }): string {
 	const sourceId = input.candidateSourceDecision.sourceId ?? "undecided";
 	const repoName = input.candidateSourceDecision.repoName ?? "";
 	return [
 		"You are the research backend for OMG unattended wiki publishing.",
-		"You are running as the Pro Extended research worker. Spend the effort needed to produce a professional reference-quality package, not a thin canary draft.",
+		"You are running as the selected high-effort ChatGPT research worker. Spend the effort needed to produce a professional reference-quality package, not a thin canary draft.",
 		"ChatGPT is the only content decision engine. Local Qwen/watchdog models are not allowed to approve source, draft, critic, merge, or publishing decisions.",
 		"A zip file named chatgpt-schema-bundle.zip is attached. Extract it, use the JSON schemas in schemas/, and run validate_schema_package.py against your completed package before you return.",
-		"Create and attach a downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
+		`Create and attach exactly one downloadable package named ${input.packageAttempt.expectedArtifactName}.`,
+		"Any other artifact filename, including reused names, '(1)' names, '(2)' names, '-corrected' names, or generic package names, is invalid.",
+		"Inside the package, include package-manifest.json, source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
+		...(input.creativeMode === "illustrated"
+			? [
+					"Because creative-mode is illustrated, also include art-brief.json using schema_version omg.wiki.art_brief.v1. The art brief must describe one safe, text-free illustration for this page.",
+				]
+			: []),
+		"package-manifest.json must include the exact package_id, run_id, attempt, issue_url, created_at, and required_files values for this request.",
 		"Do not paste any JSON into chat.",
 		"Before exiting, validate every JSON file with the attached validator and record the validator result in validation.json.",
-		"Your final chat message must contain only the downloadable package/artifact link or a one-line artifact-ready note.",
+		`Your final chat message must contain only the downloadable artifact link for ${input.packageAttempt.expectedArtifactName} or a one-line artifact-ready note naming ${input.packageAttempt.expectedArtifactName}.`,
+		"",
+		"package-manifest.json required values:",
+		JSON.stringify(
+			{
+				schema_version: "omg.wiki.research_package_manifest.v1",
+				package_id: input.packageAttempt.packageId,
+				run_id: input.runId,
+				attempt: input.packageAttempt.attempt,
+				issue_url: input.packageAttempt.issueUrl,
+				created_at: "ISO-8601 timestamp",
+				required_files: [...WIKI_RESEARCH_PACKAGE_REQUIRED_FILES],
+			},
+			null,
+			2,
+		),
 		"",
 		"source-decision.json required schema:",
 		JSON.stringify(
@@ -1071,6 +1216,27 @@ function wikiResearchBriefPrompt(input: {
 			null,
 			2,
 		),
+		...(input.creativeMode === "illustrated"
+			? [
+					"",
+					"art-brief.json required schema for illustrated creative mode:",
+					JSON.stringify(
+						{
+							schema_version: "omg.wiki.art_brief.v1",
+							status: "complete | blocked",
+							page_path: "docs/topic-slug.md",
+							asset_filename: "page-hero.png",
+							alt: "Descriptive alt text for the generated illustration",
+							prompt: "Image generation prompt. No embedded text, no logos, no unsafe/private details.",
+							placement: "after_h1",
+							aspect_ratio: "16:9",
+							style_notes: ["match the active soul's aesthetic without copying living artists"],
+						},
+						null,
+						2,
+					),
+				]
+			: []),
 		"",
 		"Rules:",
 		"- Use public, non-credentialed sources only.",
@@ -1119,19 +1285,41 @@ function wikiResearchBriefPrompt(input: {
 	].join("\n");
 }
 
-function wikiResearchBriefRepairPrompt(invalidText: string, error: string | undefined): string {
+function wikiResearchBriefRepairPrompt(input: {
+	invalidText: string;
+	error: string | undefined;
+	runId: string;
+	packageAttempt: WikiResearchPackageAttempt;
+}): string {
 	return [
 		"Your previous response was rejected by the OMG schema validator.",
 		"The chat still has chatgpt-schema-bundle.zip attached. Use its JSON schemas and validate_schema_package.py before replying.",
-		"Create and attach a corrected downloadable package containing source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
-		"Do not paste JSON into chat. The final chat message must contain only the artifact link or a one-line artifact-ready note.",
+		`Create and attach exactly one corrected downloadable package named ${input.packageAttempt.expectedArtifactName}.`,
+		"Any other artifact filename, including reused names, '(1)' names, '(2)' names, '-corrected' names, or generic package names, is invalid.",
+		"Inside the package, include package-manifest.json, source-decision.json, research-brief.json, content-plan.json, draft-instructions.json, critic-review.json, and validation.json.",
+		`package-manifest.json must use package_id ${input.packageAttempt.packageId}, run_id ${input.runId}, and attempt ${input.packageAttempt.attempt}.`,
+		"Do not paste JSON into chat. The final chat message must contain only the artifact link or a one-line artifact-ready note naming the exact package.",
 		"Each package file must use the schema_version requested in the original prompt, and validation.json must prove you checked every file before exiting.",
 		"If the validation error mentions claim citation mapping, update research-brief.json so every findings[] string has a claim_citations[] object with claim exactly equal to that finding string and citation_urls containing supporting public URLs.",
-		`Validation error: ${error ?? "invalid JSON envelope"}`,
+		"Validation diagnostics:",
+		formatRepairDiagnostics(input.error),
 		"",
-		"Previous response:",
-		invalidText.slice(0, 12_000),
+		"Previous response excerpt:",
+		input.invalidText.slice(0, 4_000),
 	].join("\n");
+}
+
+function createWikiResearchPackageAttempt(
+	attempt: "initial" | "repair",
+	issue: WikiResearchIssue,
+): WikiResearchPackageAttempt {
+	const packageId = randomUUID();
+	return {
+		attempt,
+		packageId,
+		expectedArtifactName: `omg-wiki-research-${packageId}.zip`,
+		issueUrl: issue.htmlUrl || `${issue.owner}/${issue.repo}#${issue.number || "local"}`,
+	};
 }
 
 async function createResearchWorker(state: HarnessRunState, runner: WikiResearchWorkerRunner): Promise<string> {
@@ -1175,13 +1363,57 @@ async function stopResearchWorker(
 	await bindWorkerRole(state, "researcher", { workerId, stoppedAt: new Date().toISOString() });
 }
 
+async function captureResearcherThinking(
+	state: HarnessRunState,
+	workerId: string,
+	runner: WikiResearchWorkerRunner,
+	attempt: "initial" | "repair",
+	sent: { requestId?: string; conversationUrl?: string },
+): Promise<ReturnType<typeof workerStatusMeta>> {
+	const status = await runner({
+		action: "status",
+		worker: workerId,
+		extraArgs: ["--thinking-details", "--json"],
+		timeoutMs: 120_000,
+	});
+	const statusText = status.stdout || status.stderr;
+	await writeRunFile(
+		state.runId,
+		"responses",
+		attempt === "initial" ? "researcher-thinking.json" : "researcher-repair-thinking.json",
+		statusText,
+	);
+	const meta = workerStatusMeta(status.stdout);
+	await writeRunFile(
+		state.runId,
+		"responses",
+		attempt === "initial" ? "researcher-thinking-summary.json" : "researcher-repair-thinking-summary.json",
+		`${JSON.stringify(
+			{
+				workerId,
+				requestId: meta.requestId ?? sent.requestId,
+				conversationUrl: meta.conversationUrl ?? sent.conversationUrl,
+				status: meta.status,
+				artifactCount: meta.artifactCount,
+				thinking: meta.thinking ?? "",
+				thinkingDetails: meta.thinkingDetails ?? "",
+				capturedAt: new Date().toISOString(),
+				ok: status.ok,
+			},
+			null,
+			2,
+		)}\n`,
+	);
+	return meta;
+}
+
 async function downloadResearchBriefPackage(
 	state: HarnessRunState,
 	input: {
 		requestId?: string;
 		conversationUrl?: string;
 		runner: WikiResearchWorkerRunner;
-		attempt: "initial" | "repair";
+		packageAttempt: WikiResearchPackageAttempt;
 	},
 ): Promise<
 	| ({ ok: true } & WikiResearchDecisionPackage)
@@ -1197,7 +1429,7 @@ async function downloadResearchBriefPackage(
 	const downloadDir = path.join(
 		runDir,
 		"responses",
-		input.attempt === "initial" ? "researcher-package" : "researcher-repair-package",
+		input.packageAttempt.attempt === "initial" ? "researcher-package" : "researcher-repair-package",
 	);
 	await fs.rm(downloadDir, { recursive: true, force: true });
 	await fs.mkdir(downloadDir, { recursive: true, mode: 0o700 });
@@ -1205,19 +1437,56 @@ async function downloadResearchBriefPackage(
 		action: "download_artifacts",
 		conversationUrl: input.conversationUrl,
 		downloadDir,
+		packageId: input.packageAttempt.packageId,
+		expectedArtifactName: input.packageAttempt.expectedArtifactName,
 		timeoutMs: 180_000,
 	});
 	await writeRunFile(
 		state.runId,
 		"responses",
-		input.attempt === "initial" ? "researcher-package-download.json" : "researcher-repair-package-download.json",
+		input.packageAttempt.attempt === "initial"
+			? "researcher-package-download.json"
+			: "researcher-repair-package-download.json",
 		downloaded.stdout || downloaded.stderr,
 	);
 	if (!downloaded.ok) {
 		return { ok: false, error: `failed to download researcher package: ${downloaded.stderr || downloaded.stdout}` };
 	}
-	const files = await expandResearchPackageFiles(downloadDir, downloaded.downloadedFiles ?? []);
+	const zipMatches = (downloaded.downloadedFiles ?? []).filter(
+		file => path.basename(file) === input.packageAttempt.expectedArtifactName,
+	);
+	if (!zipMatches.length) {
+		return {
+			ok: false,
+			error: `expected artifact ${input.packageAttempt.expectedArtifactName} was not downloaded`,
+		};
+	}
+	if (zipMatches.length > 1) {
+		return {
+			ok: false,
+			error: `downloaded ${zipMatches.length} artifacts named ${input.packageAttempt.expectedArtifactName}; refusing to guess`,
+		};
+	}
+	const files = await expandResearchPackageFiles(downloadDir, zipMatches);
 	if (!files.length) return { ok: false, error: "researcher did not attach a downloadable package" };
+	const manifestRel = findPackageFile(files, "package-manifest.json");
+	if (!manifestRel) return { ok: false, error: "researcher package is missing package-manifest.json" };
+	const manifestPath = safeDownloadedPath(downloadDir, manifestRel);
+	if (!manifestPath) return { ok: false, error: "researcher package has an unsafe package-manifest.json path" };
+	const manifest = WikiResearchPackageManifestSchema.safeParse(safeJson(await Bun.file(manifestPath).text()));
+	if (!manifest.success) {
+		return { ok: false, error: `package-manifest.json: ${compactZodError(manifest.error)}` };
+	}
+	if (
+		manifest.data.package_id !== input.packageAttempt.packageId ||
+		manifest.data.run_id !== state.runId ||
+		manifest.data.attempt !== input.packageAttempt.attempt
+	) {
+		return {
+			ok: false,
+			error: `package-manifest.json does not match expected package ${input.packageAttempt.packageId}`,
+		};
+	}
 	const validationRel = findPackageFile(files, "validation.json");
 	if (!validationRel) return { ok: false, error: "researcher package is missing validation.json" };
 	const validationPath = safeDownloadedPath(downloadDir, validationRel);
@@ -1226,7 +1495,7 @@ async function downloadResearchBriefPackage(
 	if (validation?.ok !== true) {
 		return { ok: false, error: `researcher self-validation did not pass: ${JSON.stringify(validation)}` };
 	}
-	const parseResult = await parseResearchDecisionPackageFiles(state, downloadDir, files, input.attempt);
+	const parseResult = await parseResearchDecisionPackageFiles(state, downloadDir, files, input.packageAttempt.attempt);
 	if (!parseResult.ok) {
 		return {
 			ok: false,
@@ -1267,7 +1536,7 @@ async function parseResearchDecisionPackageFiles(
 	async function parseFile<T>(
 		filename: (typeof required)[number],
 		expectedVersion: string,
-		validate: (value: unknown) => { success: true; data: T } | { success: false; error: { message: string } },
+		validate: (value: unknown) => { success: true; data: T } | { success: false; error: unknown },
 	): Promise<{ value?: T; outputPath?: string }> {
 		const relPath = findPackageFile(files, filename);
 		if (!relPath) {
@@ -1280,14 +1549,19 @@ async function parseResearchDecisionPackageFiles(
 			return {};
 		}
 		const text = (await Bun.file(absolute).text()).trim();
-		const parsed = parseChatGptJsonEnvelope(text);
-		if (!parsed.ok || parsed.value?.schema_version !== expectedVersion) {
-			errors.push(`${filename}: ${parsed.ok ? `expected ${expectedVersion}` : (parsed.error ?? "invalid JSON")}`);
+		const parsed = safeJson(text);
+		if (!parsed || typeof parsed !== "object") {
+			errors.push(`${filename}: invalid JSON`);
 			return {};
 		}
-		const checked = validate(parsed.value);
+		const normalized = normalizeResearchPackageJson(filename, parsed);
+		if ((normalized as { schema_version?: unknown }).schema_version !== expectedVersion) {
+			errors.push(`${filename}: expected ${expectedVersion}`);
+			return {};
+		}
+		const checked = validate(normalized);
 		if (!checked.success) {
-			errors.push(`${filename}: ${checked.error.message}`);
+			errors.push(`${filename}: ${compactZodError(checked.error)}`);
 			return {};
 		}
 		const outputPath = await writeRunFile(
@@ -1324,6 +1598,14 @@ async function parseResearchDecisionPackageFiles(
 		"omg.wiki.research_review.v1",
 		value => WikiResearchReviewEnvelopeSchema.safeParse(value) as any,
 	);
+	let artBrief: { value?: unknown; outputPath?: string | undefined } = {};
+	if (findPackageFile(files, "art-brief.json")) {
+		artBrief = await parseFile(
+			"art-brief.json" as any,
+			"omg.wiki.art_brief.v1",
+			value => WikiArtBriefEnvelopeSchema.safeParse(value) as any,
+		);
+	}
 
 	if (errors.length) {
 		await writeRunFile(state.runId, "responses", `${prefix}-invalid.txt`, `${errors.join("\n")}\n`);
@@ -1346,12 +1628,14 @@ async function parseResearchDecisionPackageFiles(
 			contentPlan: contentPlan.value as WikiContentPlanEnvelope,
 			draftInstructions: draftInstructions.value as WikiDraftInstructionsEnvelope,
 			criticReview: criticReview.value as WikiResearchReviewEnvelope,
+			artBrief: artBrief.value as WikiArtBriefEnvelope | undefined,
 			responsePaths: [
 				sourceDecision.outputPath,
 				research.outputPath,
 				contentPlan.outputPath,
 				draftInstructions.outputPath,
 				criticReview.outputPath,
+				artBrief.outputPath,
 			].filter(Boolean) as string[],
 		},
 	};
@@ -1397,190 +1681,100 @@ function findPackageFile(files: string[], filename: string): string | undefined 
 	return files.find(file => path.basename(file).toLowerCase() === target);
 }
 
-function stringArraySchema(minItems = 1): Record<string, unknown> {
-	return { type: "array", minItems, items: { type: "string" } };
-}
-
-function objectSchema(
-	required: string[],
-	properties: Record<string, unknown>,
-	extra: Record<string, unknown> = {},
-): Record<string, unknown> {
-	return {
-		$schema: "https://json-schema.org/draft/2020-12/schema",
-		type: "object",
-		required,
-		properties,
-		additionalProperties: true,
-		...extra,
+function normalizeResearchPackageJson(filename: string, value: Record<string, unknown>): Record<string, unknown> {
+	const allowedMetadataKeys: Record<string, string[]> = {
+		"source-decision.json": ["issue_url"],
+		"research-brief.json": ["citation_index", "research_date", "issue_url"],
+		"content-plan.json": ["assumptions"],
+		"draft-instructions.json": ["frontmatter", "citation_index"],
+		"critic-review.json": ["review_basis"],
 	};
+	const normalized = { ...value };
+	for (const key of allowedMetadataKeys[filename] ?? []) delete normalized[key];
+	return normalized;
 }
 
-function wikiResearchPackageSchemas(sourceId: string, repoName: string): Record<string, Record<string, unknown>> {
-	const sourceQuality = {
-		type: "object",
-		required: ["url", "title", "source_type", "why_it_matters"],
-		properties: {
-			url: { type: "string" },
-			title: { type: "string" },
-			source_type: { type: "string", enum: ["official", "standards", "reference", "supporting"] },
-			why_it_matters: { type: "string" },
+function compactZodError(error: unknown, maxIssues = 8): string {
+	const issues = (error as { issues?: Array<{ path?: unknown[]; code?: string; message?: string; keys?: string[] }> })
+		?.issues;
+	if (!Array.isArray(issues) || !issues.length) {
+		const message = (error as { message?: unknown })?.message;
+		return typeof message === "string" ? message.slice(0, 2_000) : String(error).slice(0, 2_000);
+	}
+	return issues
+		.slice(0, maxIssues)
+		.map(issue => {
+			const pathLabel = Array.isArray(issue.path) && issue.path.length ? issue.path.join(".") : "<root>";
+			const keys = Array.isArray(issue.keys) && issue.keys.length ? ` keys=${issue.keys.join(",")}` : "";
+			return `${pathLabel}: ${issue.message ?? issue.code ?? "invalid"}${keys}`;
+		})
+		.join("; ");
+}
+
+function formatRepairDiagnostics(error: string | undefined): string {
+	if (!error) return "- invalid JSON envelope";
+	const lines = error
+		.split(/\r?\n|; /)
+		.map(line => line.trim())
+		.filter(Boolean);
+	const compact = lines
+		.filter(line => !line.includes('"errors"') && !line.includes('"values"') && !line.includes('"code"'))
+		.slice(0, 16);
+	return (compact.length ? compact : lines.slice(0, 16)).map(line => `- ${line.slice(0, 240)}`).join("\n");
+}
+
+function jsonSchemaFor(schema: z.ZodType): Record<string, unknown> {
+	return z.toJSONSchema(schema) as Record<string, unknown>;
+}
+
+function wikiResearchPackageSchemas(
+	input: WikiResearchPackageAttempt & { runId: string },
+): Record<string, Record<string, unknown>> {
+	const manifestSchema = z
+		.object({
+			schema_version: z.literal("omg.wiki.research_package_manifest.v1"),
+			package_id: z.literal(input.packageId),
+			run_id: z.literal(input.runId),
+			attempt: z.literal(input.attempt),
+			issue_url: z.string(),
+			created_at: z.string(),
+			required_files: z.array(z.enum(WIKI_RESEARCH_PACKAGE_REQUIRED_FILES)),
+		})
+		.strict();
+	return {
+		"package-manifest.schema.json": jsonSchemaFor(manifestSchema),
+		"source-decision.schema.json": jsonSchemaFor(WikiSourceDecisionEnvelopeSchema),
+		"research-brief.schema.json": jsonSchemaFor(WikiResearchBriefEnvelopeSchema),
+		"content-plan.schema.json": jsonSchemaFor(WikiContentPlanEnvelopeSchema),
+		"draft-instructions.schema.json": jsonSchemaFor(WikiDraftInstructionsEnvelopeSchema),
+		"critic-review.schema.json": jsonSchemaFor(WikiResearchReviewEnvelopeSchema),
+		"art-brief.schema.json": jsonSchemaFor(WikiArtBriefEnvelopeSchema),
+		"validation.schema.json": {
+			$schema: "https://json-schema.org/draft/2020-12/schema",
+			type: "object",
+			required: ["ok", "schema_version", "checked_files", "errors", "citation_count"],
+			additionalProperties: false,
+			properties: {
+				ok: { type: "boolean", const: true },
+				schema_version: { type: "string" },
+				checked_files: { type: "array", minItems: 7, items: { type: "string" } },
+				errors: { type: "array", maxItems: 0, items: { type: "string" } },
+				citation_count: { type: "number" },
+				worker_id: { type: "string" },
+				request_id: { type: "string" },
+				conversation_url: { type: "string" },
+			},
 		},
-	};
-	return {
-		"source-decision.schema.json": objectSchema(
-			[
-				"schema_version",
-				"status",
-				"recommended_action",
-				"source_id",
-				"repo_name",
-				"domain_label",
-				"reason",
-				"existing_source_candidates",
-				"confidence",
-				"required_seed_files",
-			],
-			{
-				schema_version: { const: "omg.wiki.source_decision.v1" },
-				status: { type: "string", enum: ["complete", "blocked", "needs_user_decision"] },
-				recommended_action: { type: "string", enum: ["use_existing_source", "create_new_source", "blocked"] },
-				source_id: { type: "string", const: sourceId },
-				repo_name: { type: "string", const: repoName },
-				domain_label: { type: "string" },
-				reason: { type: "string" },
-				existing_source_candidates: stringArraySchema(0),
-				confidence: { type: "number" },
-				required_seed_files: stringArraySchema(0),
-			},
-		),
-		"research-brief.schema.json": objectSchema(
-			[
-				"schema_version",
-				"status",
-				"topic",
-				"summary",
-				"citations",
-				"source_quality",
-				"claim_citations",
-				"findings",
-				"reader_takeaways",
-				"confidence",
-			],
-			{
-				schema_version: { const: "omg.wiki.research_brief.v1" },
-				status: { type: "string", enum: ["complete", "blocked", "needs_more_context"] },
-				topic: { type: "string" },
-				summary: { type: "string" },
-				citations: stringArraySchema(CHATGPT_MIN_DEEP_RESEARCH_CITATIONS),
-				source_quality: { type: "array", minItems: CHATGPT_MIN_DEEP_RESEARCH_CITATIONS, items: sourceQuality },
-				claim_citations: {
-					type: "array",
-					minItems: CHATGPT_MIN_DEEP_RESEARCH_FINDINGS,
-					items: {
-						type: "object",
-						required: ["claim", "citation_urls"],
-						properties: { claim: { type: "string" }, citation_urls: stringArraySchema() },
-					},
-				},
-				findings: stringArraySchema(CHATGPT_MIN_DEEP_RESEARCH_FINDINGS),
-				reader_takeaways: stringArraySchema(3),
-				confidence: { type: "number" },
-			},
-		),
-		"content-plan.schema.json": objectSchema(["schema_version", "status", "source_id", "pages"], {
-			schema_version: { const: "omg.wiki.content_plan.v1" },
-			status: { type: "string", enum: ["complete", "blocked"] },
-			source_id: { type: "string", const: sourceId },
-			pages: {
-				type: "array",
-				minItems: 1,
-				items: {
-					type: "object",
-					required: ["title", "slug", "description", "tags", "reader_value", "outline"],
-					properties: {
-						title: { type: "string" },
-						slug: { type: "string" },
-						description: { type: "string" },
-						tags: stringArraySchema(),
-						reader_value: { type: "string" },
-						outline: stringArraySchema(CHATGPT_MIN_DRAFT_SECTIONS),
-					},
-				},
-			},
-		}),
-		"draft-instructions.schema.json": objectSchema(
-			[
-				"schema_version",
-				"status",
-				"source_id",
-				"path",
-				"title",
-				"description",
-				"tags",
-				"required_sections",
-				"notes",
-				"sections",
-				"confidence",
-			],
-			{
-				schema_version: { const: "omg.wiki.draft_instructions.v1" },
-				status: { type: "string", enum: ["complete", "blocked"] },
-				source_id: { type: "string", const: sourceId },
-				path: { type: "string" },
-				title: { type: "string" },
-				description: { type: "string" },
-				tags: stringArraySchema(),
-				required_sections: stringArraySchema(CHATGPT_MIN_DRAFT_SECTIONS),
-				notes: stringArraySchema(0),
-				sections: {
-					type: "array",
-					minItems: CHATGPT_MIN_DRAFT_SECTIONS,
-					items: {
-						type: "object",
-						required: ["heading", "purpose", "paragraphs", "bullets", "citation_urls"],
-						properties: {
-							heading: { type: "string" },
-							purpose: { type: "string" },
-							paragraphs: stringArraySchema(2),
-							bullets: stringArraySchema(0),
-							citation_urls: stringArraySchema(),
-						},
-					},
-				},
-				confidence: { type: "number" },
-			},
-		),
-		"critic-review.schema.json": objectSchema(
-			["schema_version", "approved", "blocking_findings", "non_blocking_findings", "verdict"],
-			{
-				schema_version: { const: "omg.wiki.research_review.v1" },
-				approved: { type: "boolean", const: true },
-				blocking_findings: stringArraySchema(0),
-				non_blocking_findings: stringArraySchema(0),
-				verdict: { type: "string", const: "good_enough" },
-			},
-		),
-		"validation.schema.json": objectSchema(["ok", "schema_version", "checked_files", "errors", "citation_count"], {
-			ok: { type: "boolean", const: true },
-			schema_version: { type: "string" },
-			checked_files: stringArraySchema(6),
-			errors: stringArraySchema(0),
-			citation_count: { type: "number" },
-			worker_id: { type: "string" },
-			request_id: { type: "string" },
-			conversation_url: { type: "string" },
-		}),
 	};
 }
 
 async function writeWikiResearchSchemaFiles(
 	state: HarnessRunState,
 	candidateSourceDecision: CandidateSourceDecision,
+	packageAttempt: WikiResearchPackageAttempt,
 ): Promise<string[]> {
-	const sourceId = candidateSourceDecision.sourceId ?? "undecided";
-	const repoName = candidateSourceDecision.repoName ?? "";
-	const schemas = wikiResearchPackageSchemas(sourceId, repoName);
+	void candidateSourceDecision;
+	const schemas = wikiResearchPackageSchemas({ ...packageAttempt, runId: state.runId });
 	const out: string[] = [];
 	for (const [filename, schema] of Object.entries(schemas)) {
 		out.push(
@@ -1603,26 +1797,43 @@ async function sendResearchPrompt(
 	runner: WikiResearchWorkerRunner,
 	attempt: "initial" | "repair",
 	schemaPaths: string[],
-): Promise<{ requestId?: string; conversationUrl?: string }> {
+	packageAttempt: WikiResearchPackageAttempt,
+): Promise<{
+	requestId?: string;
+	conversationUrl?: string;
+	soulId?: string;
+	soulName?: string;
+	soulPath?: string;
+	soulVersion?: string;
+	soulPromptBytes?: number;
+}> {
 	const promptName = attempt === "initial" ? "researcher.md" : "researcher-repair.md";
-	await writeRunFile(state.runId, "prompts", promptName, prompt);
+	const promptPath = await writeRunFile(state.runId, "prompts", promptName, prompt);
 	await consumePromptBudget(state, "researcher");
-	let modelOption = CHATGPT_RESEARCH_MODEL_OPTION;
-	let thinkingOption = CHATGPT_RESEARCH_THINKING_OPTION;
+	let modelOption = chatGptModelOption(options);
+	let thinkingOption = chatGptThinkingOption(options);
 	await logResearchProgress(state, options, "send_start", {
 		attempt,
 		workerId,
 		modelOption,
 		thinkingOption,
 		schemaCount: schemaPaths.length,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
+		connectors: CHATGPT_RESEARCH_CONNECTORS.join(","),
 	});
 	let send = await runner({
 		action: "send",
 		worker: workerId,
-		prompt,
+		promptFile: promptPath,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
 		modelOption,
 		thinkingOption,
+		connectors: [...CHATGPT_RESEARCH_CONNECTORS],
 		schemas: schemaPaths,
+		soul: options.soul,
+		soulRepo: options.soulRepo,
 		extraArgs: ["--json"],
 		timeoutMs: 120_000,
 	});
@@ -1633,30 +1844,42 @@ async function sendResearchPrompt(
 		send.stdout || send.stderr,
 	);
 	if (!send.ok && modelSelectionFailed(send)) {
-		modelOption = "Thinking";
-		thinkingOption = "Standard";
-		await logResearchProgress(state, options, "send_model_fallback", {
-			attempt,
-			workerId,
-			modelOption,
-			thinkingOption,
-		});
-		send = await runner({
-			action: "send",
-			worker: workerId,
-			prompt,
-			modelOption,
-			thinkingOption,
-			schemas: schemaPaths,
-			extraArgs: ["--json"],
-			timeoutMs: 120_000,
-		});
-		await writeRunFile(
-			state.runId,
-			"responses",
-			attempt === "initial" ? "researcher-send-fallback.json" : "researcher-repair-send-fallback.json",
-			send.stdout || send.stderr,
-		);
+		let fallbackIndex = 0;
+		for (const fallback of chatGptModelFallbacks(modelOption, thinkingOption).slice(1)) {
+			fallbackIndex += 1;
+			modelOption = fallback.modelOption;
+			thinkingOption = fallback.thinkingOption;
+			await logResearchProgress(state, options, "send_model_fallback", {
+				attempt,
+				workerId,
+				modelOption,
+				thinkingOption,
+			});
+			send = await runner({
+				action: "send",
+				worker: workerId,
+				promptFile: promptPath,
+				packageId: packageAttempt.packageId,
+				expectedArtifactName: packageAttempt.expectedArtifactName,
+				modelOption,
+				thinkingOption,
+				connectors: [...CHATGPT_RESEARCH_CONNECTORS],
+				schemas: schemaPaths,
+				soul: options.soul,
+				soulRepo: options.soulRepo,
+				extraArgs: ["--json"],
+				timeoutMs: 120_000,
+			});
+			await writeRunFile(
+				state.runId,
+				"responses",
+				attempt === "initial"
+					? `researcher-send-fallback-${fallbackIndex}.json`
+					: `researcher-repair-send-fallback-${fallbackIndex}.json`,
+				send.stdout || send.stderr,
+			);
+			if (send.ok || !modelSelectionFailed(send)) break;
+		}
 	}
 	if (!send.ok) throw new Error(`failed to send researcher prompt: ${send.stderr || send.stdout}`);
 	const sent = responseMeta(send.stdout);
@@ -1665,8 +1888,13 @@ async function sendResearchPrompt(
 		workerId,
 		requestId: sent.requestId,
 		conversationUrl: sent.conversationUrl,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
+		soulId: sent.soulId,
+		soulName: sent.soulName,
+		soulVersion: sent.soulVersion,
 	});
-	const watchMeta = await waitForResearchWorker(state, options, workerId, runner, attempt, sent);
+	const watchMeta = await waitForResearchWorker(state, options, workerId, runner, attempt, sent, packageAttempt);
 	await bindWorkerRole(state, "researcher", {
 		workerId,
 		requestId: watchMeta.requestId ?? sent.requestId,
@@ -1677,6 +1905,11 @@ async function sendResearchPrompt(
 	return {
 		requestId: watchMeta.requestId ?? sent.requestId,
 		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
+		soulId: sent.soulId,
+		soulName: sent.soulName,
+		soulPath: sent.soulPath,
+		soulVersion: sent.soulVersion,
+		soulPromptBytes: sent.soulPromptBytes,
 	};
 }
 
@@ -1687,17 +1920,22 @@ async function waitForResearchWorker(
 	runner: WikiResearchWorkerRunner,
 	attempt: "initial" | "repair",
 	sent: { requestId?: string; conversationUrl?: string },
+	packageAttempt: WikiResearchPackageAttempt,
 ): Promise<{ requestId?: string; conversationUrl?: string }> {
 	await logResearchProgress(state, options, "watch_start", {
 		attempt,
 		workerId,
 		timeoutSeconds: CHATGPT_RESEARCH_WATCH_SECONDS,
 		pollSeconds: CHATGPT_RESEARCH_STATUS_POLL_SECONDS,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
 	});
 	const deadline = Date.now() + CHATGPT_RESEARCH_WATCH_SECONDS * 1000;
 	let statusSupported = true;
 	let lastStatusText = "";
 	let lastStatusMeta: ReturnType<typeof workerStatusMeta> = {};
+	let lastArtifactProbeAt = 0;
+	let lastProbedArtifactCount = 0;
 	while (Date.now() < deadline) {
 		const status = await runner({
 			action: "status",
@@ -1733,17 +1971,60 @@ async function waitForResearchWorker(
 			conversationUrl: lastStatusMeta.conversationUrl,
 		});
 		if (lastStatusMeta.conversationUrl && lastStatusMeta.isGenerating !== true) {
+			const thinkingMeta = await captureResearcherThinking(state, workerId, runner, attempt, sent).catch(
+				() => lastStatusMeta,
+			);
 			await logResearchProgress(state, options, "watch_complete", {
 				attempt,
 				workerId,
-				requestId: lastStatusMeta.requestId ?? sent.requestId,
-				conversationUrl: lastStatusMeta.conversationUrl,
-				artifactCount: lastStatusMeta.artifactCount,
+				requestId: thinkingMeta.requestId ?? lastStatusMeta.requestId ?? sent.requestId,
+				conversationUrl: thinkingMeta.conversationUrl ?? lastStatusMeta.conversationUrl,
+				artifactCount: thinkingMeta.artifactCount ?? lastStatusMeta.artifactCount,
+				thinking: thinkingMeta.thinking,
+				thinkingDetailsCaptured: !!thinkingMeta.thinkingDetails,
+				packageId: packageAttempt.packageId,
+				expectedArtifactName: packageAttempt.expectedArtifactName,
 			});
 			return {
-				requestId: lastStatusMeta.requestId ?? sent.requestId,
-				conversationUrl: lastStatusMeta.conversationUrl ?? sent.conversationUrl,
+				requestId: thinkingMeta.requestId ?? lastStatusMeta.requestId ?? sent.requestId,
+				conversationUrl: thinkingMeta.conversationUrl ?? lastStatusMeta.conversationUrl ?? sent.conversationUrl,
 			};
+		}
+		const artifactCount = lastStatusMeta.artifactCount ?? 0;
+		if (
+			lastStatusMeta.conversationUrl &&
+			artifactCount > 1 &&
+			(artifactCount !== lastProbedArtifactCount || Date.now() - lastArtifactProbeAt > 120_000)
+		) {
+			lastArtifactProbeAt = Date.now();
+			lastProbedArtifactCount = artifactCount;
+			const expectedArtifactReady = await probeExpectedResearchArtifact(
+				state,
+				runner,
+				attempt,
+				lastStatusMeta.conversationUrl,
+				packageAttempt,
+			).catch(() => false);
+			if (expectedArtifactReady) {
+				const thinkingMeta = await captureResearcherThinking(state, workerId, runner, attempt, sent).catch(
+					() => lastStatusMeta,
+				);
+				await logResearchProgress(state, options, "watch_artifact_ready", {
+					attempt,
+					workerId,
+					requestId: thinkingMeta.requestId ?? lastStatusMeta.requestId ?? sent.requestId,
+					conversationUrl: thinkingMeta.conversationUrl ?? lastStatusMeta.conversationUrl,
+					artifactCount: thinkingMeta.artifactCount ?? lastStatusMeta.artifactCount,
+					thinking: thinkingMeta.thinking,
+					thinkingDetailsCaptured: !!thinkingMeta.thinkingDetails,
+					packageId: packageAttempt.packageId,
+					expectedArtifactName: packageAttempt.expectedArtifactName,
+				});
+				return {
+					requestId: thinkingMeta.requestId ?? lastStatusMeta.requestId ?? sent.requestId,
+					conversationUrl: thinkingMeta.conversationUrl ?? lastStatusMeta.conversationUrl ?? sent.conversationUrl,
+				};
+			}
 		}
 		await new Promise(resolve =>
 			setTimeout(resolve, Math.min(CHATGPT_RESEARCH_STATUS_POLL_SECONDS * 1000, Math.max(0, deadline - Date.now()))),
@@ -1760,7 +2041,7 @@ async function waitForResearchWorker(
 	const watched = await runner({
 		action: "watch",
 		worker: workerId,
-		extraArgs: ["--timeout", String(CHATGPT_RESEARCH_WATCH_SECONDS), "--json"],
+		extraArgs: ["--timeout", String(CHATGPT_RESEARCH_WATCH_SECONDS), "--thinking-details", "--json"],
 		timeoutMs: CHATGPT_RESEARCH_WATCH_PROCESS_TIMEOUT_MS,
 	});
 	await writeRunFile(
@@ -1775,7 +2056,7 @@ async function waitForResearchWorker(
 		const status = await runner({
 			action: "status",
 			worker: workerId,
-			extraArgs: ["--json"],
+			extraArgs: ["--thinking-details", "--json"],
 			timeoutMs: 120_000,
 		});
 		await writeRunFile(
@@ -1799,13 +2080,24 @@ async function waitForResearchWorker(
 			conversationUrl: statusMeta.conversationUrl ?? sent.conversationUrl,
 		};
 	}
+	const thinkingMeta = await captureResearcherThinking(state, workerId, runner, attempt, sent).catch(
+		(): ReturnType<typeof workerStatusMeta> => ({}),
+	);
 	await logResearchProgress(state, options, "watch_complete", {
 		attempt,
 		workerId,
-		requestId: watchMeta.requestId ?? sent.requestId,
-		conversationUrl: watchMeta.conversationUrl ?? sent.conversationUrl,
+		requestId: thinkingMeta.requestId ?? watchMeta.requestId ?? sent.requestId,
+		conversationUrl: thinkingMeta.conversationUrl ?? watchMeta.conversationUrl ?? sent.conversationUrl,
+		artifactCount: thinkingMeta.artifactCount,
+		thinking: thinkingMeta.thinking,
+		thinkingDetailsCaptured: !!thinkingMeta.thinkingDetails,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
 	});
-	return watchMeta;
+	return {
+		requestId: thinkingMeta.requestId ?? watchMeta.requestId,
+		conversationUrl: thinkingMeta.conversationUrl ?? watchMeta.conversationUrl,
+	};
 }
 
 function validateCompletedResearchBrief(
@@ -1860,40 +2152,64 @@ async function runChatGptResearchBrief(
 	contentPlan: WikiContentPlanEnvelope;
 	draftInstructions: WikiDraftInstructionsEnvelope;
 	criticReview: WikiResearchReviewEnvelope;
+	artBrief?: WikiArtBriefEnvelope;
 	responsePaths: string[];
 	workerId: string;
 	requestId?: string;
 	conversationUrl?: string;
+	packageId: string;
+	expectedArtifactName: string;
+	soulId?: string;
+	soulName?: string;
+	soulPath?: string;
+	soulVersion?: string;
+	soulPromptBytes?: number;
 }> {
 	const runner = options.workerRunner ?? runChatGptWorkerCommand;
 	const workerId = await createResearchWorker(state, runner);
-	const schemaPaths = await writeWikiResearchSchemaFiles(state, candidateSourceDecision);
 	try {
+		const initialPackage = createWikiResearchPackageAttempt("initial", issue);
+		let finalPackage = initialPackage;
+		const initialSchemaPaths = await writeWikiResearchSchemaFiles(state, candidateSourceDecision, initialPackage);
 		const sent = await sendResearchPrompt(
 			state,
 			options,
 			workerId,
-			wikiResearchBriefPrompt({ issue, body, candidateSourceDecision, registry, steering }),
+			wikiResearchBriefPrompt({
+				issue,
+				body,
+				candidateSourceDecision,
+				registry,
+				steering,
+				runId: state.runId,
+				packageAttempt: initialPackage,
+				creativeMode: options.creativeMode,
+			}),
 			runner,
 			"initial",
-			schemaPaths,
+			initialSchemaPaths,
+			initialPackage,
 		);
 		await logResearchProgress(state, options, "package_download_start", {
 			attempt: "initial",
 			workerId,
 			conversationUrl: sent.conversationUrl,
+			packageId: initialPackage.packageId,
+			expectedArtifactName: initialPackage.expectedArtifactName,
 		});
 		let parsed = await downloadResearchBriefPackage(state, {
 			requestId: sent.requestId,
 			conversationUrl: sent.conversationUrl,
 			runner,
-			attempt: "initial",
+			packageAttempt: initialPackage,
 		});
 		await logResearchProgress(state, options, "package_download_complete", {
 			attempt: "initial",
 			workerId,
 			ok: parsed.ok,
 			error: parsed.ok ? undefined : parsed.error,
+			packageId: initialPackage.packageId,
+			expectedArtifactName: initialPackage.expectedArtifactName,
 		});
 		let repaired = false;
 		if (!parsed.ok) {
@@ -1907,33 +2223,46 @@ async function runChatGptResearchBrief(
 				timeoutMs: 120_000,
 			});
 			await writeRunFile(state.runId, "responses", "researcher-copy.txt", copied.stdout || copied.stderr);
+			const repairPackage = createWikiResearchPackageAttempt("repair", issue);
+			const repairSchemaPaths = await writeWikiResearchSchemaFiles(state, candidateSourceDecision, repairPackage);
 			const repairSent = await sendResearchPrompt(
 				state,
 				options,
 				workerId,
-				wikiResearchBriefRepairPrompt(copied.stdout || parsed.error || "", parsed.error),
+				wikiResearchBriefRepairPrompt({
+					invalidText: copied.stdout || parsed.error || "",
+					error: parsed.error,
+					runId: state.runId,
+					packageAttempt: repairPackage,
+				}),
 				runner,
 				"repair",
-				schemaPaths,
+				repairSchemaPaths,
+				repairPackage,
 			);
 			await logResearchProgress(state, options, "package_download_start", {
 				attempt: "repair",
 				workerId,
 				conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
+				packageId: repairPackage.packageId,
+				expectedArtifactName: repairPackage.expectedArtifactName,
 			});
 			parsed = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? sent.requestId,
 				conversationUrl: repairSent.conversationUrl ?? sent.conversationUrl,
 				runner,
-				attempt: "repair",
+				packageAttempt: repairPackage,
 			});
 			await logResearchProgress(state, options, "package_download_complete", {
 				attempt: "repair",
 				workerId,
 				ok: parsed.ok,
 				error: parsed.ok ? undefined : parsed.error,
+				packageId: repairPackage.packageId,
+				expectedArtifactName: repairPackage.expectedArtifactName,
 			});
 			repaired = true;
+			finalPackage = repairPackage;
 		}
 		if (!parsed.ok) {
 			throw new Error(
@@ -1942,12 +2271,14 @@ async function runChatGptResearchBrief(
 		}
 		let completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
 		if (completionErrors.length && !repaired) {
+			const repairPackage = createWikiResearchPackageAttempt("repair", issue);
+			const repairSchemaPaths = await writeWikiResearchSchemaFiles(state, candidateSourceDecision, repairPackage);
 			const repairSent = await sendResearchPrompt(
 				state,
 				options,
 				workerId,
-				wikiResearchBriefRepairPrompt(
-					JSON.stringify(
+				wikiResearchBriefRepairPrompt({
+					invalidText: JSON.stringify(
 						{
 							sourceDecision: parsed.sourceDecision,
 							research: parsed.research,
@@ -1958,28 +2289,35 @@ async function runChatGptResearchBrief(
 						null,
 						2,
 					),
-					`ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`,
-				),
+					error: `ChatGPT research brief failed quality gates: ${completionErrors.join("; ")}`,
+					runId: state.runId,
+					packageAttempt: repairPackage,
+				}),
 				runner,
 				"repair",
-				schemaPaths,
+				repairSchemaPaths,
+				repairPackage,
 			);
 			await logResearchProgress(state, options, "package_download_start", {
 				attempt: "repair",
 				workerId,
 				conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
+				packageId: repairPackage.packageId,
+				expectedArtifactName: repairPackage.expectedArtifactName,
 			});
 			const repairedPackage = await downloadResearchBriefPackage(state, {
 				requestId: repairSent.requestId ?? parsed.requestId ?? sent.requestId,
 				conversationUrl: repairSent.conversationUrl ?? parsed.conversationUrl ?? sent.conversationUrl,
 				runner,
-				attempt: "repair",
+				packageAttempt: repairPackage,
 			});
 			await logResearchProgress(state, options, "package_download_complete", {
 				attempt: "repair",
 				workerId,
 				ok: repairedPackage.ok,
 				error: repairedPackage.ok ? undefined : repairedPackage.error,
+				packageId: repairPackage.packageId,
+				expectedArtifactName: repairPackage.expectedArtifactName,
 			});
 			if (!repairedPackage.ok) {
 				throw new Error(
@@ -1990,6 +2328,7 @@ async function runChatGptResearchBrief(
 			}
 			parsed = repairedPackage;
 			repaired = true;
+			finalPackage = repairPackage;
 			completionErrors = validateChatGptResearchDecisionPackage(parsed, steering, candidateSourceDecision);
 		}
 		if (completionErrors.length) {
@@ -2031,12 +2370,21 @@ async function runChatGptResearchBrief(
 			"wiki-research-review-chatgpt.json",
 			`${JSON.stringify(parsed.criticReview, null, 2)}\n`,
 		);
+		const artBriefPath = parsed.artBrief
+			? await writeRunFile(
+					state.runId,
+					"responses",
+					"wiki-art-brief-chatgpt.json",
+					`${JSON.stringify(parsed.artBrief, null, 2)}\n`,
+				)
+			: undefined;
 		return {
 			sourceDecision: parsed.sourceDecision,
 			research: parsed.research,
 			contentPlan: parsed.contentPlan,
 			draftInstructions: parsed.draftInstructions,
 			criticReview: parsed.criticReview,
+			artBrief: parsed.artBrief,
 			responsePaths: [
 				...parsed.responsePaths,
 				canonicalPath,
@@ -2044,10 +2392,18 @@ async function runChatGptResearchBrief(
 				planPath,
 				draftInstructionPath,
 				criticPath,
+				...(artBriefPath ? [artBriefPath] : []),
 			],
 			workerId,
 			requestId: parsed.requestId,
 			conversationUrl: parsed.conversationUrl,
+			packageId: finalPackage.packageId,
+			expectedArtifactName: finalPackage.expectedArtifactName,
+			soulId: sent.soulId,
+			soulName: sent.soulName,
+			soulPath: sent.soulPath,
+			soulVersion: sent.soulVersion,
+			soulPromptBytes: sent.soulPromptBytes,
 		};
 	} finally {
 		await stopResearchWorker(state, workerId, runner).catch(async error => {
@@ -2059,6 +2415,42 @@ async function runChatGptResearchBrief(
 			);
 		});
 	}
+}
+
+async function probeExpectedResearchArtifact(
+	state: HarnessRunState,
+	runner: WikiResearchWorkerRunner,
+	attempt: "initial" | "repair",
+	conversationUrl: string,
+	packageAttempt: WikiResearchPackageAttempt,
+): Promise<boolean> {
+	const probeDir = path.join(
+		getHarnessRunDir(state.runId),
+		"responses",
+		attempt === "initial" ? "researcher-artifact-probe" : "researcher-repair-artifact-probe",
+	);
+	await fs.rm(probeDir, { recursive: true, force: true });
+	await fs.mkdir(probeDir, { recursive: true, mode: 0o700 });
+	const downloaded = await runner({
+		action: "download_artifacts",
+		conversationUrl,
+		downloadDir: probeDir,
+		packageId: packageAttempt.packageId,
+		expectedArtifactName: packageAttempt.expectedArtifactName,
+		timeoutMs: 180_000,
+	});
+	await writeRunFile(
+		state.runId,
+		"responses",
+		attempt === "initial"
+			? "researcher-artifact-probe-download.json"
+			: "researcher-repair-artifact-probe-download.json",
+		downloaded.stdout || downloaded.stderr,
+	);
+	return (
+		downloaded.ok &&
+		(downloaded.downloadedFiles ?? []).some(file => path.basename(file) === packageAttempt.expectedArtifactName)
+	);
 }
 
 function validateChatGptResearchDecisionPackage(
@@ -2171,12 +2563,20 @@ function renderInstructionSections(instructions: WikiDraftInstructionsEnvelope, 
 	]);
 }
 
+type CreativeDraftMetadata = {
+	soulId?: string;
+	soulVersion?: string;
+	creativeMode?: "off" | "illustrated";
+	artifacts?: string[];
+};
+
 function draftMarkdown(
 	issue: WikiResearchIssue,
 	body: WikiResearchIssueBody,
 	sourceId: string,
 	research: WikiResearchBriefEnvelope,
 	instructions?: WikiDraftInstructionsEnvelope,
+	creative?: CreativeDraftMetadata,
 ): WikiPageDraftEnvelope {
 	const title = instructions?.title.trim() || normalizeResearchTitle(issue.title);
 	const draftPath = instructions?.path?.startsWith("docs/") ? instructions.path : stableDraftPath(issue);
@@ -2234,6 +2634,16 @@ function draftMarkdown(
 		"human_reviewed: false",
 		`last_verified: ${today}`,
 		`confidence: ${research.confidence >= 0.75 ? "medium" : "low"}`,
+		...(creative?.soulId ? [`soul_id: ${yamlScalar(creative.soulId)}`] : []),
+		...(creative?.soulVersion ? [`soul_version: ${yamlScalar(creative.soulVersion)}`] : []),
+		...(creative?.creativeMode === "illustrated"
+			? [
+					"creative_mode: illustrated",
+					"generated_art: true",
+					"artifacts:",
+					...(creative.artifacts?.length ? creative.artifacts.map(item => `  - ${yamlScalar(item)}`) : ["  []"]),
+				]
+			: []),
 		"sources:",
 		...(citationLines.length ? citationLines : ["  []"]),
 		"---",
@@ -2292,6 +2702,267 @@ async function writeDraftWorkspace(state: HarnessRunState, draft: WikiPageDraftE
 	await fs.mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
 	await Bun.write(target, draft.markdown);
 	return target;
+}
+
+async function listDraftAssetFiles(state: HarnessRunState): Promise<Array<{ repoPath: string; absolutePath: string }>> {
+	const root = path.join(getHarnessRunDir(state.runId), "artifacts", "draft");
+	const assetsRoot = path.join(root, "assets");
+	const out: Array<{ repoPath: string; absolutePath: string }> = [];
+	async function walk(dir: string): Promise<void> {
+		const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+		for (const entry of entries) {
+			const absolutePath = path.join(dir, entry.name);
+			if (entry.isDirectory()) await walk(absolutePath);
+			else if (entry.isFile()) {
+				out.push({
+					repoPath: path.relative(root, absolutePath).replace(/\\/g, "/"),
+					absolutePath,
+				});
+			}
+		}
+	}
+	await walk(assetsRoot);
+	return out.sort((a, b) => a.repoPath.localeCompare(b.repoPath));
+}
+
+function defaultArtBrief(draft: WikiPageDraftEnvelope, soulId?: string): WikiArtBriefEnvelope {
+	const slug = draft.path.replace(/^docs\//, "").replace(/\.md$/, "");
+	const title = draft.markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? slug;
+	return {
+		schema_version: "omg.wiki.art_brief.v1",
+		status: "complete",
+		page_path: draft.path,
+		asset_filename: "page-hero.png",
+		alt: `Illustration for ${title}`,
+		prompt: [
+			`Create a text-free editorial illustration for a wiki page titled "${title}".`,
+			"Sophisticated, readable, atmospheric, and suitable for a public knowledge site.",
+			"No logos, no UI screenshots, no private details, no embedded words or letters.",
+			soulId ? `Use the active soul ${soulId} as the aesthetic voice reference.` : "",
+		]
+			.filter(Boolean)
+			.join(" "),
+		placement: "after_h1",
+		aspect_ratio: "16:9",
+		style_notes: soulId ? [`soul:${soulId}`] : [],
+	};
+}
+
+function validateArtBrief(brief: WikiArtBriefEnvelope, draft: WikiPageDraftEnvelope): string[] {
+	const errors: string[] = [];
+	if (brief.status !== "complete") errors.push("art brief is not complete");
+	if (brief.page_path !== draft.path) errors.push("art brief page_path must match the draft path");
+	if (!/^[a-z0-9][a-z0-9._-]*\.(png|jpe?g|webp)$/i.test(brief.asset_filename)) {
+		errors.push("art brief asset_filename must be a safe png, jpg, jpeg, or webp filename");
+	}
+	if (/<script\b|<iframe\b|onerror\s*=|onclick\s*=/i.test(brief.alt + brief.prompt)) {
+		errors.push("art brief contains unsafe HTML-like content");
+	}
+	return errors;
+}
+
+function imageKind(bytes: Uint8Array): "png" | "jpg" | "webp" | undefined {
+	if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+		return "png";
+	}
+	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
+	if (
+		bytes.length >= 12 &&
+		String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+		String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+	) {
+		return "webp";
+	}
+	return undefined;
+}
+
+function insertIllustrationMarkdown(
+	draft: WikiPageDraftEnvelope,
+	assetMarkdownPath: string,
+	alt: string,
+): WikiPageDraftEnvelope {
+	const imageLine = `![${alt.replace(/\]/g, "")}](${assetMarkdownPath})`;
+	const withImage = draft.markdown.replace(/^(# .+\n)/m, `$1\n${imageLine}\n`);
+	return { ...draft, markdown: withImage };
+}
+
+function recordIllustrationFrontmatter(draft: WikiPageDraftEnvelope, artifactPath: string): WikiPageDraftEnvelope {
+	const escaped = yamlScalar(artifactPath);
+	let markdown = draft.markdown;
+	if (/^artifacts:\n\s+\[\]/m.test(markdown)) {
+		markdown = markdown.replace(/^artifacts:\n\s+\[\]/m, `artifacts:\n  - ${escaped}`);
+	} else if (/^generated_art:\s*true/m.test(markdown) && !/^artifacts:/m.test(markdown)) {
+		markdown = markdown.replace(/^generated_art:\s*true/m, `generated_art: true\nartifacts:\n  - ${escaped}`);
+	}
+	return { ...draft, markdown };
+}
+
+async function createImageWorker(state: HarnessRunState, runner: WikiResearchWorkerRunner): Promise<string> {
+	const existing = state.workers.find(worker => worker.role === "image" && !worker.stoppedAt)?.workerId;
+	if (existing) return existing;
+	const result = await runner({
+		action: "create",
+		profile: "omg-wiki-image",
+		extraArgs: ["--count", "1", "--json"],
+		timeoutMs: 120_000,
+	});
+	await writeRunFile(state.runId, "responses", "image-worker-create.json", result.stdout || result.stderr);
+	if (!result.ok) throw new Error(`failed to create image worker: ${result.stderr || result.stdout}`);
+	const workerId = firstWorkerId(result.stdout);
+	if (!workerId) throw new Error("failed to parse image worker id from ChatGPT create output");
+	const title = `OMG ${state.runId.split("-").at(-1)?.slice(0, 8) ?? state.runId.slice(0, 8)} wiki image`;
+	const rename = await runner({
+		action: "rename",
+		worker: workerId,
+		title,
+		extraArgs: ["--json"],
+		timeoutMs: 120_000,
+	});
+	await writeRunFile(state.runId, "responses", "image-worker-rename.json", rename.stdout || rename.stderr);
+	await bindWorkerRole(state, "image", { workerId, title });
+	return workerId;
+}
+
+async function stopImageWorker(
+	state: HarnessRunState,
+	workerId: string,
+	runner: WikiResearchWorkerRunner,
+): Promise<void> {
+	const stopped = await runner({
+		action: "stop",
+		worker: workerId,
+		extraArgs: ["--json"],
+		timeoutMs: 30_000,
+	});
+	await writeRunFile(state.runId, "responses", "image-worker-stop.json", stopped.stdout || stopped.stderr);
+	await bindWorkerRole(state, "image", { workerId, stoppedAt: new Date().toISOString() });
+}
+
+async function generateIllustratedDraft(
+	state: HarnessRunState,
+	options: WikiResearchOptions,
+	draft: WikiPageDraftEnvelope,
+	brief: WikiArtBriefEnvelope | undefined,
+	soulId: string | undefined,
+): Promise<{ draft: WikiPageDraftEnvelope; assetPath: string; assetRepoPath: string; briefPath: string }> {
+	const runner = options.workerRunner ?? runChatGptWorkerCommand;
+	const artBrief = brief ?? defaultArtBrief(draft, soulId);
+	const briefErrors = validateArtBrief(artBrief, draft);
+	const briefPath = await writeRunFile(
+		state.runId,
+		"responses",
+		"wiki-art-brief.json",
+		`${JSON.stringify(artBrief, null, 2)}\n`,
+	);
+	if (briefErrors.length) throw new Error(`wiki art brief validation failed: ${briefErrors.join("; ")}`);
+	const workerId = await createImageWorker(state, runner);
+	try {
+		const prompt = [
+			"You are the image worker for an OMG illustrated wiki page.",
+			"Generate exactly one downloadable image artifact matching the requested filename.",
+			"Do not include embedded text, logos, UI screenshots, private details, or unsafe content.",
+			"Return only a short artifact-ready note after the image is available.",
+			"",
+			"Art brief:",
+			JSON.stringify(artBrief, null, 2),
+		].join("\n");
+		const promptPath = await writeRunFile(state.runId, "prompts", "image-worker.md", prompt);
+		await consumePromptBudget(state, "image");
+		const sent = await runner({
+			action: "send",
+			worker: workerId,
+			promptFile: promptPath,
+			modelOption: chatGptModelOption(options),
+			thinkingOption: chatGptThinkingOption(options),
+			soul: options.soul,
+			soulRepo: options.soulRepo,
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(state.runId, "responses", "image-worker-send.json", sent.stdout || sent.stderr);
+		if (!sent.ok) throw new Error(`failed to send image prompt: ${sent.stderr || sent.stdout}`);
+		const sentMeta = responseMeta(sent.stdout);
+		const watched = await runner({
+			action: "watch",
+			worker: workerId,
+			extraArgs: ["--until-complete", "--json", "--timeout", "900"],
+			timeoutMs: 960_000,
+		});
+		await writeRunFile(state.runId, "responses", "image-worker-watch.json", watched.stdout || watched.stderr);
+		if (!watched.ok) throw new Error(`failed while watching image worker: ${watched.stderr || watched.stdout}`);
+		const watchedMeta = responseMeta(watched.stdout);
+		const downloadDir = path.join(getHarnessRunDir(state.runId), "responses", "image-worker-artifacts");
+		await fs.rm(downloadDir, { recursive: true, force: true });
+		await fs.mkdir(downloadDir, { recursive: true, mode: 0o700 });
+		const downloaded = await runner({
+			action: "download_artifacts",
+			conversationUrl: watchedMeta.conversationUrl ?? sentMeta.conversationUrl,
+			downloadDir,
+			expectedArtifactName: artBrief.asset_filename,
+			timeoutMs: 180_000,
+		});
+		await writeRunFile(
+			state.runId,
+			"responses",
+			"image-worker-download.json",
+			downloaded.stdout || downloaded.stderr,
+		);
+		const matches = (downloaded.downloadedFiles ?? []).filter(
+			file => path.basename(file) === artBrief.asset_filename,
+		);
+		const downloadedImages: string[] = [];
+		for (const file of downloaded.downloadedFiles ?? []) {
+			const candidate = safeDownloadedPath(downloadDir, file);
+			if (!candidate) continue;
+			const candidateBytes = new Uint8Array(await Bun.file(candidate).arrayBuffer());
+			if (imageKind(candidateBytes)) downloadedImages.push(file);
+		}
+		const selected =
+			matches.length === 1
+				? matches[0]
+				: matches.length === 0 && downloadedImages.length === 1
+					? downloadedImages[0]
+					: undefined;
+		if (!selected) {
+			throw new Error(
+				`expected one image artifact named ${artBrief.asset_filename} or one recoverable generated image, got ${matches.length} exact and ${downloadedImages.length} image(s)`,
+			);
+		}
+		const source = safeDownloadedPath(downloadDir, selected);
+		if (!source) throw new Error("image artifact path was unsafe");
+		const bytes = new Uint8Array(await Bun.file(source).arrayBuffer());
+		const kind = imageKind(bytes);
+		if (!kind) throw new Error("image artifact is not a supported png, jpg, or webp file");
+		const expectedExt = path.extname(artBrief.asset_filename).replace(".", "").toLowerCase();
+		const normalizedExt = expectedExt === "jpeg" ? "jpg" : expectedExt;
+		if (normalizedExt !== kind) {
+			throw new Error(`image artifact extension ${expectedExt} does not match detected ${kind}`);
+		}
+		const slug = draft.path.replace(/^docs\//, "").replace(/\.md$/, "");
+		const assetRepoPath = path.posix.join("assets", slug, artBrief.asset_filename);
+		const assetPath = path.join(getHarnessRunDir(state.runId), "artifacts", "draft", assetRepoPath);
+		await fs.mkdir(path.dirname(assetPath), { recursive: true, mode: 0o700 });
+		await Bun.write(assetPath, bytes);
+		const imageMarkdownPath = `../${assetRepoPath}`;
+		const illustrated = recordIllustrationFrontmatter(
+			insertIllustrationMarkdown(draft, imageMarkdownPath, artBrief.alt),
+			assetRepoPath,
+		);
+		const draftPath = path.join(getHarnessRunDir(state.runId), "artifacts", "draft", draft.path);
+		await Bun.write(draftPath, illustrated.markdown);
+		state.artifacts.push({ source: "wiki-image", path: assetPath, validationStatus: "validated" });
+		await writeRunState(state);
+		return { draft: illustrated, assetPath, assetRepoPath, briefPath };
+	} finally {
+		await stopImageWorker(state, workerId, runner).catch(async error => {
+			await writeRunFile(
+				state.runId,
+				"responses",
+				"image-worker-stop-error.txt",
+				error instanceof Error ? error.message : String(error),
+			);
+		});
+	}
 }
 
 function validateDraft(draft: WikiPageDraftEnvelope, steering: WikiResearchSteering): string[] {
@@ -2418,33 +3089,652 @@ function wikiResearchSeedBody(source: WikiRegistrySource, topic: string): string
 	].join("\n");
 }
 
+function wikiResearchIdeationIssueBody(source: WikiRegistrySource, proposal: WikiIdeationProposal): string {
+	return [
+		"## Objective",
+		proposal.objective,
+		"",
+		"## Preferred source",
+		source.id,
+		"",
+		"## Why this matters",
+		proposal.why_now,
+		"",
+		"## Reader value",
+		proposal.reader_value,
+		"",
+		"## Novelty check",
+		proposal.novelty_check,
+		"",
+		"## Required source families",
+		...proposal.required_citation_families.map(item => `- ${item}`),
+		"",
+		"## Constraints",
+		"- Use public, non-credentialed sources only.",
+		"- Prefer official vendor, project, standards, or primary documentation.",
+		"- Include practical commands or templates only when supported by cited sources.",
+		"- Keep AI provenance metadata in frontmatter.",
+		"",
+		"## Acceptance",
+		"- At least 12 high-quality citations are discovered by ChatGPT.",
+		"- The page includes inline numeric citations near supported claims.",
+		"- The page reads like an experienced practitioner wrote it.",
+		"- The PR remains content-only and safe-auto-merge eligible if all gates pass.",
+		"",
+		"## Ideation metadata",
+		`- Confidence: ${proposal.confidence.toFixed(2)}`,
+		`- Risk: ${proposal.risk}`,
+	].join("\n");
+}
+
+type IdeationIssue = {
+	repo: string;
+	title: string;
+	body: string;
+	sourceId: string;
+	ideationDecisionPath?: string;
+	confidence?: number;
+	reason?: string;
+	ideation?: WikiResearchQueueRunResult["ideation"];
+};
+
+type IdeationContext = {
+	packet: WikiIdeationPacket;
+	allIssueTitles: Set<string>;
+	publishedTitles: Set<string>;
+	sourcesById: Map<string, WikiRegistrySource>;
+};
+
+function normalizeTitleKey(value: string): string {
+	return normalizeResearchTitle(value).toLowerCase();
+}
+
+function genericAutopilotTitle(title: string): boolean {
+	return /\boperations research note \d{4}-\d{2}-\d{2}\b/i.test(title);
+}
+
+function extractJsonObject(raw: string): unknown {
+	const text = raw.trim();
+	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+	const candidate = fenced?.[1]?.trim() ?? text;
+	const direct = safeJson(candidate);
+	if (direct !== undefined) return direct;
+	const start = candidate.indexOf("{");
+	const end = candidate.lastIndexOf("}");
+	if (start >= 0 && end > start) return safeJson(candidate.slice(start, end + 1));
+	return undefined;
+}
+
+function ideationDecisionSchemaText(): string {
+	return JSON.stringify(
+		{
+			schema_version: "omg.wiki.ideation_decision.v1",
+			status: "complete | blocked",
+			summary: "brief explanation of the editorial decision",
+			proposals: [
+				{
+					source_id: "devops | homelab | projects",
+					repo_name: "wiki-data-{source_id}",
+					title: "specific page title",
+					objective: "what the page should accomplish",
+					why_now: "why this page should be created next",
+					reader_value: "what readers can do after reading it",
+					novelty_check: "how it avoids open and published duplicates",
+					required_citation_families: ["official docs", "standards", "vendor docs", "reference docs"],
+					risk: "low, or concrete risks that local gates should consider",
+					confidence: 0.85,
+					decision: "create_issue | skip | needs_user_decision",
+				},
+			],
+		},
+		null,
+		2,
+	);
+}
+
+function ideationResponseCandidate(raw: string): string {
+	const parsed = safeJson(raw);
+	if (!parsed || typeof parsed !== "object") return raw;
+	if (parsed.schema_version === "omg.wiki.ideation_decision.v1") return JSON.stringify(parsed);
+	for (const key of ["assistant_text", "assistant_markdown", "text", "content"]) {
+		const value = parsed[key];
+		if (typeof value === "string" && value.trim()) return value;
+	}
+	const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+		if (message?.role === "assistant" && typeof message.text === "string" && message.text.trim()) {
+			return message.text;
+		}
+	}
+	return raw;
+}
+
+function parseIdeationDecision(raw: string): {
+	data?: WikiIdeationDecisionEnvelope;
+	error?: string;
+	candidate: string;
+} {
+	const candidate = ideationResponseCandidate(raw);
+	const parsed = WikiIdeationDecisionEnvelopeSchema.safeParse(extractJsonObject(candidate));
+	if (parsed.success) return { data: parsed.data, candidate };
+	return { error: compactZodError(parsed.error), candidate };
+}
+
+function renderIdeationRepairPrompt(
+	packet: WikiIdeationPacket,
+	previousCandidate: string,
+	error: string,
+	minConfidence: number,
+): string {
+	return [
+		"You are repairing the OMG wiki ideation decision.",
+		"Return exactly one JSON object. Do not use markdown. Do not attach files. Do not create issues.",
+		"The previous answer did not validate. Produce a corrected object that matches the schema below.",
+		"",
+		"Validation errors:",
+		formatRepairDiagnostics(error),
+		"",
+		"Required JSON shape:",
+		ideationDecisionSchemaText(),
+		"",
+		"Rules:",
+		`- Only use decision=create_issue when confidence is at least ${minConfidence}.`,
+		"- source_id must be one of the packet sources.",
+		"- repo_name must be wiki-data-{source_id}.",
+		"- Avoid open issue titles and published titles from the packet.",
+		"- Prefer under-covered sources in source_rotation.",
+		"",
+		"Packet:",
+		JSON.stringify(packet, null, 2),
+		"",
+		"Previous invalid answer:",
+		previousCandidate.slice(0, 4_000),
+	].join("\n");
+}
+
+function ideationProposalRisky(proposal: WikiIdeationProposal, steering: WikiResearchSteering): string | undefined {
+	const text = `${proposal.title}\n${proposal.objective}\n${proposal.risk}\n${proposal.required_citation_families.join("\n")}`;
+	if (
+		/(credential|secret|private key|password|token|api key|ssh key|destructive|delete production|wipe|rm -rf)/i.test(
+			text,
+		)
+	) {
+		return "proposal appears to require credentials, secrets, or destructive operations";
+	}
+	for (const topic of steering.ideationBlockedTopics) {
+		if (topic && text.toLowerCase().includes(topic.toLowerCase())) return `proposal matches blocked topic ${topic}`;
+	}
+	for (const domain of steering.blockedDomains) {
+		if (domain && text.toLowerCase().includes(domain.toLowerCase()))
+			return `proposal mentions blocked domain ${domain}`;
+	}
+	return undefined;
+}
+
+function selectIdeationProposal(
+	decision: WikiIdeationDecisionEnvelope,
+	context: IdeationContext,
+	repos: string[],
+	steering: WikiResearchSteering,
+	minConfidence: number,
+): { proposal?: WikiIdeationProposal; reason: string } {
+	if (decision.status !== "complete") return { reason: `ideation status ${decision.status}` };
+	for (const proposal of decision.proposals) {
+		const source = context.sourcesById.get(proposal.source_id);
+		if (!source || source.enabled === false) continue;
+		if (proposal.repo_name !== `wiki-data-${proposal.source_id}`) continue;
+		if (!repos.includes(proposal.repo_name)) continue;
+		if (proposal.decision !== "create_issue") continue;
+		if (proposal.confidence < minConfidence) continue;
+		const risky = ideationProposalRisky(proposal, steering);
+		if (risky) continue;
+		const titleKey = normalizeTitleKey(proposal.title);
+		if (context.allIssueTitles.has(titleKey) || context.publishedTitles.has(titleKey)) continue;
+		if (genericAutopilotTitle(proposal.title)) continue;
+		return { proposal, reason: proposal.why_now };
+	}
+	return { reason: `no eligible proposal met confidence >= ${minConfidence}` };
+}
+
+function collectTitles(value: unknown): string[] {
+	const out: string[] = [];
+	const visit = (item: unknown): void => {
+		if (!item || typeof item !== "object") return;
+		if (Array.isArray(item)) {
+			for (const child of item) visit(child);
+			return;
+		}
+		const record = item as Record<string, unknown>;
+		if (typeof record.title === "string") out.push(record.title);
+		if (typeof record.name === "string" && typeof record.path === "string") out.push(record.name);
+		for (const key of ["pages", "items", "entries", "documents", "catalog"]) visit(record[key]);
+	};
+	visit(value);
+	return [...new Set(out.map(title => title.trim()).filter(Boolean))];
+}
+
+async function readPublishedSignals(
+	token: string,
+	client: WikiResearchGitHubClient,
+	owner: string,
+	source: WikiRegistrySource,
+	options: WikiResearchOptions,
+): Promise<{ titles: string[]; latest?: unknown; catalog?: unknown; checkedUrls: string[] }> {
+	const checkedUrls: string[] = [];
+	const repo = `wiki-data-${source.id}`;
+	let latest = await readPublishedJson(token, client, owner, repo, "latest.json").catch(() => undefined);
+	const fetchImpl = options.fetchImpl ?? fetch;
+	if (!latest && source.latestUrl) {
+		const fetched = await fetchJson(fetchImpl, source.latestUrl, checkedUrls);
+		if (fetched.ok) latest = fetched.value;
+	}
+	const catalogUrl = stringField(latest, "catalogUrl") ?? stringField(latest, "manifestUrl");
+	const catalog = catalogUrl ? await fetchJson(fetchImpl, catalogUrl, checkedUrls) : undefined;
+	const titles = [...collectTitles(latest), ...(catalog?.ok ? collectTitles(catalog.value) : [])];
+	return { titles: [...new Set(titles)], latest, catalog: catalog?.ok ? catalog.value : undefined, checkedUrls };
+}
+
+async function buildIdeationContext(
+	token: string,
+	client: WikiResearchGitHubClient,
+	owner: string,
+	registry: WikiRegistrySnapshot,
+	repos: string[],
+	steering: WikiResearchSteering,
+	options: WikiResearchOptions,
+): Promise<IdeationContext> {
+	const enabledSources = registry.sources
+		.filter(source => source.enabled !== false)
+		.filter(source => repos.includes(`wiki-data-${source.id}`))
+		.sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || left.id.localeCompare(right.id));
+	const allIssueTitles = new Set<string>();
+	const publishedTitles = new Set<string>();
+	const openIssues: unknown[] = [];
+	const publishedCatalog: unknown[] = [];
+	const sourceRotation: unknown[] = [];
+	for (const source of enabledSources) {
+		const repo = `wiki-data-${source.id}`;
+		const issueGroups = await Promise.all([
+			client.listIssues(token, owner, repo, ["wiki:research"]),
+			client.listIssues(token, owner, repo, ["wiki:research", "wiki:queued"]),
+			client.listIssues(token, owner, repo, ["wiki:research", "wiki:pr-open"]),
+			client.listIssues(token, owner, repo, ["wiki:research", "wiki:blocked"]),
+		]);
+		const issues = issueGroups.flat();
+		for (const issue of issues) {
+			allIssueTitles.add(normalizeTitleKey(issue.title));
+			openIssues.push({
+				repo,
+				number: issue.number,
+				title: issue.title,
+				labels: issue.labels,
+				created_at: issue.createdAt,
+			});
+		}
+		const published = await readPublishedSignals(token, client, owner, source, options).catch(() => ({
+			titles: [] as string[],
+			checkedUrls: [] as string[],
+		}));
+		for (const title of published.titles) publishedTitles.add(normalizeTitleKey(title));
+		publishedCatalog.push({
+			source_id: source.id,
+			repo,
+			titles: published.titles.slice(0, 40),
+			checked_urls: published.checkedUrls,
+		});
+		sourceRotation.push({
+			source_id: source.id,
+			repo,
+			open_issue_count: issues.length,
+			published_title_count: published.titles.length,
+			preferred: steering.ideationPreferredSources.includes(source.id),
+		});
+	}
+	const packet: WikiIdeationPacket = {
+		schema_version: "omg.wiki.ideation_packet.v1",
+		owner,
+		repos,
+		sources: enabledSources.map(source => ({
+			id: source.id,
+			label: source.label,
+			description: source.description,
+			order: source.order,
+			latest_url: source.latestUrl,
+		})),
+		open_issues: openIssues,
+		published_catalog: publishedCatalog,
+		recent_successful_pages: publishedCatalog.flatMap((entry: any) =>
+			(entry.titles ?? []).slice(0, 10).map((title: string) => ({ source_id: entry.source_id, title })),
+		),
+		source_rotation: sourceRotation,
+		steering: {
+			operatorGoals: steering.operatorGoals,
+			ideationBlockedTopics: steering.ideationBlockedTopics,
+			ideationPreferredSources: steering.ideationPreferredSources,
+			blockedDomains: steering.blockedDomains,
+		},
+	};
+	return {
+		packet,
+		allIssueTitles,
+		publishedTitles,
+		sourcesById: new Map(enabledSources.map(source => [source.id, source])),
+	};
+}
+
+function renderIdeationPrompt(packet: WikiIdeationPacket, minConfidence: number): string {
+	return [
+		"You are the OMG wiki editorial planner.",
+		"Use the ideation packet and GitHub connector context. Do not create files or issues yourself.",
+		"Return exactly one JSON object. Do not use markdown. Do not attach files. Do not summarize outside JSON.",
+		"",
+		"Goal:",
+		"- Propose useful, non-generic wiki research topics that the unattended runner can safely turn into issues.",
+		"- Prefer coverage gaps, stale or thin areas, operator goals, and source rotation fairness.",
+		"- Avoid duplicating open issues or published page titles from the packet.",
+		`- Only use decision=create_issue when confidence is at least ${minConfidence}.`,
+		"",
+		"Proposal requirements:",
+		"- source_id must match an enabled packet source.",
+		"- repo_name must be wiki-data-{source_id}.",
+		"- title must be specific, useful, and not a date-stamped generic note.",
+		"- risk must name concrete risks; use low only when appropriate.",
+		"- required_citation_families should name source families, not specific invented URLs.",
+		"",
+		"Required JSON shape:",
+		ideationDecisionSchemaText(),
+		"",
+		"Packet:",
+		JSON.stringify(packet, null, 2),
+	].join("\n");
+}
+
+async function runAutopilotIdeation(
+	token: string,
+	client: WikiResearchGitHubClient,
+	owner: string,
+	registry: WikiRegistrySnapshot,
+	repos: string[],
+	steering: WikiResearchSteering,
+	options: WikiResearchOptions,
+): Promise<IdeationIssue> {
+	const runner = options.workerRunner ?? runChatGptWorkerCommand;
+	const minConfidence = Math.max(0, Math.min(1, options.ideationMinConfidence ?? IDEATION_MIN_CONFIDENCE));
+	const state = await createHarnessRun(`wiki ideation ${owner}`, {
+		template: "wiki-research",
+		promptLimit: options.promptLimit ?? 4,
+	});
+	const context = await buildIdeationContext(token, client, owner, registry, repos, steering, options);
+	const packetPath = await writeRunFile(
+		state.runId,
+		"artifacts",
+		"ideation-packet.json",
+		`${JSON.stringify(context.packet, null, 2)}\n`,
+	);
+	const schemaPath = await writeRunFile(
+		state.runId,
+		"artifacts",
+		"ideation-decision.schema.json",
+		`${JSON.stringify(jsonSchemaFor(WikiIdeationDecisionEnvelopeSchema), null, 2)}\n`,
+	);
+	const promptPath = await writeRunFile(
+		state.runId,
+		"prompts",
+		"ideation-prompt.md",
+		renderIdeationPrompt(context.packet, minConfidence),
+	);
+	await consumePromptBudget(state, "ideation");
+	let workerId = "";
+	try {
+		const created = await runner({
+			action: "create",
+			profile: "omg-wiki-ideation",
+			extraArgs: ["--count", "1", "--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(state.runId, "responses", "ideation-create.json", created.stdout || created.stderr);
+		if (!created.ok) throw new Error(`failed to create ideation worker: ${created.stderr || created.stdout}`);
+		workerId = firstWorkerId(created.stdout) ?? "";
+		if (!workerId) throw new Error("failed to parse ideation worker id from ChatGPT create output");
+		const sent = await runner({
+			action: "send",
+			worker: workerId,
+			promptFile: promptPath,
+			modelOption: chatGptModelOption(options),
+			thinkingOption: chatGptThinkingOption(options),
+			connectors: [...CHATGPT_RESEARCH_CONNECTORS],
+			extraArgs: ["--json"],
+			timeoutMs: 120_000,
+		});
+		await writeRunFile(state.runId, "responses", "ideation-send.json", sent.stdout || sent.stderr);
+		if (!sent.ok) throw new Error(`failed to send ideation prompt: ${sent.stderr || sent.stdout}`);
+		const watched = await runner({
+			action: "watch",
+			worker: workerId,
+			extraArgs: ["--timeout", String(CHATGPT_IDEATION_WATCH_SECONDS), "--thinking-details", "--json"],
+			timeoutMs: (CHATGPT_IDEATION_WATCH_SECONDS + 60) * 1_000,
+		});
+		await writeRunFile(state.runId, "responses", "ideation-watch.json", watched.stdout || watched.stderr);
+		if (!watched.ok) throw new Error(`failed while watching ideation worker: ${watched.stderr || watched.stdout}`);
+		const meta = workerStatusMeta(watched.stdout);
+		await writeRunFile(state.runId, "responses", "ideation-thinking.json", watched.stdout || watched.stderr);
+		await writeRunFile(
+			state.runId,
+			"responses",
+			"ideation-thinking-summary.json",
+			`${JSON.stringify(
+				{
+					workerId,
+					requestId: meta.requestId,
+					conversationUrl: meta.conversationUrl,
+					thinking: meta.thinking ?? "",
+					thinkingDetails: meta.thinkingDetails ?? "",
+					capturedAt: new Date().toISOString(),
+				},
+				null,
+				2,
+			)}\n`,
+		);
+		let parsed = parseIdeationDecision(watched.stdout);
+		if (!parsed.data) {
+			const repairPromptPath = await writeRunFile(
+				state.runId,
+				"prompts",
+				"ideation-repair-prompt.md",
+				renderIdeationRepairPrompt(context.packet, parsed.candidate, parsed.error ?? "invalid JSON", minConfidence),
+			);
+			const repairSent = await runner({
+				action: "send",
+				worker: workerId,
+				promptFile: repairPromptPath,
+				modelOption: chatGptModelOption(options),
+				thinkingOption: chatGptThinkingOption(options),
+				connectors: [...CHATGPT_RESEARCH_CONNECTORS],
+				extraArgs: ["--json"],
+				timeoutMs: 120_000,
+			});
+			await writeRunFile(
+				state.runId,
+				"responses",
+				"ideation-repair-send.json",
+				repairSent.stdout || repairSent.stderr,
+			);
+			if (!repairSent.ok) {
+				throw new Error(
+					`invalid ideation decision JSON: ${parsed.error}; repair send failed: ${repairSent.stderr || repairSent.stdout}`,
+				);
+			}
+			const repairWatched = await runner({
+				action: "watch",
+				worker: workerId,
+				extraArgs: ["--timeout", String(CHATGPT_IDEATION_WATCH_SECONDS), "--thinking-details", "--json"],
+				timeoutMs: (CHATGPT_IDEATION_WATCH_SECONDS + 60) * 1_000,
+			});
+			await writeRunFile(
+				state.runId,
+				"responses",
+				"ideation-repair-watch.json",
+				repairWatched.stdout || repairWatched.stderr,
+			);
+			if (!repairWatched.ok) {
+				throw new Error(
+					`invalid ideation decision JSON: ${parsed.error}; repair watch failed: ${repairWatched.stderr || repairWatched.stdout}`,
+				);
+			}
+			const repairMeta = workerStatusMeta(repairWatched.stdout);
+			await writeRunFile(
+				state.runId,
+				"responses",
+				"ideation-repair-thinking-summary.json",
+				`${JSON.stringify(
+					{
+						workerId,
+						requestId: repairMeta.requestId,
+						conversationUrl: repairMeta.conversationUrl,
+						thinking: repairMeta.thinking ?? "",
+						thinkingDetails: repairMeta.thinkingDetails ?? "",
+						capturedAt: new Date().toISOString(),
+					},
+					null,
+					2,
+				)}\n`,
+			);
+			parsed = parseIdeationDecision(repairWatched.stdout);
+		}
+		if (!parsed.data) throw new Error(`invalid ideation decision JSON: ${parsed.error}`);
+		const decisionPath = await writeRunFile(
+			state.runId,
+			"responses",
+			"ideation-decision.json",
+			`${JSON.stringify(parsed.data, null, 2)}\n`,
+		);
+		const selected = selectIdeationProposal(parsed.data, context, repos, steering, minConfidence);
+		if (!selected.proposal) throw new Error(selected.reason);
+		const source = context.sourcesById.get(selected.proposal.source_id)!;
+		return {
+			repo: selected.proposal.repo_name,
+			title: selected.proposal.title,
+			body: wikiResearchIdeationIssueBody(source, selected.proposal),
+			sourceId: source.id,
+			ideationDecisionPath: decisionPath,
+			confidence: selected.proposal.confidence,
+			reason: selected.reason,
+			ideation: {
+				status: "created",
+				runId: state.runId,
+				decisionPath,
+				reason: selected.reason,
+				selectedTitle: selected.proposal.title,
+				selectedSourceId: source.id,
+				confidence: selected.proposal.confidence,
+			},
+		};
+	} finally {
+		if (workerId) {
+			await runner({ action: "stop", worker: workerId, extraArgs: ["--json"], timeoutMs: 30_000 }).catch(
+				() => undefined,
+			);
+		}
+		await writeReport(state).catch(() => undefined);
+		void packetPath;
+		void schemaPath;
+	}
+}
+
+async function deterministicAutopilotIssue(
+	token: string,
+	client: WikiResearchGitHubClient,
+	owner: string,
+	registry: WikiRegistrySnapshot,
+	repos: string[],
+	ideation?: WikiResearchQueueRunResult["ideation"],
+): Promise<IdeationIssue> {
+	const enabledSources = registry.sources
+		.filter(source => source.enabled !== false)
+		.filter(source => repos.includes(`wiki-data-${source.id}`))
+		.sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || left.id.localeCompare(right.id));
+	const sourceIssueCounts = await Promise.all(
+		enabledSources.map(async source => ({
+			source,
+			issues: await client.listIssues(token, owner, `wiki-data-${source.id}`, ["wiki:research"]),
+		})),
+	);
+	const selected = sourceIssueCounts.sort(
+		(left, right) =>
+			left.issues.length - right.issues.length ||
+			(left.source.order ?? 999) - (right.source.order ?? 999) ||
+			left.source.id.localeCompare(right.source.id),
+	)[0];
+	if (!selected) throw new Error("autopilot could not find an enabled wiki data source to seed");
+	const source = selected.source;
+	const repo = `wiki-data-${source.id}`;
+	const existingTitles = new Set(selected.issues.map(issue => normalizeTitleKey(issue.title)));
+	const topic =
+		autopilotTopicsForSource(source).find(candidate => !existingTitles.has(normalizeTitleKey(candidate))) ??
+		`${source.label} operations research note ${new Date().toISOString().slice(0, 10)}`;
+	return {
+		repo,
+		title: topic,
+		body: wikiResearchSeedBody(source, topic),
+		sourceId: source.id,
+		reason: ideation?.reason
+			? `deterministic fallback after ideation: ${ideation.reason}`
+			: "deterministic fallback seed",
+		ideation,
+	};
+}
+
 async function createAutopilotSeedIssue(
 	token: string,
 	client: WikiResearchGitHubClient,
 	owner: string,
 	registry: WikiRegistrySnapshot,
 	repos: string[],
-): Promise<{ repo: string; issue: WikiResearchIssue; sourceId: string }> {
-	const enabledSources = registry.sources
-		.filter(source => source.enabled !== false)
-		.filter(source => repos.includes(`wiki-data-${source.id}`))
-		.sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || left.id.localeCompare(right.id));
-	const source = enabledSources[0];
-	if (!source) throw new Error("autopilot could not find an enabled wiki data source to seed");
-	const repo = `wiki-data-${source.id}`;
-	const existing = await client.listIssues(token, owner, repo, ["wiki:research"]);
-	const existingTitles = new Set(existing.map(issue => normalizeResearchTitle(issue.title).toLowerCase()));
-	const topic =
-		autopilotTopicsForSource(source).find(candidate => !existingTitles.has(candidate.toLowerCase())) ??
-		`${source.label} operations research note ${new Date().toISOString().slice(0, 10)}`;
+	steering: WikiResearchSteering,
+	options: WikiResearchOptions,
+): Promise<{
+	repo: string;
+	issue: WikiResearchIssue;
+	sourceId: string;
+	ideationDecisionPath?: string;
+	confidence?: number;
+	reason?: string;
+	ideation?: WikiResearchQueueRunResult["ideation"];
+}> {
+	let seed: IdeationIssue;
+	if ((options.ideationMode ?? "auto") === "auto") {
+		try {
+			seed = await runAutopilotIdeation(token, client, owner, registry, repos, steering, options);
+		} catch (error) {
+			const reason = compactFailureReason(error instanceof Error ? error.message : String(error));
+			seed = await deterministicAutopilotIssue(token, client, owner, registry, repos, {
+				status: "fallback",
+				reason,
+			});
+		}
+	} else {
+		seed = await deterministicAutopilotIssue(token, client, owner, registry, repos, {
+			status: "skipped",
+			reason: "ideation disabled",
+		});
+	}
 	const issue = await client.createIssue(token, {
 		owner,
-		repo,
-		title: topic,
-		body: wikiResearchSeedBody(source, topic),
-		labels: ["wiki:research", "wiki:queued", `source:${source.id}`],
+		repo: seed.repo,
+		title: seed.title,
+		body: seed.body,
+		labels: ["wiki:research", "wiki:queued", `source:${seed.sourceId}`],
 	});
-	return { repo, issue, sourceId: source.id };
+	return {
+		repo: seed.repo,
+		issue,
+		sourceId: seed.sourceId,
+		ideationDecisionPath: seed.ideationDecisionPath,
+		confidence: seed.confidence,
+		reason: seed.reason,
+		ideation: seed.ideation,
+	};
 }
 
 function sleep(ms: number): Promise<void> {
@@ -2458,7 +3748,17 @@ function prUrlFromState(state: HarnessRunState): string | undefined {
 }
 
 function isSafeAutoMergePath(filename: string): boolean {
-	return /^docs\/[^<>:"|?*]+\.md$/.test(filename);
+	return /^docs\/[^<>:"|?*]+\.md$/.test(filename) || /^assets\/[^<>:"|?*]+\.(png|jpe?g|webp)$/i.test(filename);
+}
+
+function draftAssetReferences(draft: WikiPageDraftEnvelope): string[] {
+	const out = new Set<string>();
+	for (const match of draft.markdown.matchAll(/!\[[^\]]*]\(([^)]+)\)/g)) {
+		const target = match[1] ?? "";
+		if (!target.startsWith("../assets/")) continue;
+		out.add(target.replace(/^\.\.\//, ""));
+	}
+	return [...out].sort();
 }
 
 export async function syncWikiResearchIssueLabels(
@@ -2498,9 +3798,11 @@ export async function runWikiResearchQueue(
 		...registry.snapshot.sources.filter(source => source.enabled !== false).map(source => `wiki-data-${source.id}`),
 	];
 	const maxIssues = Math.max(1, options.maxIssues ?? steering.maxIssuesPerRun ?? 1);
+	const maxFailuresPerCycle = Math.max(1, options.maxFailuresPerCycle ?? 2);
 	const client = options.githubClient ?? fetchWikiResearchGitHubClient;
 	const researcher = effectiveResearcher(options);
-	let contentIssuesProcessed = 0;
+	let contentIssuesSucceeded = 0;
+	let contentFailures = 0;
 	const result: WikiResearchQueueRunResult = {
 		schemaVersion: "omg.wiki.research_queue_run.v1",
 		owner,
@@ -2516,7 +3818,7 @@ export async function runWikiResearchQueue(
 	};
 
 	for (const repo of repos) {
-		if (contentIssuesProcessed >= maxIssues) break;
+		if (contentIssuesSucceeded >= maxIssues || contentFailures >= maxFailuresPerCycle) break;
 		try {
 			const queued = await client.listIssues(token, owner, repo, ["wiki:research", "wiki:queued"]);
 			const prOpen = await client.listIssues(token, owner, repo, ["wiki:research", "wiki:pr-open"]);
@@ -2557,13 +3859,13 @@ export async function runWikiResearchQueue(
 					result.blocked.push({
 						repo,
 						issueNumber: issue.number,
-						reason: verification.verification.errors.join("; ") || "publish verification still blocked",
+						reason: compactFailureReason(
+							verification.verification.errors.join("; ") || "publish verification still blocked",
+						),
 					});
 				}
 				continue;
 			}
-			if (contentIssuesProcessed >= maxIssues) continue;
-			contentIssuesProcessed += 1;
 			const state = await runWikiResearchHarness(`queue ${owner}/${repo}#${issue.number}`, {
 				...options,
 				owner,
@@ -2607,32 +3909,49 @@ export async function runWikiResearchQueue(
 				workerId: researchGate?.workerId,
 				requestId: researchGate?.requestId,
 				conversationUrl: researchGate?.conversationUrl,
+				packageId: researchGate?.packageId,
+				expectedArtifactName: researchGate?.expectedArtifactName,
 				schemaValidation:
 					researchGate?.status === "passed" ? "passed" : researchGate?.status === "failed" ? "failed" : "skipped",
 				citationCount: Array.isArray(researchBrief?.citations) ? researchBrief.citations.length : undefined,
 			});
+			if (state.status === "good_enough") contentIssuesSucceeded += 1;
+			else contentFailures += 1;
 		} catch (error) {
+			contentFailures += 1;
 			result.blocked.push({
 				repo,
-				reason: error instanceof Error ? error.message : String(error),
+				reason: compactFailureReason(error instanceof Error ? error.message : String(error)),
 			});
 		}
 	}
-	if (contentIssuesProcessed === 0 && options.seedWhenEmpty) {
+	if (contentIssuesSucceeded === 0 && contentFailures === 0 && options.seedWhenEmpty) {
 		if (!options.apply || !token) {
 			result.blocked.push({
 				repo: registryRepo,
 				reason: "autopilot queue seeding requires --apply and a GitHub token",
 			});
 		} else {
-			const seeded = await createAutopilotSeedIssue(token, client, owner, registry.snapshot, repos);
+			const seeded = await createAutopilotSeedIssue(
+				token,
+				client,
+				owner,
+				registry.snapshot,
+				repos,
+				steering,
+				options,
+			);
 			result.seeded = {
 				repo: seeded.repo,
 				issueNumber: seeded.issue.number,
 				issueUrl: seeded.issue.htmlUrl,
 				title: seeded.issue.title,
 				sourceId: seeded.sourceId,
+				ideationDecisionPath: seeded.ideationDecisionPath,
+				confidence: seeded.confidence,
+				reason: seeded.reason,
 			};
+			if (seeded.ideation) result.ideation = seeded.ideation;
 			const seededRun = await runWikiResearchQueue({
 				...options,
 				repos: [seeded.repo],
@@ -3137,7 +4456,10 @@ export const fetchWikiResearchGitHubClient: WikiResearchGitHubClient = {
 				headers: githubHeaders(token),
 				body: JSON.stringify({
 					message: input.message,
-					content: Buffer.from(input.content, "utf8").toString("base64"),
+					content:
+						typeof input.content === "string"
+							? Buffer.from(input.content, "utf8").toString("base64")
+							: Buffer.from(input.content).toString("base64"),
 					branch: input.branch,
 					sha: input.sha,
 				}),
@@ -3343,7 +4665,7 @@ async function trySafeAutoMerge(
 			reason: `safe auto-merge blocked by non-content files: ${unsafe.map(file => file.filename).join(", ")}`,
 		};
 	}
-	const expectedFiles = new Set([input.draft.path]);
+	const expectedFiles = new Set([input.draft.path, ...draftAssetReferences(input.draft)]);
 	const unexpected = files.filter(file => !expectedFiles.has(file.filename));
 	if (unexpected.length || files.length !== expectedFiles.size) {
 		return {
@@ -3440,12 +4762,14 @@ async function verifyPublishedWikiArtifacts(
 		const githubLatestCommit = stringField(githubLatest, "sourceCommit");
 		const githubAgentCommit = stringField(githubAgent, "sourceCommit");
 		const acceptableCommit = createPublishedCommitAcceptor(token, client, input);
-		if (!(await acceptableCommit(githubLatestCommit))) {
+		const githubLatestOk = await acceptableCommit(githubLatestCommit);
+		const githubAgentOk = await acceptableCommit(githubAgentCommit);
+		if (!githubLatestOk) {
 			errors.push(
 				`GitHub published/latest.json points at ${githubLatestCommit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 			);
 		}
-		if (!(await acceptableCommit(githubAgentCommit))) {
+		if (!githubAgentOk) {
 			errors.push(
 				`GitHub published/latest-agent.json points at ${githubAgentCommit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 			);
@@ -3463,10 +4787,9 @@ async function verifyPublishedWikiArtifacts(
 		for (const [index, cdnLatest] of cdnLatestResults.entries()) {
 			const url = latestUrls[index];
 			const commit = cdnLatestCommits[url];
-			const pointerIssues = index === 0 ? errors : warnings;
-			if (!cdnLatest.ok) pointerIssues.push(`${url} fetch failed: ${cdnLatest.error}`);
+			if (!cdnLatest.ok) warnings.push(`${url} fetch failed: ${cdnLatest.error}`);
 			else if (!(await acceptableCommit(commit))) {
-				pointerIssues.push(
+				warnings.push(
 					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 				);
 			}
@@ -3474,10 +4797,9 @@ async function verifyPublishedWikiArtifacts(
 		for (const [index, cdnAgent] of cdnAgentResults.entries()) {
 			const url = latestAgentUrls[index];
 			const commit = cdnAgentCommits[url];
-			const pointerIssues = index === 0 ? errors : warnings;
-			if (!cdnAgent.ok) pointerIssues.push(`${url} fetch failed: ${cdnAgent.error}`);
+			if (!cdnAgent.ok) warnings.push(`${url} fetch failed: ${cdnAgent.error}`);
 			else if (!(await acceptableCommit(commit))) {
-				pointerIssues.push(
+				warnings.push(
 					`${url} is stale at ${commit ?? "missing"}, expected ${input.expectedCommit} or a descendant commit`,
 				);
 			}
@@ -3497,15 +4819,11 @@ async function verifyPublishedWikiArtifacts(
 				break;
 			}
 		}
-		if (!errors.length && latestForArtifacts?.value && agentForArtifacts?.value) {
+		const latestArtifactPointer = latestForArtifacts?.value ?? (githubLatestOk ? githubLatest : undefined);
+		const agentArtifactPointer = agentForArtifacts?.value ?? (githubAgentOk ? githubAgent : undefined);
+		if (!errors.length && latestArtifactPointer && agentArtifactPointer) {
 			errors.push(
-				...(await verifyArtifactUrls(
-					fetchImpl,
-					latestForArtifacts.value,
-					agentForArtifacts.value,
-					input,
-					checkedUrls,
-				)),
+				...(await verifyArtifactUrls(fetchImpl, latestArtifactPointer, agentArtifactPointer, input, checkedUrls)),
 			);
 		}
 
@@ -3923,11 +5241,19 @@ async function continueWikiResearchHarness(
 		let contentPlan: WikiContentPlanEnvelope | undefined;
 		let draftInstructions: WikiDraftInstructionsEnvelope | undefined;
 		let chatGptCriticReview: WikiResearchReviewEnvelope | undefined;
+		let artBrief: WikiArtBriefEnvelope | undefined;
 		let researchWorker:
 			| {
 					workerId: string;
 					requestId?: string;
 					conversationUrl?: string;
+					packageId?: string;
+					expectedArtifactName?: string;
+					soulId?: string;
+					soulName?: string;
+					soulPath?: string;
+					soulVersion?: string;
+					soulPromptBytes?: number;
 			  }
 			| undefined;
 		try {
@@ -3954,10 +5280,18 @@ async function continueWikiResearchHarness(
 				contentPlan = chatgptResearch.contentPlan;
 				draftInstructions = chatgptResearch.draftInstructions;
 				chatGptCriticReview = chatgptResearch.criticReview;
+				artBrief = chatgptResearch.artBrief;
 				researchWorker = {
 					workerId: chatgptResearch.workerId,
 					requestId: chatgptResearch.requestId,
 					conversationUrl: chatgptResearch.conversationUrl,
+					packageId: chatgptResearch.packageId,
+					expectedArtifactName: chatgptResearch.expectedArtifactName,
+					soulId: chatgptResearch.soulId,
+					soulName: chatgptResearch.soulName,
+					soulPath: chatgptResearch.soulPath,
+					soulVersion: chatgptResearch.soulVersion,
+					soulPromptBytes: chatgptResearch.soulPromptBytes,
 				};
 			} else {
 				research = discoverResearchBrief(activeIssue, issueBody, sourceDecision.sourceId, steering);
@@ -4035,6 +5369,8 @@ async function continueWikiResearchHarness(
 			workerId: researchWorker?.workerId,
 			requestId: researchWorker?.requestId,
 			conversationUrl: researchWorker?.conversationUrl,
+			packageId: researchWorker?.packageId,
+			expectedArtifactName: researchWorker?.expectedArtifactName,
 			summary: `${researcherMode} research produced ${research.citations.length} citation(s)`,
 		});
 
@@ -4082,8 +5418,18 @@ async function continueWikiResearchHarness(
 		await passGate(state, "content_plan", options, { outputPaths: [planPath] });
 
 		await startGate(state, "draft_builder", options);
-		const draft = draftMarkdown(activeIssue, issueBody, sourceDecision.sourceId!, research, draftInstructions);
-		const draftFile = await writeDraftWorkspace(state, draft);
+		let draft = draftMarkdown(activeIssue, issueBody, sourceDecision.sourceId!, research, draftInstructions, {
+			soulId: researchWorker?.soulId,
+			soulVersion: researchWorker?.soulVersion,
+			creativeMode: options.creativeMode,
+			artifacts: [],
+		});
+		let draftFile = await writeDraftWorkspace(state, draft);
+		if (options.creativeMode === "illustrated") {
+			const illustrated = await generateIllustratedDraft(state, options, draft, artBrief, researchWorker?.soulId);
+			draft = illustrated.draft;
+			draftFile = path.join(getHarnessRunDir(state.runId), "artifacts", "draft", draft.path);
+		}
 		const draftJson = await writeRunFile(
 			state.runId,
 			"responses",
@@ -4142,6 +5488,25 @@ async function continueWikiResearchHarness(
 				message: `Add wiki research draft for #${activeIssue.number}`,
 				sha: existingFile?.sha,
 			});
+			for (const asset of await listDraftAssetFiles(state)) {
+				const existingAsset = client.getFile
+					? await client.getFile(token, {
+							owner: activeIssue.owner,
+							repo: targetRepo,
+							branch,
+							path: asset.repoPath,
+						})
+					: undefined;
+				await client.putFile(token, {
+					owner: activeIssue.owner,
+					repo: targetRepo,
+					branch,
+					path: asset.repoPath,
+					content: new Uint8Array(await Bun.file(asset.absolutePath).arrayBuffer()),
+					message: `Add generated wiki art for #${activeIssue.number}`,
+					sha: existingAsset?.sha,
+				});
+			}
 			await passGate(state, "branch_create", options, { summary: branch });
 			await startGate(state, "pr_create", options);
 			const existingPr = client.listPullRequests

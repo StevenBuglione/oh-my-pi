@@ -195,6 +195,71 @@ export const WikiResearchReviewEnvelopeSchema = z
 	})
 	.strict();
 
+export const WikiResearchPackageManifestSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.research_package_manifest.v1"),
+		package_id: z.string().min(1),
+		run_id: z.string().min(1),
+		attempt: z.enum(["initial", "repair"]),
+		issue_url: z.string().default(""),
+		created_at: z.string().min(1),
+		required_files: z.array(z.string()).default([]),
+	})
+	.strict();
+
+export const WikiArtBriefEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.art_brief.v1"),
+		status: z.enum(["complete", "blocked"]),
+		page_path: z.string().min(1),
+		asset_filename: z.string().min(1),
+		alt: z.string().min(1),
+		prompt: z.string().min(1),
+		placement: z.enum(["after_h1", "hero", "inline"]).default("after_h1"),
+		aspect_ratio: z.string().default("16:9"),
+		style_notes: z.array(z.string()).default([]),
+	})
+	.strict();
+
+const WikiIdeationProposalSchema = z
+	.object({
+		source_id: z.string().min(1),
+		repo_name: z.string().min(1),
+		title: z.string().min(1),
+		objective: z.string().min(1),
+		why_now: z.string().min(1),
+		reader_value: z.string().min(1),
+		novelty_check: z.string().min(1),
+		required_citation_families: z.array(z.string().min(1)).default([]),
+		risk: z.string().default("low"),
+		confidence: z.number().min(0).max(1),
+		decision: z.enum(["create_issue", "skip", "needs_user_decision"]),
+	})
+	.strict();
+
+export const WikiIdeationPacketSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.ideation_packet.v1"),
+		owner: z.string(),
+		repos: z.array(z.string()).default([]),
+		sources: z.array(z.unknown()).default([]),
+		open_issues: z.array(z.unknown()).default([]),
+		published_catalog: z.array(z.unknown()).default([]),
+		recent_successful_pages: z.array(z.unknown()).default([]),
+		source_rotation: z.array(z.unknown()).default([]),
+		steering: z.record(z.string(), z.unknown()).default({}),
+	})
+	.strict();
+
+export const WikiIdeationDecisionEnvelopeSchema = z
+	.object({
+		schema_version: z.literal("omg.wiki.ideation_decision.v1"),
+		status: z.enum(["complete", "blocked"]),
+		summary: z.string(),
+		proposals: z.array(WikiIdeationProposalSchema).default([]),
+	})
+	.strict();
+
 export const ChatGptJsonEnvelopeSchema = z.union([
 	HandoffEnvelopeSchema,
 	PatchEnvelopeSchema,
@@ -209,6 +274,10 @@ export const ChatGptJsonEnvelopeSchema = z.union([
 	WikiDraftInstructionsEnvelopeSchema,
 	WikiPageDraftEnvelopeSchema,
 	WikiResearchReviewEnvelopeSchema,
+	WikiResearchPackageManifestSchema,
+	WikiArtBriefEnvelopeSchema,
+	WikiIdeationPacketSchema,
+	WikiIdeationDecisionEnvelopeSchema,
 ]);
 
 export type HandoffEnvelope = z.infer<typeof HandoffEnvelopeSchema>;
@@ -224,6 +293,11 @@ export type WikiContentPlanEnvelope = z.infer<typeof WikiContentPlanEnvelopeSche
 export type WikiDraftInstructionsEnvelope = z.infer<typeof WikiDraftInstructionsEnvelopeSchema>;
 export type WikiPageDraftEnvelope = z.infer<typeof WikiPageDraftEnvelopeSchema>;
 export type WikiResearchReviewEnvelope = z.infer<typeof WikiResearchReviewEnvelopeSchema>;
+export type WikiResearchPackageManifest = z.infer<typeof WikiResearchPackageManifestSchema>;
+export type WikiArtBriefEnvelope = z.infer<typeof WikiArtBriefEnvelopeSchema>;
+export type WikiIdeationPacket = z.infer<typeof WikiIdeationPacketSchema>;
+export type WikiIdeationDecisionEnvelope = z.infer<typeof WikiIdeationDecisionEnvelopeSchema>;
+export type WikiIdeationProposal = z.infer<typeof WikiIdeationProposalSchema>;
 export type ChatGptJsonEnvelope = z.infer<typeof ChatGptJsonEnvelopeSchema>;
 
 export type HarnessTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
@@ -289,6 +363,8 @@ export interface HarnessGateState {
 	workerId?: string;
 	requestId?: string;
 	conversationUrl?: string;
+	packageId?: string;
+	expectedArtifactName?: string;
 	summary?: string;
 	error?: string;
 	artifactRequest?: {

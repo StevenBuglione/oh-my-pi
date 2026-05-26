@@ -43,6 +43,26 @@ export default class WikiResearch extends Command {
 			description: "Allow deterministic research fallback if ChatGPT fails",
 		}),
 		"max-issues": Flags.integer({ description: "Maximum queued issues to process", default: 1 }),
+		"max-failures-per-cycle": Flags.integer({
+			description: "Maximum blocked content attempts before ending a queue/autopilot cycle",
+			default: 2,
+		}),
+		ideation: Flags.string({ description: "Empty-queue ideation mode: auto or off", default: "auto" }),
+		"ideation-min-confidence": Flags.string({
+			description: "Minimum ChatGPT ideation confidence required to create an issue",
+			default: "0.75",
+		}),
+		soul: Flags.string({ description: "Named soul or SOUL.md path for ChatGPT creative/wiki writing" }),
+		"soul-repo": Flags.string({ description: "Path to an omg-souls checkout or compatible soul registry" }),
+		"creative-mode": Flags.string({ description: "Creative wiki mode: off or illustrated", default: "off" }),
+		"chatgpt-model-option": Flags.string({
+			description: "ChatGPT model selector for live wiki workers",
+			default: "Thinking",
+		}),
+		"chatgpt-thinking-option": Flags.string({
+			description: "ChatGPT thinking selector for live wiki workers",
+			default: "Heavy",
+		}),
 		"publish-attempts": Flags.integer({ description: "Maximum publish verification retry attempts", default: 12 }),
 		"interval-seconds": Flags.integer({
 			description: "Autopilot sleep interval between queue cycles",
@@ -150,6 +170,17 @@ export default class WikiResearch extends Command {
 		const researcher =
 			flags.researcher === "chatgpt" || flags.researcher === "deterministic" ? flags.researcher : undefined;
 		if (flags.researcher && !researcher) throw new Error("--researcher must be chatgpt or deterministic");
+		const ideationMode = flags.ideation === "off" ? "off" : "auto";
+		if (flags.ideation && flags.ideation !== "auto" && flags.ideation !== "off")
+			throw new Error("--ideation must be auto or off");
+		const ideationMinConfidence = Number(flags["ideation-min-confidence"]);
+		if (!Number.isFinite(ideationMinConfidence) || ideationMinConfidence < 0 || ideationMinConfidence > 1) {
+			throw new Error("--ideation-min-confidence must be a number from 0 to 1");
+		}
+		const creativeMode = flags["creative-mode"] === "illustrated" ? "illustrated" : "off";
+		if (flags["creative-mode"] && flags["creative-mode"] !== "off" && flags["creative-mode"] !== "illustrated") {
+			throw new Error("--creative-mode must be off or illustrated");
+		}
 		const repos = flags.repo ? [flags.repo] : parseWikiResearchRepoFlag(flags.repos);
 		const onEvent = (message: string) => {
 			if (flags.json) process.stderr.write(`${JSON.stringify({ type: "wiki-research-event", message })}\n`);
@@ -170,7 +201,15 @@ export default class WikiResearch extends Command {
 					researcher: researcher ?? "chatgpt",
 					allowDeterministicFallback: flags["allow-deterministic-fallback"],
 					maxIssues: flags["max-issues"],
+					maxFailuresPerCycle: flags["max-failures-per-cycle"],
 					seedWhenEmpty: true,
+					ideationMode,
+					ideationMinConfidence,
+					soul: flags.soul,
+					soulRepo: flags["soul-repo"],
+					creativeMode,
+					chatGptModelOption: flags["chatgpt-model-option"],
+					chatGptThinkingOption: flags["chatgpt-thinking-option"],
 					onEvent,
 				});
 				if (flags.json) {
@@ -206,6 +245,14 @@ export default class WikiResearch extends Command {
 			researcher,
 			allowDeterministicFallback: flags["allow-deterministic-fallback"],
 			maxIssues: flags["max-issues"],
+			maxFailuresPerCycle: flags["max-failures-per-cycle"],
+			ideationMode,
+			ideationMinConfidence,
+			soul: flags.soul,
+			soulRepo: flags["soul-repo"],
+			creativeMode,
+			chatGptModelOption: flags["chatgpt-model-option"],
+			chatGptThinkingOption: flags["chatgpt-thinking-option"],
 			onEvent,
 		});
 		if (flags.json) {
